@@ -1,0 +1,35 @@
+const express = require("express");
+const router = express.Router();
+const {
+  getAllBeauticians,
+  getBeauticianById,
+  createBeautician,
+  updateBeautician,
+  deleteBeautician,
+  verifyDocuments,
+  updateBeauticianStatus,
+  getBeauticianSkills,
+  updateBeauticianSkills,
+  getAvailableBeauticians,
+  getNearbyBeauticians,
+} = require("../controllers/beauticianController");
+const { protect, authorizeRoles } = require("../middleware/authMiddleware");
+
+// Public / Customer routes
+router.get("/available", protect, getAvailableBeauticians);
+router.get("/nearby", protect, getNearbyBeauticians);
+
+// General
+router.get("/", protect, getAllBeauticians);
+router.get("/:id", protect, getBeauticianById);
+router.get("/:id/skills", protect, getBeauticianSkills);
+
+// Admin only
+router.post("/", protect, authorizeRoles("SuperAdmin", "Admin"), createBeautician);
+router.put("/:id", protect, authorizeRoles("SuperAdmin", "Admin"), updateBeautician);
+router.delete("/:id", protect, authorizeRoles("SuperAdmin", "Admin"), deleteBeautician);
+router.post("/:id/verify", protect, authorizeRoles("SuperAdmin", "Admin"), verifyDocuments);
+router.put("/:id/status", protect, authorizeRoles("SuperAdmin", "Admin"), updateBeauticianStatus);
+router.put("/:id/skills", protect, authorizeRoles("SuperAdmin", "Admin"), updateBeauticianSkills);
+
+module.exports = router;

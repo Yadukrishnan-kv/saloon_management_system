@@ -1,0 +1,35 @@
+const express = require("express");
+const router = express.Router();
+const {
+  getProfile,
+  updateProfile,
+  changePassword,
+  addAddress,
+  getAddresses,
+  updateAddress,
+  deleteAddress,
+  getBookingHistory,
+  getBookingById,
+} = require("../controllers/mobileappUserController");
+const { protect, authorizeRoles } = require("../middleware/authMiddleware");
+const upload = require("../middleware/uploadMiddleware");
+
+// All routes require authentication and Customer role
+router.use(protect, authorizeRoles("Customer"));
+
+// Profile
+router.get("/profile", getProfile);
+router.put("/profile", upload.single("profileImage"), updateProfile);
+router.put("/change-password", changePassword);
+
+// Addresses
+router.post("/add-address", addAddress);
+router.get("/addresses", getAddresses);
+router.put("/address/:id", updateAddress);
+router.delete("/address/:id", deleteAddress);
+
+// Booking history
+router.get("/booking-history", getBookingHistory);
+router.get("/booking/:id", getBookingById);
+
+module.exports = router;

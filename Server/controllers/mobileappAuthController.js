@@ -1,0 +1,397 @@
+const User = require("../models/User");
+const Beautician = require("../models/Beautician");
+const OTP = require("../models/OTP");
+const Wallet = require("../models/Wallet");
+const { generateOTP, getOTPExpiry } = require("../utils/otpGenerator");
+const { sendOTPSMS } = require("../utils/smsSender");
+const sendEmail = require("../utils/emailSender");
+const { generateToken } = require("../utils/tokenHelper");
+const {
+  validateCustomerRegister,
+  validateBeauticianRegister,
+} = require("../utils/validators");
+
+// ─── CUSTOMER REGISTRATION ────────────────────────────────────────────────────
+const customerRegister = async (req, res) => {
+  try {
+    const { isValid, errors } = validateCustomerRegister(req.body);
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: "Validation failed", errors });
+    }
+
+    const { name, email, phone, password } = req.body;
+
+    const existing = await User.findOne({ $or: [{ email }, { phoneNumber: phone }] });
+    if (existing) {
+      return res.status(400).json({ success: false, message: "Email or phone number already in use" });
+    }
+
+    const user = await User.create({
+      username: name,
+      email,
+      password,
+      phoneNumber: phone,
+      role: "Customer",
+    });
+
+    // Generate and send OTP
+    const otp = generateOTP();
+    await OTP.create({
+      user: user._id,
+      otp,
+      type: "email",
+      purpose: "registration",
+      expiresAt: getOTPExpiry(),
+    });
+
+    // Send OTP via email
+    await sendEmail({
+      to: email,
+      subject: "Verify Your Account - Salon App",
+      html: `<h2>Welcome to Salon App!</h2><p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
+    });
+
+    // Send OTP via SMS
+    await sendOTPSMS(phone, otp);
+
+    // Create wallet for customer
+    await Wallet.create({ user: user._id });
+
+    res.status(201).json({
+      success: true,
+      message: "Registration successful. Please verify your account.",
+      userId: user._id,
+      requiresOTP: true,
+    });
+  } catch (error) {
+    console.error("Customer register error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── VERIFY OTP ────────────────────────────────────────────────────────────────
+const verifyOTP = async (req, res) => {
+  try {
+    const { userId, otp, type } = req.body;
+
+    if (!userId || !otp || !type) {
+      return res.status(400).json({ success: false, message: "userId, otp, and type are required" });
+    }
+
+    const otpRecord = await OTP.findOne({
+      user: userId,
+      type,
+      isUsed: false,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 });
+
+    if (!otpRecord) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+    }
+
+    if (otpRecord.attempts >= otpRecord.maxAttempts) {
+      return res.status(400).json({ success: false, message: "Maximum OTP attempts exceeded. Please request a new OTP." });
+    }
+
+    if (otpRecord.otp !== otp) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    otpRecord.isUsed = true;
+    await otpRecord.save();
+
+    const user = await User.findById(userId).select("-password");
+    const token = generateToken(user._id);
+
+    res.json({
+      success: true,
+      message: "Verification successful",
+      token,
+      user,
+    });
+  } catch (error) {
+    console.error("Verify OTP error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── CUSTOMER LOGIN ────────────────────────────────────────────────────────────
+const customerLogin = async (req, res) => {
+  try {
+    const { email, phone, password } = req.body;
+    const loginField = email || phone;
+
+    if (!loginField || !password) {
+      return res.status(400).json({ success: false, message: "Email/phone and password are required" });
+    }
+
+    const query = email ? { email } : { phoneNumber: phone };
+    const user = await User.findOne({ ...query, role: "Customer" }).select("+password");
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, message: "Account is deactivated. Contact support." });
+    }
+
+    if (user.isSuspended) {
+      return res.status(403).json({ success: false, message: "Account is suspended. Contact support." });
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+
+    const token = generateToken(user._id);
+    const safeUser = await User.findById(user._id).select("-password");
+
+    const profileComplete = !!(safeUser.username && safeUser.email && safeUser.phoneNumber);
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      token,
+      user: safeUser,
+      profileComplete,
+    });
+  } catch (error) {
+    console.error("Customer login error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── RESEND OTP ────────────────────────────────────────────────────────────────
+const resendOTP = async (req, res) => {
+  try {
+    const { userId, type } = req.body;
+
+    if (!userId || !type) {
+      return res.status(400).json({ success: false, message: "userId and type are required" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Invalidate previous OTPs
+    await OTP.updateMany(
+      { user: userId, type, isUsed: false },
+      { isUsed: true }
+    );
+
+    const otp = generateOTP();
+    await OTP.create({
+      user: userId,
+      otp,
+      type,
+      purpose: "registration",
+      expiresAt: getOTPExpiry(),
+    });
+
+    if (type === "email") {
+      await sendEmail({
+        to: user.email,
+        subject: "Your OTP Code - Salon App",
+        html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
+      });
+    } else {
+      await sendOTPSMS(user.phoneNumber, otp);
+    }
+
+    res.json({ success: true, message: `OTP sent to your ${type}` });
+  } catch (error) {
+    console.error("Resend OTP error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── BEAUTICIAN REGISTRATION ──────────────────────────────────────────────────
+const beauticianRegister = async (req, res) => {
+  try {
+    const { isValid, errors } = validateBeauticianRegister(req.body);
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: "Validation failed", errors });
+    }
+
+    const { name, email, phone, password, experience, skills } = req.body;
+
+    const existing = await User.findOne({ $or: [{ email }, { phoneNumber: phone }] });
+    if (existing) {
+      return res.status(400).json({ success: false, message: "Email or phone number already in use" });
+    }
+
+    const user = await User.create({
+      username: name,
+      email,
+      password,
+      phoneNumber: phone,
+      role: "Beautician",
+    });
+
+    // Handle PCC document upload
+    let pccDocument = {};
+    if (req.files && req.files.pccDocument) {
+      pccDocument = {
+        documentUrl: `/uploads/${req.files.pccDocument[0].filename}`,
+        isVerified: false,
+        uploadedAt: new Date(),
+      };
+    } else if (req.file) {
+      pccDocument = {
+        documentUrl: `/uploads/${req.file.filename}`,
+        isVerified: false,
+        uploadedAt: new Date(),
+      };
+    }
+
+    const beautician = await Beautician.create({
+      user: user._id,
+      fullName: name,
+      phoneNumber: phone,
+      experience: experience || 0,
+      skills: skills || [],
+      verificationStatus: "Pending",
+      status: "Inactive",
+      pccDocument,
+    });
+
+    // Create wallet for beautician with ₹1000 initial balance
+    const INITIAL_WALLET_BALANCE = 1000;
+    await Wallet.create({
+      user: user._id,
+      balance: INITIAL_WALLET_BALANCE,
+      initialBalanceLoaded: true,
+      transactions: [
+        {
+          type: "credit",
+          amount: INITIAL_WALLET_BALANCE,
+          description: "Welcome bonus - Initial wallet balance",
+          status: "completed",
+        },
+      ],
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Registration successful. Your account is pending admin verification.",
+      beauticianId: beautician._id,
+      requiresVerification: true,
+      pccUploaded: !!pccDocument.documentUrl,
+      walletBalance: INITIAL_WALLET_BALANCE,
+    });
+  } catch (error) {
+    console.error("Beautician register error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── BEAUTICIAN LOGIN ─────────────────────────────────────────────────────────
+const beauticianLogin = async (req, res) => {
+  try {
+    const { email, phone, password } = req.body;
+    const loginField = email || phone;
+
+    if (!loginField || !password) {
+      return res.status(400).json({ success: false, message: "Email/phone and password are required" });
+    }
+
+    const query = email ? { email } : { phoneNumber: phone };
+    const user = await User.findOne({ ...query, role: "Beautician" }).select("+password");
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, message: "Account is deactivated. Contact support." });
+    }
+
+    if (user.isSuspended) {
+      return res.status(403).json({ success: false, message: "Account is suspended. Contact support." });
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+
+    const token = generateToken(user._id);
+    const beautician = await Beautician.findOne({ user: user._id });
+    const safeUser = await User.findById(user._id).select("-password");
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      token,
+      beautician: {
+        ...safeUser.toObject(),
+        beauticianProfile: beautician,
+      },
+      verificationStatus: beautician?.verificationStatus || "Pending",
+    });
+  } catch (error) {
+    console.error("Beautician login error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── UPLOAD DOCUMENTS ──────────────────────────────────────────────────────────
+const uploadDocuments = async (req, res) => {
+  try {
+    const beautician = await Beautician.findOne({ user: req.user._id });
+    if (!beautician) {
+      return res.status(404).json({ success: false, message: "Beautician profile not found" });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, message: "No files uploaded" });
+    }
+
+    const documents = req.files.map((file) => ({
+      documentType: req.body.documentType || "certificate",
+      documentUrl: `/uploads/${file.filename}`,
+      isVerified: false,
+    }));
+
+    beautician.documents.push(...documents);
+    await beautician.save();
+
+    res.json({
+      success: true,
+      message: "Documents uploaded successfully",
+    });
+  } catch (error) {
+    console.error("Upload documents error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── LOGOUT ────────────────────────────────────────────────────────────────────
+const logout = async (req, res) => {
+  try {
+    // Invalidate refresh token
+    await User.findByIdAndUpdate(req.user._id, { refreshToken: null });
+
+    res.json({ success: true, message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+module.exports = {
+  customerRegister,
+  verifyOTP,
+  customerLogin,
+  resendOTP,
+  beauticianRegister,
+  beauticianLogin,
+  uploadDocuments,
+  logout,
+};

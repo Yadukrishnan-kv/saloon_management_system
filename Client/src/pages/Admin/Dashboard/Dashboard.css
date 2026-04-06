@@ -1,0 +1,105 @@
+.dashboard-layout { min-height: 100vh; background: #f5f6fa; }
+
+.main-content {
+  margin-top: 64px;
+  margin-left: 260px;
+  padding: 24px;
+  transition: margin-left 0.3s ease;
+}
+
+.main-content.sidebar-collapsed { margin-left: 70px; }
+
+@media (max-width: 768px) {
+  .main-content { margin-left: 70px; }
+}
+
+.page-header { margin-bottom: 24px; }
+.page-header h1 { font-size: 26px; color: #2d3436; margin: 0 0 4px; }
+.page-header p { color: #b2bec3; margin: 0; font-size: 14px; }
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.dashboard-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.dashboard-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.dashboard-section h2 {
+  font-size: 17px;
+  color: #2d3436;
+  margin: 0 0 16px;
+}
+
+.activity-list { display: flex; flex-direction: column; gap: 12px; }
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.activity-item:last-child { border-bottom: none; }
+
+.activity-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.activity-info strong { font-size: 14px; color: #2d3436; }
+
+.status-badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status-requested { background: #fff3e0; color: #f39c12; }
+.status-assigned { background: #e3f2fd; color: #0984e3; }
+.status-accepted { background: #e8f5e9; color: #00b894; }
+.status-inprogress { background: #f3e5f5; color: #9b59b6; }
+.status-completed { background: #e8f5e9; color: #27ae60; }
+.status-cancelled { background: #fde8e8; color: #e74c3c; }
+
+.activity-role {
+  padding: 2px 8px;
+  background: #f0f0ff;
+  color: #6c5ce7;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.activity-meta { font-size: 13px; color: #b2bec3; }
+
+.no-data { color: #b2bec3; font-size: 14px; text-align: center; padding: 20px 0; }
+
+@media (max-width: 1024px) {
+  .main-content.sidebar-open { margin-left: 0; }
+}
+
+@media (max-width: 768px) {
+  .dashboard-sections { grid-template-columns: 1fr; }
+  .metrics-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 480px) {
+  .metrics-grid { grid-template-columns: 1fr; }
+  .main-content { padding: 16px; }
+}
