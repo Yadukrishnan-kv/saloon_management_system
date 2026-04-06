@@ -1,31 +1,7 @@
-# SalonPro - Complete Salon Management System
 
-A full-stack **Salon Management System** built with the MERN stack (MongoDB, Express.js, React.js, Node.js). The platform includes a **web-based admin panel** and **mobile app backend APIs** for Customer and Beautician apps (React Native / Flutter).
-
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Features](#features)
-  - [Web Admin Panel](#web-admin-panel-features)
-  - [Mobile App APIs](#mobile-app-api-features)
-- [Database Models](#database-models)
-- [API Documentation](#api-documentation)
-  - [Web Admin APIs](#web-admin-apis)
-  - [Mobile App APIs](#mobile-app-apis)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
-- [User Roles](#user-roles)
-- [Booking Lifecycle](#booking-lifecycle)
-
----
 
 ## Overview
 
-SalonPro provides an end-to-end solution for salon businesses:
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
