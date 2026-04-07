@@ -12,6 +12,11 @@ const serviceCategorySchema = new Schema(
       type: String,
       default: "",
     },
+    parentCategory: {
+      type: Schema.Types.ObjectId,
+      ref: "ServiceCategory",
+      default: null,
+    },
     image: {
       type: String,
       default: "",
@@ -27,6 +32,8 @@ const serviceCategorySchema = new Schema(
   },
   { timestamps: true }
 );
+
+serviceCategorySchema.index({ parentCategory: 1, sortOrder: 1 });
 
 const ServiceCategory = model("ServiceCategory", serviceCategorySchema);
 module.exports = ServiceCategory;

@@ -5,8 +5,21 @@ export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const loadPermissions = async () => {
+    try {
+      const { data } = await api.get("/api/roles/me");
+      const rolePermissions = data.permissions || [];
+      setPermissions(rolePermissions);
+      return rolePermissions;
+    } catch (error) {
+      setPermissions([]);
+      return [];
+    }
+  };
 
   useEffect(() => {
     const loadUser = async () => {
@@ -19,11 +32,13 @@ export const AuthProvider = ({ children }) => {
       try {
         const { data } = await api.get("/api/auth/me");
         setUser(data.user);
+        await loadPermissions();
         setIsAuthenticated(true);
       } catch (error) {
         localStorage.removeItem("token");
         localStorage.removeItem("refreshToken");
         setUser(null);
+        setPermissions([]);
         setIsAuthenticated(false);
       } finally {
         setLoading(false);
@@ -38,8 +53,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("token", data.token);
     localStorage.setItem("refreshToken", data.refreshToken);
     setUser(data.user);
+    const rolePermissions = await loadPermissions();
     setIsAuthenticated(true);
-    return data;
+    return { ...data, permissions: rolePermissions };
   };
 
   const register = async (formData) => {
@@ -47,8 +63,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("token", data.token);
     localStorage.setItem("refreshToken", data.refreshToken);
     setUser(data.user);
+    const rolePermissions = await loadPermissions();
     setIsAuthenticated(true);
-    return data;
+    return { ...data, permissions: rolePermissions };
   };
 
   const logout = async () => {
@@ -60,6 +77,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
     localStorage.removeItem("refreshToken");
     setUser(null);
+    setPermissions([]);
     setIsAuthenticated(false);
   };
 
@@ -71,6 +89,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         user,
+        permissions,
         loading,
         isAuthenticated,
         login,

@@ -12,6 +12,13 @@ import { formatDateTime } from "../../../utils/helpers";
 import "../UserManagement/UserList/UserList.css";
 
 const CosmeticManagement = () => {
+  const modalGridStyle = {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "16px",
+    alignItems: "start",
+  };
+  const fullWidthStyle = { gridColumn: "1 / -1" };
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState("items");
   const [items, setItems] = useState([]);
@@ -21,7 +28,8 @@ const CosmeticManagement = () => {
   const [orderModal, setOrderModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [form, setForm] = useState({ name: "", description: "", category: "", brand: "", price: "", stockQuantity: "" });
+  const [form, setForm] = useState({ name: "", description: "", category: "", subCategory: "", brand: "", price: "", stockQuantity: "" });
+  const [categories, setCategories] = useState([]);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -32,6 +40,15 @@ const CosmeticManagement = () => {
       toast.error("Failed to load cosmetic items");
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const { data } = await api.get("/api/categories");
+      setCategories(data);
+    } catch (error) {
+      // silently ignore - categories are optional
     }
   }, []);
 
@@ -52,6 +69,13 @@ const CosmeticManagement = () => {
     else fetchOrders();
   }, [activeTab, fetchItems, fetchOrders]);
 
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+
+  const topLevelCategories = categories.filter((c) => !c.parentCategory);
+  const subCategoriesForSelected = categories.filter(
+    (c) => c.parentCategory && (c.parentCategory._id || c.parentCategory) === form.category
+  );
+
   const handleSaveItem = async () => {
     try {
       if (!form.name || !form.category || !form.price) {
@@ -66,7 +90,7 @@ const CosmeticManagement = () => {
       }
       setItemModal(false);
       setEditing(null);
-      setForm({ name: "", description: "", category: "", brand: "", price: "", stockQuantity: "" });
+      setForm({ name: "", description: "", category: "", subCategory: "", brand: "", price: "", stockQuantity: "" });
       fetchItems();
     } catch (error) {
       toast.error("Failed to save item");
@@ -109,7 +133,7 @@ const CosmeticManagement = () => {
       key: "actions", label: "Actions",
       render: (row) => (
         <div style={{ display: "flex", gap: "6px" }}>
-          <button className="action-btn edit" onClick={() => { setEditing(row); setForm({ name: row.name, description: row.description || "", category: row.category, brand: row.brand || "", price: row.price, stockQuantity: row.stockQuantity }); setItemModal(true); }}><FiEdit /></button>
+          <button className="action-btn edit" onClick={() => { setEditing(row); setForm({ name: row.name, description: row.description || "", category: row.category?._id || row.category, subCategory: row.subCategory?._id || row.subCategory || "", brand: row.brand || "", price: row.price, stockQuantity: row.stockQuantity }); setItemModal(true); }}><FiEdit /></button>
           <button className="action-btn" onClick={() => handleDeleteItem(row._id)} style={{ color: "#e74c3c" }}><FiTrash2 /></button>
         </div>
       ),
@@ -147,7 +171,7 @@ const CosmeticManagement = () => {
             <Button variant={activeTab === "items" ? "primary" : "secondary"} onClick={() => setActiveTab("items")}>Items</Button>
             <Button variant={activeTab === "orders" ? "primary" : "secondary"} onClick={() => setActiveTab("orders")}>Orders</Button>
             {activeTab === "items" && (
-              <Button onClick={() => { setEditing(null); setForm({ name: "", description: "", category: "", brand: "", price: "", stockQuantity: "" }); setItemModal(true); }}><FiPlus /> Add Item</Button>
+              <Button onClick={() => { setEditing(null); setForm({ name: "", description: "", category: "", subCategory: "", brand: "", price: "", stockQuantity: "" }); setItemModal(true); }}><FiPlus /> Add Item</Button>
             )}
           </div>
         </div>
@@ -162,29 +186,41 @@ const CosmeticManagement = () => {
 
         {/* Item Create/Edit Modal */}
         <Modal isOpen={itemModal} onClose={() => setItemModal(false)} title={editing ? "Edit Item" : "Add Cosmetic Item"}>
-          <div className="form-group">
-            <label>Name *</label>
-            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px" }} />
-          </div>
-          <div className="form-group">
-            <label>Category *</label>
-            <input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Hair Care, Skin Care" style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px" }} />
-          </div>
-          <div className="form-group">
-            <label>Brand</label>
-            <input type="text" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px" }} />
-          </div>
-          <div className="form-group">
-            <label>Price (₹) *</label>
-            <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px" }} />
-          </div>
-          <div className="form-group">
-            <label>Stock Quantity</label>
-            <input type="number" value={form.stockQuantity} onChange={(e) => setForm({ ...form, stockQuantity: e.target.value })} style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px" }} />
-          </div>
-          <div className="form-group">
-            <label>Description</label>
-            <textarea rows="3" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px", fontFamily: "inherit" }} />
+          <div style={modalGridStyle}>
+            <div className="form-group">
+              <label>Name *</label>
+              <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Enter item name" style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px" }} />
+            </div>
+            <div className="form-group">
+              <label>Brand</label>
+              <input type="text" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="Enter brand name" style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px" }} />
+            </div>
+            <div className="form-group">
+              <label>Category *</label>
+              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value, subCategory: "" })} style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px" }}>
+                <option value="">Select Category</option>
+                {topLevelCategories.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Sub Category</label>
+              <select value={form.subCategory} onChange={(e) => setForm({ ...form, subCategory: e.target.value })} disabled={!form.category} style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px" }}>
+                <option value="">Select Sub Category (optional)</option>
+                {subCategoriesForSelected.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Price (₹) *</label>
+              <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px" }} />
+            </div>
+            <div className="form-group">
+              <label>Stock Quantity</label>
+              <input type="number" value={form.stockQuantity} onChange={(e) => setForm({ ...form, stockQuantity: e.target.value })} placeholder="0" style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px" }} />
+            </div>
+            <div className="form-group" style={fullWidthStyle}>
+              <label>Description</label>
+              <textarea rows="4" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Add a short cosmetic item description" style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px", fontFamily: "inherit", resize: "vertical" }} />
+            </div>
           </div>
           <div className="form-actions">
             <Button variant="secondary" onClick={() => setItemModal(false)}>Cancel</Button>

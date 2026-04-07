@@ -23,7 +23,7 @@ const complaintSchema = new Schema(
     },
     category: {
       type: String,
-      enum: ["Service", "Beautician", "Payment", "App", "Other"],
+      enum: ["Service", "Beautician", "Payment", "Inquiry", "Dispute", "App", "Other"],
       default: "Other",
     },
     status: {

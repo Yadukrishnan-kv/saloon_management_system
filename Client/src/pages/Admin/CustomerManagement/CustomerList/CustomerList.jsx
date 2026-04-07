@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { FiSearch, FiPlus, FiEdit2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { FiPlus, FiEdit2, FiTrash2, FiSearch } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Header from "../../../../components/layout/Header/Header";
 import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
@@ -8,79 +8,52 @@ import Table from "../../../../components/common/Table/Table";
 import Button from "../../../../components/common/Button/Button";
 import Loading from "../../../../components/common/Loading/Loading";
 import api from "../../../../utils/api";
-import "./UserList.css";
+import { formatDateTime } from "../../../../utils/helpers";
+import "../../UserManagement/UserList/UserList.css";
 
-const UserList = () => {
+const CustomerList = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [users, setUsers] = useState([]);
-  const [roles, setRoles] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
 
-  const fetchUsers = useCallback(async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/api/users/getAllUsers", {
-        params: { page, limit: 10, search, role: roleFilter },
+      const { data } = await api.get("/api/users/customers", {
+        params: { page, limit: 10, search, status: statusFilter },
       });
-      setUsers(data.users);
-      setTotalPages(data.totalPages);
+      setCustomers(data.users || []);
+      setTotalPages(data.totalPages || 1);
     } catch (error) {
-      toast.error("Failed to load users");
+      toast.error("Failed to load customers");
     } finally {
       setLoading(false);
     }
-  }, [page, search, roleFilter]);
+  }, [page, search, statusFilter]);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
-
-  useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        const { data } = await api.get("/api/roles");
-        setRoles(
-          (data.roles || []).filter(
-            (role) => role.isActive && !["Customer", "Beautician"].includes(role.name)
-          )
-        );
-      } catch (error) {
-        // keep user list usable even when roles endpoint fails
-      }
-    };
-    fetchRoles();
-  }, []);
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
-    try {
-      await api.delete(`/api/users/deleteUser/${id}`);
-      toast.success("User deleted successfully");
-      fetchUsers();
-    } catch (error) {
-      toast.error("Failed to delete user");
-    }
-  };
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   const handleStatusChange = async (id, action) => {
     try {
-      await api.put(`/api/users/${id}/status`, { action });
-      toast.success(`User ${action}d successfully`);
-      fetchUsers();
+      await api.put(`/api/users/customers/${id}/status`, { action });
+      toast.success(`Customer ${action}d successfully`);
+      fetchCustomers();
     } catch (error) {
-      toast.error("Failed to update user status");
+      toast.error(error.response?.data?.message || "Failed to update customer status");
     }
   };
 
   const columns = [
-    { key: "username", label: "Username" },
+    { key: "username", label: "Customer Name" },
     { key: "email", label: "Email" },
-    { key: "role", label: "Role", render: (row) => <span className="role-badge">{row.role}</span> },
+    { key: "phoneNumber", label: "Phone", render: (row) => row.phoneNumber || "-" },
     {
       key: "status",
       label: "Status",
@@ -90,12 +63,13 @@ const UserList = () => {
         </span>
       ),
     },
+    { key: "createdAt", label: "Joined On", render: (row) => formatDateTime(row.createdAt) },
     {
       key: "actions",
       label: "Actions",
       render: (row) => (
         <div className="table-actions">
-          <button className="action-btn edit" onClick={() => navigate(`/admin/users/create?edit=${row._id}`)} title="Edit">
+          <button className="action-btn edit" onClick={() => navigate(`/admin/customers/add?edit=${row._id}`)} title="Edit">
             <FiEdit2 />
           </button>
           {row.isActive && !row.isSuspended && (
@@ -108,14 +82,16 @@ const UserList = () => {
               </button>
             </>
           )}
+          {row.isSuspended && (
+            <button className="action-btn success" onClick={() => handleStatusChange(row._id, "activate")} title="Un-suspend">
+              U
+            </button>
+          )}
           {!row.isActive && (
             <button className="action-btn success" onClick={() => handleStatusChange(row._id, "activate")} title="Activate">
               A
             </button>
           )}
-          <button className="action-btn danger" onClick={() => handleDelete(row._id)} title="Delete">
-            <FiTrash2 />
-          </button>
         </div>
       ),
     },
@@ -129,15 +105,10 @@ const UserList = () => {
       <main className={`main-content ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         <div className="page-header">
           <div>
-            <h1>User Management</h1>
-            <p>Manage all system users</p>
+            <h1>Customer</h1>
+            <p>View customer profiles and manage customer account status</p>
           </div>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <Button variant="secondary" onClick={() => navigate("/admin/roles")}>Role Permissions</Button>
-            <Button onClick={() => navigate("/admin/users/create")}>
-              <FiPlus /> Create User
-            </Button>
-          </div>
+          <Button onClick={() => navigate("/admin/customers/add")}><FiPlus /> Add Customer</Button>
         </div>
 
         <div className="filters-row">
@@ -145,16 +116,25 @@ const UserList = () => {
             <FiSearch />
             <input
               type="text"
-              placeholder="Search users..."
+              placeholder="Search customers..."
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
             />
           </div>
-          <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}>
-            <option value="">All Roles</option>
-            {roles.map((role) => (
-              <option key={role._id} value={role.name}>{role.name}</option>
-            ))}
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="suspended">Suspended</option>
           </select>
         </div>
 
@@ -162,7 +142,7 @@ const UserList = () => {
           <Loading />
         ) : (
           <>
-            <Table columns={columns} data={users} emptyMessage="No users found" />
+            <Table columns={columns} data={customers} emptyMessage="No customers found" />
             {totalPages > 1 && (
               <div className="pagination">
                 <button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
@@ -177,4 +157,4 @@ const UserList = () => {
   );
 };
 
-export default UserList;
+export default CustomerList;

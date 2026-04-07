@@ -13,10 +13,15 @@ import Register from "./pages/Auth/Register/Register";
 import Dashboard from "./pages/Admin/Dashboard/Dashboard";
 import UserList from "./pages/Admin/UserManagement/UserList/UserList";
 import CreateUser from "./pages/Admin/UserManagement/CreateUser/CreateUser";
+import CustomerList from "./pages/Admin/CustomerManagement/CustomerList/CustomerList";
+import AddCustomer from "./pages/Admin/CustomerManagement/AddCustomer/AddCustomer";
+import RoleList from "./pages/Admin/RoleManagement/RoleList/RoleList";
+import CreateRole from "./pages/Admin/RoleManagement/CreateRole/CreateRole";
 import BeauticianList from "./pages/Admin/BeauticianManagement/BeauticianList/BeauticianList";
 import AddBeautician from "./pages/Admin/BeauticianManagement/AddBeautician/AddBeautician";
 import BeauticianVerification from "./pages/Admin/BeauticianManagement/BeauticianVerification/BeauticianVerification";
 import ServiceCategories from "./pages/Admin/ContentManagement/ServiceCategories/ServiceCategories";
+import SubCategories from "./pages/Admin/ContentManagement/SubCategories/SubCategories";
 import PricingConfig from "./pages/Admin/ContentManagement/PricingConfig/PricingConfig";
 import PromotionalBanners from "./pages/Admin/ContentManagement/PromotionalBanners/PromotionalBanners";
 import AllBookings from "./pages/Admin/BookingManagement/AllBookings/AllBookings";
@@ -52,22 +57,27 @@ function App() {
             <Route path="/register" element={<Register />} />
 
             {/* Admin Routes */}
-            <Route path="/dashboard" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><Dashboard /></ProtectedRoute>} />
-            <Route path="/admin/users" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><UserList /></ProtectedRoute>} />
-            <Route path="/admin/users/create" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><CreateUser /></ProtectedRoute>} />
-            <Route path="/admin/beauticians" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><BeauticianList /></ProtectedRoute>} />
-            <Route path="/admin/beauticians/add" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><AddBeautician /></ProtectedRoute>} />
-            <Route path="/admin/beautician-verification" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><BeauticianVerification /></ProtectedRoute>} />
-            <Route path="/admin/categories" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><ServiceCategories /></ProtectedRoute>} />
-            <Route path="/admin/services" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><PricingConfig /></ProtectedRoute>} />
-            <Route path="/admin/banners" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><PromotionalBanners /></ProtectedRoute>} />
-            <Route path="/admin/bookings" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><AllBookings /></ProtectedRoute>} />
-            <Route path="/admin/complaints" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><ComplaintsList /></ProtectedRoute>} />
-            <Route path="/admin/reports" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><RevenueReport /></ProtectedRoute>} />
-            <Route path="/admin/reviews" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><ReviewManagement /></ProtectedRoute>} />
-            <Route path="/admin/cosmetics" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><CosmeticManagement /></ProtectedRoute>} />
-            <Route path="/admin/payouts" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><PayoutManagement /></ProtectedRoute>} />
-            <Route path="/admin/notifications" element={<ProtectedRoute roles={["SuperAdmin", "Admin"]}><AdminNotifications /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute permission="Dashboard"><Dashboard /></ProtectedRoute>} />
+            <Route path="/admin/users" element={<ProtectedRoute permission="User Management"><UserList /></ProtectedRoute>} />
+            <Route path="/admin/users/create" element={<ProtectedRoute permission="User Management"><CreateUser /></ProtectedRoute>} />
+            <Route path="/admin/customers" element={<ProtectedRoute permission="Customer Management"><CustomerList /></ProtectedRoute>} />
+            <Route path="/admin/customers/add" element={<ProtectedRoute permission="Customer Management"><AddCustomer /></ProtectedRoute>} />
+            <Route path="/admin/roles" element={<ProtectedRoute permission="Role"><RoleList /></ProtectedRoute>} />
+            <Route path="/admin/roles/create" element={<ProtectedRoute permission="Role"><CreateRole /></ProtectedRoute>} />
+            <Route path="/admin/beauticians" element={<ProtectedRoute permission="Beauticians"><BeauticianList /></ProtectedRoute>} />
+            <Route path="/admin/beauticians/add" element={<ProtectedRoute permission="Beauticians"><AddBeautician /></ProtectedRoute>} />
+            <Route path="/admin/beautician-verification" element={<ProtectedRoute permission="Beautician Verify"><BeauticianVerification /></ProtectedRoute>} />
+            <Route path="/admin/categories" element={<ProtectedRoute permission="Categories"><ServiceCategories /></ProtectedRoute>} />
+            <Route path="/admin/sub-categories" element={<ProtectedRoute permission="Categories"><SubCategories /></ProtectedRoute>} />
+            <Route path="/admin/services" element={<ProtectedRoute permission="Services"><PricingConfig /></ProtectedRoute>} />
+            <Route path="/admin/banners" element={<ProtectedRoute permission="Banners"><PromotionalBanners /></ProtectedRoute>} />
+            <Route path="/admin/bookings" element={<ProtectedRoute permission="Bookings"><AllBookings /></ProtectedRoute>} />
+            <Route path="/admin/complaints" element={<ProtectedRoute permission="Complaints"><ComplaintsList /></ProtectedRoute>} />
+            <Route path="/admin/reports" element={<ProtectedRoute permission="Reports"><RevenueReport /></ProtectedRoute>} />
+            <Route path="/admin/reviews" element={<ProtectedRoute permission="Reviews"><ReviewManagement /></ProtectedRoute>} />
+            <Route path="/admin/cosmetics" element={<ProtectedRoute permission="Cosmetics"><CosmeticManagement /></ProtectedRoute>} />
+            <Route path="/admin/payouts" element={<ProtectedRoute permission="Payouts"><PayoutManagement /></ProtectedRoute>} />
+            <Route path="/admin/notifications" element={<ProtectedRoute permission="Notifications"><AdminNotifications /></ProtectedRoute>} />
 
             {/* Customer Routes */}
             <Route path="/customer/dashboard" element={<ProtectedRoute roles={["Customer"]}><CustomerDashboard /></ProtectedRoute>} />

@@ -2,6 +2,24 @@ const Banner = require("../models/Banner");
 const Complaint = require("../models/Complaint");
 const Review = require("../models/Review");
 const Beautician = require("../models/Beautician");
+const StaticContent = require("../models/StaticContent");
+
+const DEFAULT_STATIC_CONTENT = [
+  { key: "about", title: "About Us", content: "" },
+  { key: "privacy-policy", title: "Privacy Policy", content: "" },
+  { key: "terms-and-conditions", title: "Terms & Conditions", content: "" },
+  { key: "cancellation-policy", title: "Cancellation Policy", content: "" },
+];
+
+const ensureStaticContentSeeds = async () => {
+  const existing = await StaticContent.find({}, "key").lean();
+  const existingKeys = new Set(existing.map((item) => item.key));
+  const missing = DEFAULT_STATIC_CONTENT.filter((item) => !existingKeys.has(item.key));
+
+  if (missing.length > 0) {
+    await StaticContent.insertMany(missing, { ordered: false });
+  }
+};
 
 // ===== BANNERS =====
 
@@ -59,11 +77,43 @@ const deleteBanner = async (req, res) => {
   }
 };
 
+// ===== STATIC CONTENT =====
+
+const getStaticContent = async (req, res) => {
+  try {
+    await ensureStaticContentSeeds();
+    const pages = await StaticContent.find().sort({ title: 1 });
+    res.json(pages);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const upsertStaticContent = async (req, res) => {
+  try {
+    const { key, title, content } = req.body;
+
+    if (!key || !title) {
+      return res.status(400).json({ message: "Key and title are required" });
+    }
+
+    const page = await StaticContent.findOneAndUpdate(
+      { key },
+      { key, title, content: content || "", updatedBy: req.user._id },
+      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
+    );
+
+    res.json(page);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // ===== COMPLAINTS =====
 
 const getAllComplaints = async (req, res) => {
   try {
-    const { status, priority } = req.query;
+    const { status, priority, category } = req.query;
     const query = {};
 
     if (req.user.role === "Customer") {
@@ -72,6 +122,7 @@ const getAllComplaints = async (req, res) => {
 
     if (status) query.status = status;
     if (priority) query.priority = priority;
+    if (category) query.category = category;
 
     const complaints = await Complaint.find(query)
       .populate("user", "username email role")
@@ -197,6 +248,8 @@ module.exports = {
   createBanner,
   updateBanner,
   deleteBanner,
+  getStaticContent,
+  upsertStaticContent,
   getAllComplaints,
   createComplaint,
   resolveComplaint,

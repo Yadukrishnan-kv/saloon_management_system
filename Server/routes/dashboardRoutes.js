@@ -6,11 +6,11 @@ const {
   getActivity,
   getBookingsOverview,
 } = require("../controllers/dashboardController");
-const { protect, authorizeRoles } = require("../middleware/authMiddleware");
+const { protect, authorizePermission } = require("../middleware/authMiddleware");
 
-router.get("/metrics", protect, authorizeRoles("SuperAdmin", "Admin"), getMetrics);
-router.get("/revenue", protect, authorizeRoles("SuperAdmin", "Admin"), getRevenue);
-router.get("/activity", protect, authorizeRoles("SuperAdmin", "Admin"), getActivity);
-router.get("/bookings-overview", protect, authorizeRoles("SuperAdmin", "Admin"), getBookingsOverview);
+router.get("/metrics", protect, authorizePermission("Dashboard"), getMetrics);
+router.get("/revenue", protect, authorizePermission("Dashboard"), getRevenue);
+router.get("/activity", protect, authorizePermission("Dashboard"), getActivity);
+router.get("/bookings-overview", protect, authorizePermission("Dashboard"), getBookingsOverview);
 
 module.exports = router;

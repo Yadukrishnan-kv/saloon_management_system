@@ -1,0 +1,38 @@
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 14px;
+  background: #fafbff;
+  border: 1px solid #eaeef5;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.permission-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #2d3436;
+}
+
+.permission-item input {
+  accent-color: #6c5ce7;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1024px) {
+  .permission-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .permission-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -5,7 +5,8 @@ const beauticianSchema = new Schema(
     user: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
+      default: null,
     },
     fullName: {
       type: String,

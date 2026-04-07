@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import Header from "../../../../components/layout/Header/Header";
 import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
 import Button from "../../../../components/common/Button/Button";
-import { BEAUTICIAN_SKILLS, DAYS_OF_WEEK } from "../../../../utils/constants";
+import { BEAUTICIAN_SKILLS } from "../../../../constants/constants";
 import api from "../../../../utils/api";
 
 const AddBeautician = () => {
@@ -13,9 +13,19 @@ const AddBeautician = () => {
   const [beauticianId, setBeauticianId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    username: "", email: "", password: "", fullName: "", phoneNumber: "",
-    bio: "", experience: 0, skills: [], location: { address: "", city: "", state: "", pincode: "" },
+    username: "",
+    email: "",
+    password: "",
+    fullName: "",
+    phoneNumber: "",
+    bio: "",
+    qualifications: "",
+    experience: 0,
+    skills: [],
+    location: { address: "", city: "", state: "", pincode: "" },
   });
+  const [documents, setDocuments] = useState([]);
+  const [documentType, setDocumentType] = useState("Identity");
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
   const location = useLocation();
@@ -53,19 +63,34 @@ const AddBeautician = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
+
     setIsLoading(true);
     try {
+      let targetBeauticianId = beauticianId;
+
       if (isEdit) {
         await api.put(`/api/beauticians/${beauticianId}`, {
-          fullName: formData.fullName, phoneNumber: formData.phoneNumber,
-          bio: formData.bio, experience: formData.experience,
-          skills: formData.skills, location: formData.location,
+          fullName: formData.fullName,
+          phoneNumber: formData.phoneNumber,
+          bio: formData.bio,
+          qualifications: formData.qualifications,
+          experience: formData.experience,
+          skills: formData.skills,
+          location: formData.location,
         });
-        toast.success("Beautician updated!");
       } else {
-        await api.post("/api/beauticians", formData);
-        toast.success("Beautician created!");
+        const { data } = await api.post("/api/beauticians", formData);
+        targetBeauticianId = data?._id;
       }
+
+      if (targetBeauticianId && documents.length > 0) {
+        const payload = new FormData();
+        documents.forEach((file) => payload.append("documents", file));
+        payload.append("documentType", documentType);
+        await api.post(`/api/beauticians/${targetBeauticianId}/documents`, payload);
+      }
+
+      toast.success(`Beautician ${isEdit ? "updated" : "created"}!`);
       setTimeout(() => navigate("/admin/beauticians"), 1000);
     } catch (err) {
       toast.error(err.response?.data?.message || "Something went wrong");
@@ -78,10 +103,16 @@ const AddBeautician = () => {
     try {
       const { data } = await api.get(`/api/beauticians/${id}`);
       setFormData({
-        username: data.user?.username || "", email: data.user?.email || "", password: "",
-        fullName: data.fullName || "", phoneNumber: data.phoneNumber || "",
-        bio: data.bio || "", experience: data.experience || 0,
-        skills: data.skills || [], location: data.location || { address: "", city: "", state: "", pincode: "" },
+        username: data.user?.username || "",
+        email: data.user?.email || "",
+        password: "",
+        fullName: data.fullName || "",
+        phoneNumber: data.phoneNumber || "",
+        bio: data.bio || "",
+        qualifications: data.qualifications || "",
+        experience: data.experience || 0,
+        skills: data.skills || [],
+        location: data.location || { address: "", city: "", state: "", pincode: "" },
       });
       setIsEdit(true);
       setBeauticianId(id);
@@ -118,6 +149,7 @@ const AddBeautician = () => {
                 </div>
               </div>
             )}
+
             {!isEdit && (
               <div className="form-group">
                 <label>Password</label>
@@ -125,6 +157,7 @@ const AddBeautician = () => {
                 {errors.password && <p className="error-text">{errors.password}</p>}
               </div>
             )}
+
             <div className="form-row">
               <div className="form-group">
                 <label>Full Name</label>
@@ -137,31 +170,71 @@ const AddBeautician = () => {
                 {errors.phoneNumber && <p className="error-text">{errors.phoneNumber}</p>}
               </div>
             </div>
+
             <div className="form-row">
               <div className="form-group">
                 <label>Experience (years)</label>
                 <input name="experience" type="number" value={formData.experience} onChange={handleChange} min="0" />
               </div>
               <div className="form-group">
-                <label>Bio</label>
-                <input name="bio" value={formData.bio} onChange={handleChange} placeholder="Brief description" />
+                <label>Qualifications</label>
+                <input name="qualifications" value={formData.qualifications} onChange={handleChange} placeholder="e.g. CIDESCO, Diploma" />
               </div>
             </div>
+
+            <div className="form-group">
+              <label>Bio</label>
+              <input name="bio" value={formData.bio} onChange={handleChange} placeholder="Brief description" />
+            </div>
+
             <div className="form-group">
               <label>Skills</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px" }}>
                 {BEAUTICIAN_SKILLS.map((skill) => (
-                  <button key={skill} type="button" onClick={() => handleSkillToggle(skill)}
-                    style={{ padding: "6px 14px", borderRadius: "20px", border: "1.5px solid", cursor: "pointer", fontSize: "13px", fontWeight: 600,
+                  <button
+                    key={skill}
+                    type="button"
+                    onClick={() => handleSkillToggle(skill)}
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: "20px",
+                      border: "1.5px solid",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: 600,
                       background: formData.skills.includes(skill) ? "#6c5ce7" : "#fff",
                       color: formData.skills.includes(skill) ? "#fff" : "#6c5ce7",
-                      borderColor: "#6c5ce7" }}>
+                      borderColor: "#6c5ce7",
+                    }}
+                  >
                     {skill}
                   </button>
                 ))}
               </div>
               {errors.skills && <p className="error-text">{errors.skills}</p>}
             </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Document Type</label>
+                <select value={documentType} onChange={(e) => setDocumentType(e.target.value)}>
+                  <option value="Identity">Identity</option>
+                  <option value="Qualification">Qualification</option>
+                  <option value="Experience">Experience</option>
+                  <option value="Certificate">Certificate</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Upload Documents (optional)</label>
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,image/*"
+                  onChange={(e) => setDocuments(Array.from(e.target.files || []))}
+                />
+              </div>
+            </div>
+
             <h3 style={{ margin: "20px 0 12px", color: "#2d3436" }}>Location</h3>
             <div className="form-row">
               <div className="form-group"><label>Address</label><input name="location.address" value={formData.location.address} onChange={handleChange} /></div>
@@ -171,6 +244,7 @@ const AddBeautician = () => {
               <div className="form-group"><label>State</label><input name="location.state" value={formData.location.state} onChange={handleChange} /></div>
               <div className="form-group"><label>Pincode</label><input name="location.pincode" value={formData.location.pincode} onChange={handleChange} /></div>
             </div>
+
             <div className="form-actions">
               <Button variant="secondary" onClick={() => navigate("/admin/beauticians")}>Cancel</Button>
               <Button type="submit" loading={isLoading}>{isEdit ? "Update" : "Add Beautician"}</Button>

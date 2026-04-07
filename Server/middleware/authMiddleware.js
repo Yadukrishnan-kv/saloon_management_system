@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Beautician = require("../models/Beautician");
+const Role = require("../models/Role");
 
 /**
  * Shared authentication middleware for both Web Admin and Mobile App
@@ -44,6 +45,25 @@ const authorizeRoles = (...roles) => {
   };
 };
 
+const authorizePermission = (permission) => {
+  return async (req, res, next) => {
+    try {
+      const role = await Role.findOne({ name: req.user.role, isActive: true });
+      if (!role) {
+        return res.status(403).json({ success: false, message: "Role is not configured or inactive" });
+      }
+
+      if (!role.permissions.includes(permission)) {
+        return res.status(403).json({ success: false, message: "You do not have permission to perform this action" });
+      }
+
+      next();
+    } catch (error) {
+      return res.status(500).json({ success: false, message: "Server error" });
+    }
+  };
+};
+
 /**
  * Middleware to attach beautician profile to request (used by mobile beautician routes)
  */
@@ -65,4 +85,4 @@ const attachBeauticianProfile = async (req, res, next) => {
   }
 };
 
-module.exports = { protect, authorizeRoles, attachBeauticianProfile };
+module.exports = { protect, authorizeRoles, authorizePermission, attachBeauticianProfile };

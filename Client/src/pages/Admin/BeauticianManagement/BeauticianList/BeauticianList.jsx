@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiCheckCircle, FiXCircle } from "react-icons/fi";
+import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiCheckCircle, FiXCircle, FiEye } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Header from "../../../../components/layout/Header/Header";
 import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
 import Table from "../../../../components/common/Table/Table";
 import Button from "../../../../components/common/Button/Button";
+import Modal from "../../../../components/common/Modal/Modal";
 import Loading from "../../../../components/common/Loading/Loading";
+import BeauticianDetailsCard from "../../../../components/common/BeauticianDetailsCard/BeauticianDetailsCard";
 import api from "../../../../utils/api";
 import "../../UserManagement/UserList/UserList.css";
 
@@ -18,6 +20,7 @@ const BeauticianList = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [selected, setSelected] = useState(null);
   const navigate = useNavigate();
 
   const fetchBeauticians = useCallback(async () => {
@@ -78,6 +81,7 @@ const BeauticianList = () => {
       key: "actions", label: "Actions",
       render: (row) => (
         <div className="table-actions">
+          <button className="action-btn edit" onClick={() => setSelected(row)} title="View details"><FiEye /></button>
           <button className="action-btn edit" onClick={() => navigate(`/admin/beauticians/add?edit=${row._id}`)}><FiEdit2 /></button>
           {row.status !== "Active" && <button className="action-btn success" onClick={() => handleStatusChange(row._id, "Active")} title="Activate">A</button>}
           {row.status === "Active" && <button className="action-btn warning" onClick={() => handleStatusChange(row._id, "Suspended")} title="Suspend">S</button>}
@@ -117,6 +121,9 @@ const BeauticianList = () => {
             )}
           </>
         )}
+        <Modal isOpen={!!selected} onClose={() => setSelected(null)} title="Beautician Details" size="large">
+          <BeauticianDetailsCard beautician={selected} />
+        </Modal>
       </main>
     </div>
   );

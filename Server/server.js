@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const fs = require('fs');
 const connectDB = require('./config/db');
 const seedAdmin = require('./config/seedAdmin');
 
@@ -10,6 +11,8 @@ dotenv.config();
 connectDB().then(() => seedAdmin());
 
 const app = express();
+const clientBuildPath = path.join(__dirname, '..', 'Client', 'build');
+const hasClientBuild = fs.existsSync(path.join(clientBuildPath, 'index.html'));
 
 // Middleware
 app.use(helmet());
@@ -19,12 +22,15 @@ app.use(express.json());
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Serve React build files
-app.use(express.static(path.join(__dirname, 'build')));
+// Serve React build files when a production build is available
+if (hasClientBuild) {
+  app.use(express.static(clientBuildPath));
+}
 
 // API routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/roles', require('./routes/roleRoutes'));
 app.use('/api/beauticians', require('./routes/beauticianRoutes'));
 app.use('/api', require('./routes/serviceRoutes'));
 app.use('/api/bookings', require('./routes/bookingRoutes'));
@@ -51,7 +57,13 @@ app.get('/api/ping', (req, res) => {
 
 // Catch-all: Serve React app for non-API routes
 app.get(/^(?!\/api).*$/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'build', 'index.html'), (err) => {
+  if (!hasClientBuild) {
+    return res.status(404).json({
+      message: 'Client build not found. Run the client separately in development or build it for production.',
+    });
+  }
+
+  res.sendFile(path.join(clientBuildPath, 'index.html'), (err) => {
     if (err) {
       console.error('Error sending index.html:', err);
       res.status(500).send('Server error');

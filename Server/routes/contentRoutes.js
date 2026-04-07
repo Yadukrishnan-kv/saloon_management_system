@@ -5,6 +5,8 @@ const {
   createBanner,
   updateBanner,
   deleteBanner,
+  getStaticContent,
+  upsertStaticContent,
   getAllComplaints,
   createComplaint,
   resolveComplaint,
@@ -19,6 +21,10 @@ router.get("/banners", getAllBanners);
 router.post("/banners", protect, authorizeRoles("SuperAdmin", "Admin"), createBanner);
 router.put("/banners/:id", protect, authorizeRoles("SuperAdmin", "Admin"), updateBanner);
 router.delete("/banners/:id", protect, authorizeRoles("SuperAdmin", "Admin"), deleteBanner);
+
+// ===== Static Content =====
+router.get("/static-content", protect, authorizeRoles("SuperAdmin", "Admin"), getStaticContent);
+router.put("/static-content", protect, authorizeRoles("SuperAdmin", "Admin"), upsertStaticContent);
 
 // ===== Complaints =====
 router.get("/complaints", protect, getAllComplaints);

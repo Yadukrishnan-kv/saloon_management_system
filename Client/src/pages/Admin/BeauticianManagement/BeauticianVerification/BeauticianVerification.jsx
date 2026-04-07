@@ -7,6 +7,7 @@ import Table from "../../../../components/common/Table/Table";
 import Modal from "../../../../components/common/Modal/Modal";
 import Button from "../../../../components/common/Button/Button";
 import Loading from "../../../../components/common/Loading/Loading";
+import BeauticianDetailsCard from "../../../../components/common/BeauticianDetailsCard/BeauticianDetailsCard";
 import api from "../../../../utils/api";
 import "../../UserManagement/UserList/UserList.css";
 
@@ -34,7 +35,7 @@ const BeauticianVerification = () => {
       await api.put(`/api/beauticians/${id}/verify`, { verificationStatus: status });
       toast.success(`Beautician ${status.toLowerCase()}`);
       setSelected(null);
-      fetchPending();
+      setBeauticians((prev) => prev.filter((b) => b._id !== id));
     } catch (error) {
       toast.error("Failed to verify");
     }
@@ -68,19 +69,7 @@ const BeauticianVerification = () => {
         <Modal isOpen={!!selected} onClose={() => setSelected(null)} title="Beautician Details" size="large">
           {selected && (
             <>
-              <p><strong>Name:</strong> {selected.fullName}</p>
-              <p><strong>Phone:</strong> {selected.phoneNumber}</p>
-              <p><strong>Bio:</strong> {selected.bio || "N/A"}</p>
-              <p><strong>Experience:</strong> {selected.experience} years</p>
-              <p><strong>Skills:</strong> {selected.skills?.join(", ")}</p>
-              <p><strong>Location:</strong> {selected.location?.city}, {selected.location?.state}</p>
-              {selected.documents?.length > 0 && (
-                <div><strong>Documents:</strong>
-                  {selected.documents.map((d, i) => (
-                    <div key={i} style={{ margin: "4px 0" }}>{d.name} - <a href={d.url} target="_blank" rel="noreferrer">View</a></div>
-                  ))}
-                </div>
-              )}
+              <BeauticianDetailsCard beautician={selected} />
               <div className="form-actions" style={{ marginTop: "20px" }}>
                 <Button variant="danger" onClick={() => handleVerify(selected._id, "Rejected")}>Reject</Button>
                 <Button onClick={() => handleVerify(selected._id, "Approved")}>Approve</Button>

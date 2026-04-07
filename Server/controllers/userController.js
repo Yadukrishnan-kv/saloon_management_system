@@ -1,10 +1,13 @@
 const User = require("../models/User");
+const Role = require("../models/Role");
+
+const WEB_DISALLOWED_ROLES = ["Customer", "Beautician"];
 
 const getAllUsers = async (req, res) => {
   try {
     const { page = 1, limit = 10, search, role, status } = req.query;
 
-    const query = {};
+    const query = { role: { $nin: WEB_DISALLOWED_ROLES } };
 
     if (search) {
       query.$or = [
@@ -40,6 +43,89 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+const getAllCustomers = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search, status } = req.query;
+
+    const query = { role: "Customer" };
+
+    if (search) {
+      query.$or = [
+        { username: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phoneNumber: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    if (status === "active") query.isActive = true;
+    if (status === "inactive") query.isActive = false;
+    if (status === "suspended") query.isSuspended = true;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const users = await User.find(query)
+      .select("-password")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await User.countDocuments(query);
+
+    res.json({
+      users,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const getCustomerById = async (req, res) => {
+  try {
+    const user = await User.findOne({ _id: req.params.id, role: "Customer" }).select("-password");
+    if (!user) return res.status(404).json({ message: "Customer not found" });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const updateCustomer = async (req, res) => {
+  try {
+    const { username, email, phoneNumber } = req.body;
+
+    const customer = await User.findOne({ _id: req.params.id, role: "Customer" });
+    if (!customer) return res.status(404).json({ message: "Customer not found" });
+
+    if (email) {
+      const existing = await User.findOne({ email });
+      if (existing && existing._id.toString() !== req.params.id) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+    }
+
+    if (username) {
+      const existing = await User.findOne({ username });
+      if (existing && existing._id.toString() !== req.params.id) {
+        return res.status(400).json({ message: "Username already in use" });
+      }
+    }
+
+    customer.username = username ?? customer.username;
+    customer.email = email ?? customer.email;
+    customer.phoneNumber = phoneNumber ?? customer.phoneNumber;
+
+    await customer.save();
+
+    const safeCustomer = await User.findById(customer._id).select("-password");
+    res.json(safeCustomer);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password");
@@ -53,6 +139,19 @@ const getUserById = async (req, res) => {
 const createUser = async (req, res) => {
   try {
     const { username, email, password, role, phoneNumber } = req.body;
+
+    if (!role) {
+      return res.status(400).json({ message: "Role is required" });
+    }
+
+    if (WEB_DISALLOWED_ROLES.includes(role)) {
+      return res.status(400).json({ message: "Customer/Beautician roles are mobile-app only" });
+    }
+
+    const roleExists = await Role.findOne({ name: role, isActive: true });
+    if (!roleExists) {
+      return res.status(400).json({ message: "Invalid role selected" });
+    }
 
     const existing = await User.findOne({ $or: [{ email }, { username }] });
     if (existing) {
@@ -71,6 +170,17 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { username, email, role, phoneNumber } = req.body;
+
+    if (role) {
+      if (WEB_DISALLOWED_ROLES.includes(role)) {
+        return res.status(400).json({ message: "Customer/Beautician roles are mobile-app only" });
+      }
+
+      const roleExists = await Role.findOne({ name: role, isActive: true });
+      if (!roleExists) {
+        return res.status(400).json({ message: "Invalid role selected" });
+      }
+    }
 
     if (email) {
       const existing = await User.findOne({ email });
@@ -194,6 +304,9 @@ const changePassword = async (req, res) => {
 
 module.exports = {
   getAllUsers,
+  getAllCustomers,
+  getCustomerById,
+  updateCustomer,
   getUserById,
   createUser,
   updateUser,

@@ -232,6 +232,7 @@ const beauticianRegister = async (req, res) => {
       password,
       phoneNumber: phone,
       role: "Beautician",
+      isActive: false,
     });
 
     // Handle PCC document upload
@@ -250,16 +251,42 @@ const beauticianRegister = async (req, res) => {
       };
     }
 
-    const beautician = await Beautician.create({
-      user: user._id,
-      fullName: name,
-      phoneNumber: phone,
-      experience: experience || 0,
-      skills: skills || [],
-      verificationStatus: "Pending",
-      status: "Inactive",
-      pccDocument,
-    });
+    let beautician = await Beautician.findOne({ phoneNumber: phone });
+
+    if (beautician && beautician.user) {
+      return res.status(400).json({ success: false, message: "Beautician profile already linked to another account" });
+    }
+
+    if (beautician) {
+      beautician.user = user._id;
+      beautician.fullName = beautician.fullName || name;
+      beautician.experience = experience || beautician.experience || 0;
+      beautician.skills = (skills && skills.length) ? skills : beautician.skills;
+      if (pccDocument.documentUrl) {
+        beautician.pccDocument = pccDocument;
+      }
+
+      // Keep existing admin approval if already approved; otherwise keep pending.
+      if (beautician.verificationStatus !== "Approved") {
+        beautician.isVerified = false;
+        beautician.verificationStatus = "Pending";
+        beautician.status = "Inactive";
+      }
+
+      await beautician.save();
+    } else {
+      beautician = await Beautician.create({
+        user: user._id,
+        fullName: name,
+        phoneNumber: phone,
+        experience: experience || 0,
+        skills: skills || [],
+        isVerified: false,
+        verificationStatus: "Pending",
+        status: "Inactive",
+        pccDocument,
+      });
+    }
 
     // Create wallet for beautician with ₹1000 initial balance
     const INITIAL_WALLET_BALANCE = 1000;

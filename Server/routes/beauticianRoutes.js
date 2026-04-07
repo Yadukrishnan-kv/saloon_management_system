@@ -7,13 +7,16 @@ const {
   updateBeautician,
   deleteBeautician,
   verifyDocuments,
+  setBeauticianVerificationStatus,
   updateBeauticianStatus,
+  uploadBeauticianDocuments,
   getBeauticianSkills,
   updateBeauticianSkills,
   getAvailableBeauticians,
   getNearbyBeauticians,
 } = require("../controllers/beauticianController");
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
+const upload = require("../middleware/uploadMiddleware");
 
 // Public / Customer routes
 router.get("/available", protect, getAvailableBeauticians);
@@ -29,7 +32,9 @@ router.post("/", protect, authorizeRoles("SuperAdmin", "Admin"), createBeauticia
 router.put("/:id", protect, authorizeRoles("SuperAdmin", "Admin"), updateBeautician);
 router.delete("/:id", protect, authorizeRoles("SuperAdmin", "Admin"), deleteBeautician);
 router.post("/:id/verify", protect, authorizeRoles("SuperAdmin", "Admin"), verifyDocuments);
+router.put("/:id/verify", protect, authorizeRoles("SuperAdmin", "Admin"), setBeauticianVerificationStatus);
 router.put("/:id/status", protect, authorizeRoles("SuperAdmin", "Admin"), updateBeauticianStatus);
+router.post("/:id/documents", protect, authorizeRoles("SuperAdmin", "Admin"), upload.array("documents", 5), uploadBeauticianDocuments);
 router.put("/:id/skills", protect, authorizeRoles("SuperAdmin", "Admin"), updateBeauticianSkills);
 
 module.exports = router;

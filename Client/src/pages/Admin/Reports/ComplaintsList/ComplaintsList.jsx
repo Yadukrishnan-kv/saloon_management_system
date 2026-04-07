@@ -19,17 +19,24 @@ const ComplaintsList = () => {
   const [selected, setSelected] = useState(null);
   const [response, setResponse] = useState("");
   const [newStatus, setNewStatus] = useState("InProgress");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   const fetchComplaints = useCallback(async () => {
     try {
-      const { data } = await api.get("/api/complaints");
+      const { data } = await api.get("/api/complaints", {
+        params: {
+          category: categoryFilter || undefined,
+          status: statusFilter || undefined,
+        },
+      });
       setComplaints(data);
     } catch (error) {
       toast.error("Failed to load complaints");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [categoryFilter, statusFilter]);
 
   useEffect(() => { fetchComplaints(); }, [fetchComplaints]);
 
@@ -66,7 +73,26 @@ const ComplaintsList = () => {
       <Header onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
       <Sidebar collapsed={sidebarCollapsed} />
       <main className={`main-content ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-        <div className="page-header"><h1>Complaints</h1></div>
+        <div className="page-header"><h1>Complaints, Inquiries & Disputes</h1></div>
+        <div className="filters-row">
+          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <option value="">All Categories</option>
+            <option value="Beautician">Beautician</option>
+            <option value="Inquiry">Inquiry</option>
+            <option value="Dispute">Dispute</option>
+            <option value="Service">Service</option>
+            <option value="Payment">Payment</option>
+            <option value="App">App</option>
+            <option value="Other">Other</option>
+          </select>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">All Status</option>
+            <option value="Open">Open</option>
+            <option value="InProgress">In Progress</option>
+            <option value="Resolved">Resolved</option>
+            <option value="Closed">Closed</option>
+          </select>
+        </div>
         {loading ? <Loading /> : <Table columns={columns} data={complaints} emptyMessage="No complaints" />}
         <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Resolve Complaint">
           {selected && (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiEdit2, FiPlus, FiTrash2 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Header from "../../../../components/layout/Header/Header";
 import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
@@ -12,22 +12,30 @@ import "../../UserManagement/UserList/UserList.css";
 const PromotionalBanners = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [banners, setBanners] = useState([]);
+  const [staticPages, setStaticPages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [contentModalOpen, setContentModalOpen] = useState(false);
+  const [editingPage, setEditingPage] = useState(null);
   const [formData, setFormData] = useState({ title: "", description: "", image: "", link: "", isActive: true });
+  const [contentForm, setContentForm] = useState({ key: "", title: "", content: "" });
 
-  const fetchBanners = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const { data } = await api.get("/api/banners");
-      setBanners(data);
+      const [bannerRes, staticContentRes] = await Promise.all([
+        api.get("/api/banners"),
+        api.get("/api/static-content"),
+      ]);
+      setBanners(bannerRes.data);
+      setStaticPages(staticContentRes.data);
     } catch (error) {
-      toast.error("Failed to load banners");
+      toast.error("Failed to load content settings");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchBanners(); }, [fetchBanners]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,9 +45,33 @@ const PromotionalBanners = () => {
       toast.success("Banner created");
       setModalOpen(false);
       setFormData({ title: "", description: "", image: "", link: "", isActive: true });
-      fetchBanners();
+      fetchData();
     } catch (err) {
       toast.error("Failed");
+    }
+  };
+
+  const handleOpenContentEditor = (page) => {
+    setEditingPage(page);
+    setContentForm({ key: page.key, title: page.title, content: page.content || "" });
+    setContentModalOpen(true);
+  };
+
+  const handleContentSave = async (e) => {
+    e.preventDefault();
+    if (!contentForm.key || !contentForm.title.trim()) {
+      toast.error("Title is required");
+      return;
+    }
+
+    try {
+      await api.put("/api/static-content", contentForm);
+      toast.success("Static content updated");
+      setContentModalOpen(false);
+      setEditingPage(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update content");
     }
   };
 
@@ -48,7 +80,7 @@ const PromotionalBanners = () => {
     try {
       await api.delete(`/api/banners/${id}`);
       toast.success("Deleted");
-      fetchBanners();
+      fetchData();
     } catch (err) {
       toast.error("Failed");
     }
@@ -63,21 +95,50 @@ const PromotionalBanners = () => {
           <div><h1>Promotional Banners</h1><p>Manage promotional content</p></div>
           <Button onClick={() => setModalOpen(true)}><FiPlus /> Add Banner</Button>
         </div>
+        <div style={{ background: "#fffaf2", border: "1px solid #f3e2b5", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px", color: "#7a5a12" }}>
+          This screen covers promotional banners and the static content/policies requirement. Use the banner section for campaign placements and the policy cards below for pages like Privacy Policy, Terms, and Cancellation Policy.
+        </div>
         {loading ? <Loading /> : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
-            {banners.map((b) => (
-              <div key={b._id} style={{ background: "#fff", borderRadius: "12px", padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-                {b.image && <img src={b.image} alt={b.title} style={{ width: "100%", height: "150px", objectFit: "cover", borderRadius: "8px", marginBottom: "12px" }} />}
-                <h3 style={{ margin: "0 0 4px", fontSize: "16px" }}>{b.title}</h3>
-                <p style={{ color: "#636e72", fontSize: "13px", margin: "0 0 12px" }}>{b.description}</p>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span className={`user-status ${b.isActive ? "active" : "inactive"}`}>{b.isActive ? "Active" : "Inactive"}</span>
-                  <button className="action-btn danger" onClick={() => handleDelete(b._id)}><FiTrash2 /></button>
-                </div>
+          <>
+            <div style={{ marginBottom: "24px" }}>
+              <h2 style={{ margin: "0 0 12px", fontSize: "18px", color: "#2d3436" }}>Banners</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
+                {banners.map((b) => (
+                  <div key={b._id} style={{ background: "#fff", borderRadius: "12px", padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                    {b.image && <img src={b.image} alt={b.title} style={{ width: "100%", height: "150px", objectFit: "cover", borderRadius: "8px", marginBottom: "12px" }} />}
+                    <h3 style={{ margin: "0 0 4px", fontSize: "16px" }}>{b.title}</h3>
+                    <p style={{ color: "#636e72", fontSize: "13px", margin: "0 0 12px" }}>{b.description}</p>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span className={`user-status ${b.isActive ? "active" : "inactive"}`}>{b.isActive ? "Active" : "Inactive"}</span>
+                      <button className="action-btn danger" onClick={() => handleDelete(b._id)}><FiTrash2 /></button>
+                    </div>
+                  </div>
+                ))}
+                {banners.length === 0 && <p className="no-data">No banners yet</p>}
               </div>
-            ))}
-            {banners.length === 0 && <p className="no-data">No banners yet</p>}
-          </div>
+            </div>
+
+            <div>
+              <h2 style={{ margin: "0 0 12px", fontSize: "18px", color: "#2d3436" }}>Static Content & Policies</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "16px" }}>
+                {staticPages.map((page) => (
+                  <div key={page.key} style={{ background: "#fff", borderRadius: "12px", padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", border: "1px solid #eef2f5" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "10px" }}>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: "16px" }}>{page.title}</h3>
+                        <p style={{ margin: "4px 0 0", color: "#95a5a6", fontSize: "12px" }}>{page.key}</p>
+                      </div>
+                      <button className="action-btn edit" onClick={() => handleOpenContentEditor(page)}><FiEdit2 /></button>
+                    </div>
+                    <p style={{ color: "#636e72", fontSize: "13px", margin: 0, minHeight: "72px", whiteSpace: "pre-wrap" }}>
+                      {page.content || "No content added yet."}
+                    </p>
+                  </div>
+                ))}
+                {staticPages.length === 0 && <p className="no-data">No static pages configured</p>}
+              </div>
+            </div>
+          </>
         )}
         <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Add Banner">
           <form onSubmit={handleSubmit}>
@@ -88,6 +149,16 @@ const PromotionalBanners = () => {
             <div className="form-actions">
               <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
               <Button type="submit">Create Banner</Button>
+            </div>
+          </form>
+        </Modal>
+        <Modal isOpen={contentModalOpen} onClose={() => setContentModalOpen(false)} title={editingPage ? `Edit ${editingPage.title}` : "Edit Static Content"} size="large">
+          <form onSubmit={handleContentSave}>
+            <div className="form-group"><label>Title</label><input value={contentForm.title} onChange={(e) => setContentForm({ ...contentForm, title: e.target.value })} /></div>
+            <div className="form-group"><label>Content</label><textarea rows="10" value={contentForm.content} onChange={(e) => setContentForm({ ...contentForm, content: e.target.value })} style={{ width: "100%", padding: "10px", border: "1.5px solid #dfe6e9", borderRadius: "8px", fontFamily: "inherit" }} /></div>
+            <div className="form-actions">
+              <Button variant="secondary" onClick={() => setContentModalOpen(false)}>Cancel</Button>
+              <Button type="submit">Save Content</Button>
             </div>
           </form>
         </Modal>

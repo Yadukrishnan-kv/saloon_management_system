@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import toast from "react-hot-toast";
 import useAuth from "../../../hooks/useAuth";
+import logo from "../../../Assets/logo.svg";
 import "./Login.css";
 
 const Login = () => {
@@ -38,7 +39,8 @@ const Login = () => {
       const data = await login(formData.email, formData.password);
       toast.success("Login successful!");
       const role = data.user.role;
-      if (role === "SuperAdmin" || role === "Admin") navigate("/dashboard");
+      if (data.permissions?.includes("Dashboard")) navigate("/dashboard");
+      else if (role === "SuperAdmin" || role === "Admin") navigate("/dashboard");
       else if (role === "Customer") navigate("/customer/dashboard");
       else if (role === "Beautician") navigate("/beautician/dashboard");
     } catch (err) {
@@ -53,8 +55,8 @@ const Login = () => {
       <div className="login-container">
         <div className="login-left">
           <div className="login-branding">
-            <h1>Salon<span>Pro</span></h1>
-            <p>Complete Salon Management Solution</p>
+            <img src={logo} alt="Sidi logo" className="login-brand-logo" />
+            <p>Smart salon administration, beautifully simplified</p>
           </div>
         </div>
 
@@ -116,10 +118,6 @@ const Login = () => {
                 {isLoading ? "Signing in..." : "Sign In"}
               </button>
             </form>
-
-            <p className="login-register">
-              Don't have an account? <Link to="/register">Sign Up</Link>
-            </p>
           </div>
         </div>
       </div>

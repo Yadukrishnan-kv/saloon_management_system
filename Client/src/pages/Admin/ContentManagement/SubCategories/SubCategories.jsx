@@ -10,19 +10,22 @@ import Loading from "../../../../components/common/Loading/Loading";
 import api from "../../../../utils/api";
 import "../../UserManagement/UserList/UserList.css";
 
-const ServiceCategories = () => {
+const SubCategories = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [categories, setCategories] = useState([]);
+  const [subCategories, setSubCategories] = useState([]);
+  const [parentCategories, setParentCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editCategory, setEditCategory] = useState(null);
-  const [formData, setFormData] = useState({ name: "", description: "" });
+  const [editItem, setEditItem] = useState(null);
+  const [formData, setFormData] = useState({ name: "", description: "", parentCategory: "" });
 
-  const fetchCategories = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
       const { data } = await api.get("/api/categories");
-      // Show only top-level categories on this page
-      setCategories(data.filter((c) => !c.parentCategory));
+      const tops = data.filter((c) => !c.parentCategory);
+      const subs = data.filter((c) => c.parentCategory);
+      setParentCategories(tops);
+      setSubCategories(subs);
     } catch (error) {
       toast.error("Failed to load categories");
     } finally {
@@ -30,58 +33,59 @@ const ServiceCategories = () => {
     }
   }, []);
 
-  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) { toast.error("Name is required"); return; }
+    if (!formData.parentCategory) { toast.error("Parent category is required"); return; }
     try {
-      if (editCategory) {
-        await api.put(`/api/categories/${editCategory._id}`, formData);
-        toast.success("Category updated");
+      if (editItem) {
+        await api.put(`/api/categories/${editItem._id}`, formData);
+        toast.success("Sub category updated");
       } else {
         await api.post("/api/categories", formData);
-        toast.success("Category created");
+        toast.success("Sub category created");
       }
       setModalOpen(false);
-      setEditCategory(null);
-      setFormData({ name: "", description: "" });
-      fetchCategories();
+      setEditItem(null);
+      setFormData({ name: "", description: "", parentCategory: "" });
+      fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed");
     }
   };
 
   const handleEdit = (cat) => {
-    setEditCategory(cat);
+    setEditItem(cat);
     setFormData({
       name: cat.name,
       description: cat.description || "",
+      parentCategory: cat.parentCategory?._id || cat.parentCategory || "",
     });
     setModalOpen(true);
   };
 
-  const resetForm = () => {
-    setEditCategory(null);
-    setFormData({ name: "", description: "" });
+  const openCreate = () => {
+    setEditItem(null);
+    setFormData({ name: "", description: "", parentCategory: "" });
     setModalOpen(true);
   };
 
-
-
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this category?")) return;
+    if (!window.confirm("Delete this sub category?")) return;
     try {
       await api.delete(`/api/categories/${id}`);
       toast.success("Deleted");
-      fetchCategories();
+      fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed");
     }
   };
 
   const columns = [
-    { key: "name", label: "Category Name" },
+    { key: "name", label: "Sub Category Name" },
+    { key: "parentCategory", label: "Parent Category", render: (row) => row.parentCategory?.name || "-" },
     { key: "description", label: "Description" },
     { key: "isActive", label: "Active", render: (row) => row.isActive ? "Yes" : "No" },
     { key: "sortOrder", label: "Order" },
@@ -102,26 +106,51 @@ const ServiceCategories = () => {
       <Sidebar collapsed={sidebarCollapsed} />
       <main className={`main-content ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         <div className="page-header">
-          <div><h1>Service Categories</h1><p>Manage top-level service categories</p></div>
-          <Button onClick={resetForm}>
-            <FiPlus /> Add Category
+          <div>
+            <h1>Sub Categories</h1>
+            <p>Manage sub categories under each parent category</p>
+          </div>
+          <Button onClick={openCreate}>
+            <FiPlus /> Add Sub Category
           </Button>
         </div>
-        {loading ? <Loading /> : <Table columns={columns} data={categories} emptyMessage="No categories" />}
 
-        <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editCategory ? "Edit Category" : "Add Category"}>
+        {loading ? <Loading /> : <Table columns={columns} data={subCategories} emptyMessage="No sub categories found" />}
+
+        <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editItem ? "Edit Sub Category" : "Add Sub Category"}>
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label>Category Name *</label>
-              <input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Enter category name" />
+              <label>Parent Category *</label>
+              <select
+                value={formData.parentCategory}
+                onChange={(e) => setFormData({ ...formData, parentCategory: e.target.value })}
+                required
+              >
+                <option value="">Select Parent Category</option>
+                {parentCategories.map((cat) => (
+                  <option key={cat._id} value={cat._id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Sub Category Name *</label>
+              <input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Enter sub category name"
+              />
             </div>
             <div className="form-group">
               <label>Description</label>
-              <input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Optional description" />
+              <input
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Optional description"
+              />
             </div>
             <div className="form-actions">
               <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
-              <Button type="submit">{editCategory ? "Update" : "Create"}</Button>
+              <Button type="submit">{editItem ? "Update" : "Create"}</Button>
             </div>
           </form>
         </Modal>
@@ -130,4 +159,4 @@ const ServiceCategories = () => {
   );
 };
 
-export default ServiceCategories;
+export default SubCategories;

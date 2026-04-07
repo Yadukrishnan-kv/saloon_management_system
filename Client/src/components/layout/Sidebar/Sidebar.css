@@ -131,6 +131,56 @@
   overflow: hidden;
 }
 
+.sidebar-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-group-btn {
+  justify-content: flex-start;
+}
+
+.sidebar-chevron {
+  margin-left: auto;
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+
+.sidebar-chevron.open {
+  transform: rotate(180deg);
+}
+
+.sidebar-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 6px;
+  padding-left: 40px;
+}
+
+.sidebar-subitem {
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  color: #636e72;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sidebar-subitem:hover {
+  background: #f5f6fa;
+  color: #2d3436;
+}
+
+.sidebar-subitem.active {
+  background: rgba(108, 92, 231, 0.12);
+  color: #6c5ce7;
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
   .app-sidebar {
     width: 70px;

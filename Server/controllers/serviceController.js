@@ -5,7 +5,9 @@ const Service = require("../models/Service");
 
 const getAllCategories = async (req, res) => {
   try {
-    const categories = await ServiceCategory.find().sort({ sortOrder: 1 });
+    const categories = await ServiceCategory.find()
+      .populate("parentCategory", "name")
+      .sort({ parentCategory: 1, sortOrder: 1, name: 1 });
     res.json(categories);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
@@ -14,15 +16,29 @@ const getAllCategories = async (req, res) => {
 
 const createCategory = async (req, res) => {
   try {
-    const { name, description, image, sortOrder } = req.body;
+    const { name, description, image, sortOrder, parentCategory } = req.body;
 
     const existing = await ServiceCategory.findOne({ name });
     if (existing) {
       return res.status(400).json({ message: "Category already exists" });
     }
 
-    const category = await ServiceCategory.create({ name, description, image, sortOrder });
-    res.status(201).json(category);
+    if (parentCategory) {
+      const parentExists = await ServiceCategory.findById(parentCategory);
+      if (!parentExists) {
+        return res.status(400).json({ message: "Parent category not found" });
+      }
+    }
+
+    const category = await ServiceCategory.create({
+      name,
+      description,
+      image,
+      sortOrder,
+      parentCategory: parentCategory || null,
+    });
+    const populated = await ServiceCategory.findById(category._id).populate("parentCategory", "name");
+    res.status(201).json(populated);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -30,13 +46,24 @@ const createCategory = async (req, res) => {
 
 const updateCategory = async (req, res) => {
   try {
-    const { name, description, image, isActive, sortOrder } = req.body;
+    const { name, description, image, isActive, sortOrder, parentCategory } = req.body;
+
+    if (parentCategory) {
+      if (parentCategory === req.params.id) {
+        return res.status(400).json({ message: "A category cannot be its own parent" });
+      }
+
+      const parentExists = await ServiceCategory.findById(parentCategory);
+      if (!parentExists) {
+        return res.status(400).json({ message: "Parent category not found" });
+      }
+    }
 
     const category = await ServiceCategory.findByIdAndUpdate(
       req.params.id,
-      { name, description, image, isActive, sortOrder },
+      { name, description, image, isActive, sortOrder, parentCategory: parentCategory || null },
       { new: true, runValidators: true }
-    );
+    ).populate("parentCategory", "name");
 
     if (!category) return res.status(404).json({ message: "Category not found" });
     res.json(category);
@@ -52,6 +79,13 @@ const deleteCategory = async (req, res) => {
     if (serviceCount > 0) {
       return res.status(400).json({
         message: "Cannot delete category with existing services. Remove services first.",
+      });
+    }
+
+    const childCategoryCount = await ServiceCategory.countDocuments({ parentCategory: req.params.id });
+    if (childCategoryCount > 0) {
+      return res.status(400).json({
+        message: "Cannot delete category with subcategories. Remove or reassign subcategories first.",
       });
     }
 

@@ -29,7 +29,6 @@ const userSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ["SuperAdmin", "Admin", "Customer", "Beautician"],
       required: true,
       default: "Customer",
     },

@@ -1,33 +1,36 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import Header from "../../../../components/layout/Header/Header";
 import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
 import Button from "../../../../components/common/Button/Button";
+import "../../UserManagement/UserList/UserList.css";
 import api from "../../../../utils/api";
-import "../../../../pages/Admin/UserManagement/UserList/UserList.css";
 
-const CreateUser = () => {
+const AddCustomer = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [formData, setFormData] = useState({ username: "", email: "", password: "", role: "", phoneNumber: "" });
-  const [roles, setRoles] = useState([]);
-  const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
-  const [userId, setUserId] = useState(null);
-
+  const [customerId, setCustomerId] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    phoneNumber: "",
+  });
   const navigate = useNavigate();
   const location = useLocation();
 
   const validateForm = () => {
     const newErrors = {};
+
     if (!formData.username.trim()) newErrors.username = "Username is required";
-    else if (formData.username.trim().length < 3) newErrors.username = "Min 3 characters";
     if (!formData.email.trim()) newErrors.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Invalid email";
     if (!isEdit && !formData.password) newErrors.password = "Password is required";
-    else if (formData.password && formData.password.length < 6) newErrors.password = "Min 6 characters";
-    if (!formData.role) newErrors.role = "Role is required";
+    else if (formData.password && formData.password.length < 6) newErrors.password = "Minimum 6 characters";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -35,74 +38,60 @@ const CreateUser = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-    setIsLoading(true);
+
     try {
+      setIsLoading(true);
       if (isEdit) {
-        await api.put(`/api/users/updateUser/${userId}`, {
+        await api.put(`/api/users/customers/${customerId}`, {
           username: formData.username,
           email: formData.email,
-          role: formData.role,
           phoneNumber: formData.phoneNumber,
         });
-        toast.success("User updated successfully!");
+        toast.success("Customer updated successfully");
       } else {
-        await api.post("/api/users/createUser", formData);
-        toast.success("User created successfully!");
+        await api.post("/api/auth/register", formData);
+        toast.success("Customer created successfully");
       }
-      setTimeout(() => navigate("/admin/users"), 1000);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Something went wrong");
+      setTimeout(() => navigate("/admin/customers"), 800);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to save customer");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loadUserForEdit = useCallback(async (editId) => {
+  const loadCustomerForEdit = useCallback(async (editId) => {
     try {
-      const { data } = await api.get(`/api/users/${editId}`);
+      const { data } = await api.get(`/api/users/customers/${editId}`);
       setFormData({
         username: data.username || "",
         email: data.email || "",
         password: "",
-        role: data.role || "",
         phoneNumber: data.phoneNumber || "",
       });
       setIsEdit(true);
-      setUserId(editId);
+      setCustomerId(editId);
     } catch (error) {
-      toast.error("Failed to load user data");
-      navigate("/admin/users");
+      toast.error("Failed to load customer");
+      navigate("/admin/customers");
     }
   }, [navigate]);
 
   useEffect(() => {
-    const loadRoles = async () => {
-      try {
-        const { data } = await api.get("/api/roles");
-        setRoles(
-          (data.roles || []).filter(
-            (role) => role.isActive && !["Customer", "Beautician"].includes(role.name)
-          )
-        );
-      } catch (error) {
-        toast.error("Failed to load roles");
-      }
-    };
-
-    loadRoles();
-  }, []);
-
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const editId = searchParams.get("edit");
-    if (editId) loadUserForEdit(editId);
-  }, [location.search, loadUserForEdit]);
+    const editId = new URLSearchParams(location.search).get("edit");
+    if (editId) {
+      loadCustomerForEdit(editId);
+    }
+  }, [location.search, loadCustomerForEdit]);
 
   return (
     <div className="dashboard-layout">
@@ -111,7 +100,7 @@ const CreateUser = () => {
 
       <main className={`main-content ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         <div className="page-header">
-          <h1>{isEdit ? "Edit User" : "Create New User"}</h1>
+          <h1>{isEdit ? "Edit Customer" : "Add Customer"}</h1>
         </div>
 
         <div className="form-card">
@@ -134,29 +123,18 @@ const CreateUser = () => {
                 <label htmlFor="phoneNumber">Phone Number</label>
                 <input id="phoneNumber" name="phoneNumber" type="text" value={formData.phoneNumber} onChange={handleChange} />
               </div>
-              <div className="form-group">
-                <label htmlFor="role">Role</label>
-                <select id="role" name="role" value={formData.role} onChange={handleChange}>
-                  <option value="">Select a role</option>
-                  {roles.map((role) => (
-                    <option key={role._id} value={role.name}>{role.name}</option>
-                  ))}
-                </select>
-                {errors.role && <p className="error-text">{errors.role}</p>}
-              </div>
+              {!isEdit && (
+                <div className="form-group">
+                  <label htmlFor="password">Password</label>
+                  <input id="password" name="password" type="password" value={formData.password} onChange={handleChange} />
+                  {errors.password && <p className="error-text">{errors.password}</p>}
+                </div>
+              )}
             </div>
 
-            {!isEdit && (
-              <div className="form-group">
-                <label htmlFor="password">Password</label>
-                <input id="password" name="password" type="password" value={formData.password} onChange={handleChange} />
-                {errors.password && <p className="error-text">{errors.password}</p>}
-              </div>
-            )}
-
             <div className="form-actions">
-              <Button variant="secondary" onClick={() => navigate("/admin/users")}>Cancel</Button>
-              <Button type="submit" loading={isLoading}>{isEdit ? "Update User" : "Create User"}</Button>
+              <Button variant="secondary" onClick={() => navigate("/admin/customers")}>Cancel</Button>
+              <Button type="submit" loading={isLoading}>{isEdit ? "Update Customer" : "Create Customer"}</Button>
             </div>
           </form>
         </div>
@@ -165,4 +143,4 @@ const CreateUser = () => {
   );
 };
 
-export default CreateUser;
+export default AddCustomer;

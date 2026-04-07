@@ -109,12 +109,18 @@ const ReviewManagement = () => {
       <Sidebar collapsed={sidebarCollapsed} />
       <main className={`main-content ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         <div className="page-header">
-          <h1>Review Management</h1>
+          <div>
+            <h1>Review Management</h1>
+            <p style={{ margin: "4px 0 0", color: "#95a5a6" }}>Approve or reject customer feedback after booking completion.</p>
+          </div>
           <div style={{ display: "flex", gap: "8px" }}>
             {["Pending", "Approved", "Rejected"].map((s) => (
               <Button key={s} variant={filter === s ? "primary" : "secondary"} onClick={() => setFilter(s)}>{s}</Button>
             ))}
           </div>
+        </div>
+        <div style={{ background: "#f8fbff", border: "1px solid #deebff", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px", color: "#3a5f86" }}>
+          This page covers the customer feedback portion of booking management. Reviews are moderated here after a booking is completed so admins can verify service quality before feedback is surfaced.
         </div>
         {loading ? <Loading /> : <Table columns={columns} data={reviews} emptyMessage="No reviews found" />}
         <Modal isOpen={rejectModal} onClose={() => setRejectModal(false)} title="Reject Review">
