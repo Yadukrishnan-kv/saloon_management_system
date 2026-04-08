@@ -6,11 +6,12 @@ import Table from "../../../components/common/Table/Table";
 import Loading from "../../../components/common/Loading/Loading";
 import Modal from "../../../components/common/Modal/Modal";
 import Button from "../../../components/common/Button/Button";
-import api from "../../../utils/api";
+import axios from "axios";
 import { formatDate, formatCurrency, getStatusColor } from "../../../utils/helpers";
 import "./MyBookings.css";
 
 const MyBookings = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +20,7 @@ const MyBookings = () => {
 
   const fetchBookings = useCallback(async () => {
     try {
-      const { data } = await api.get("/api/bookings");
+      const { data } = await axios.get(`${backendUrl}/api/bookings`);
       setBookings(data.bookings || []);
     } catch (error) {
       toast.error("Failed to load bookings");
@@ -32,7 +33,7 @@ const MyBookings = () => {
 
   const handleCancel = async () => {
     try {
-      await api.put(`/api/bookings/${selected._id}/cancel`, { reason: cancelReason });
+      await axios.put(`${backendUrl}/api/bookings/${selected._id}/cancel`, { reason: cancelReason });
       toast.success("Booking cancelled");
       setSelected(null);
       setCancelReason("");

@@ -7,13 +7,14 @@ import Table from "../../../../components/common/Table/Table";
 import Modal from "../../../../components/common/Modal/Modal";
 import Button from "../../../../components/common/Button/Button";
 import Loading from "../../../../components/common/Loading/Loading";
-import api from "../../../../utils/api";
+import axios from "axios";
 import { formatDateTime, formatCurrency, getStatusColor } from "../../../../utils/helpers";
 import "../../UserManagement/UserList/UserList.css";
 
 const lifecycleSteps = ["Requested", "Assigned", "Accepted", "InProgress", "Completed", "Cancelled"];
 
 const AllBookings = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +32,7 @@ const AllBookings = () => {
   const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/api/bookings", { params: { page, limit: 10, status: statusFilter } });
+      const { data } = await axios.get(`${backendUrl}/api/bookings`, { params: { page, limit: 10, status: statusFilter } });
       setBookings(data.bookings);
       setTotalPages(data.totalPages);
     } catch (error) {
@@ -45,7 +46,7 @@ const AllBookings = () => {
 
   const openDetails = async (booking) => {
     try {
-      const { data } = await api.get(`/api/bookings/${booking._id}`);
+      const { data } = await axios.get(`${backendUrl}/api/bookings/${booking._id}`);
       setSelectedBooking(data);
       setDetailsOpen(true);
     } catch (error) {
@@ -65,7 +66,7 @@ const AllBookings = () => {
       const time = booking.timeSlot?.startTime;
 
       if (lat && lng) {
-        const { data } = await api.get("/api/beauticians/nearby", {
+        const { data } = await axios.get(`${backendUrl}/api/beauticians/nearby`, {
           params: { lat, lng, date, time, radius: 15 },
         });
         if (data.length > 0) {
@@ -73,12 +74,12 @@ const AllBookings = () => {
           setAssignmentSource("nearest");
           setSelectedBeautician((current) => current || data[0]._id);
         } else {
-          const fallback = await api.get("/api/beauticians/available", { params: { date, time } });
+          const fallback = await axios.get(`${backendUrl}/api/beauticians/available`, { params: { date, time } });
           setBeauticians(fallback.data);
           setAssignmentSource("available");
         }
       } else {
-        const { data } = await api.get("/api/beauticians/available", { params: { date, time } });
+        const { data } = await axios.get(`${backendUrl}/api/beauticians/available`, { params: { date, time } });
         setBeauticians(data);
         setAssignmentSource("available");
       }
@@ -95,7 +96,7 @@ const AllBookings = () => {
         ? `/api/bookings/${selectedBooking._id}/reassign`
         : `/api/bookings/${selectedBooking._id}/assign`;
 
-      await api.post(endpoint, { beauticianId: selectedBeautician });
+      await axios.post(`${backendUrl}${endpoint}`, { beauticianId: selectedBeautician });
       toast.success(assignmentMode === "reassign" ? "Beautician reassigned!" : "Beautician assigned!");
       setAssignModal(false);
       setSelectedBeautician("");
@@ -107,7 +108,7 @@ const AllBookings = () => {
 
   const handleStatusUpdate = async (id, status) => {
     try {
-      await api.put(`/api/bookings/${id}`, { status });
+      await axios.put(`${backendUrl}/api/bookings/${id}`, { status });
       toast.success(`Booking ${status.toLowerCase()}`);
       fetchBookings();
     } catch (error) {

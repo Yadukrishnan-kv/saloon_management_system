@@ -5,11 +5,12 @@ import Header from "../../../components/layout/Header/Header";
 import Sidebar from "../../../components/layout/Sidebar/Sidebar";
 import Loading from "../../../components/common/Loading/Loading";
 import Button from "../../../components/common/Button/Button";
-import api from "../../../utils/api";
+import axios from "axios";
 import { formatDateTime } from "../../../utils/helpers";
 import "../UserManagement/UserList/UserList.css";
 
 const AdminNotifications = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,7 +19,7 @@ const AdminNotifications = () => {
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/api/admin/notifications");
+      const { data } = await axios.get(`${backendUrl}/api/admin/notifications`);
       setNotifications(data.notifications || []);
       setUnreadCount(data.unreadCount || 0);
     } catch (error) {
@@ -32,7 +33,7 @@ const AdminNotifications = () => {
 
   const handleMarkRead = async (notificationId) => {
     try {
-      await api.put(`/api/admin/notifications/${notificationId}/read`);
+      await axios.put(`${backendUrl}/api/admin/notifications/${notificationId}/read`);
       fetchNotifications();
     } catch (error) {
       toast.error("Failed to mark as read");
@@ -41,7 +42,7 @@ const AdminNotifications = () => {
 
   const handleMarkAllRead = async () => {
     try {
-      await api.put("/api/admin/notifications/read-all");
+      await axios.put(`${backendUrl}/api/admin/notifications/read-all`);
       toast.success("All notifications marked as read");
       fetchNotifications();
     } catch (error) {

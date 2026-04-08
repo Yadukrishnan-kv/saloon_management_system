@@ -5,17 +5,18 @@ import Sidebar from "../../../components/layout/Sidebar/Sidebar";
 import Table from "../../../components/common/Table/Table";
 import Button from "../../../components/common/Button/Button";
 import Loading from "../../../components/common/Loading/Loading";
-import api from "../../../utils/api";
+import axios from "axios";
 import { formatDate, getStatusColor } from "../../../utils/helpers";
 
 const MySchedule = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchBookings = useCallback(async () => {
     try {
-      const { data } = await api.get("/api/bookings", { params: { status: "Accepted" } });
+      const { data } = await axios.get(`${backendUrl}/api/bookings`, { params: { status: "Accepted" } });
       setBookings(data.bookings || []);
     } catch (error) {
       toast.error("Failed to load schedule");
@@ -28,7 +29,7 @@ const MySchedule = () => {
 
   const handleStart = async (id) => {
     try {
-      await api.put(`/api/bookings/${id}`, { status: "InProgress" });
+      await axios.put(`${backendUrl}/api/bookings/${id}`, { status: "InProgress" });
       toast.success("Service started");
       fetchBookings();
     } catch (error) { toast.error("Failed"); }
@@ -36,7 +37,7 @@ const MySchedule = () => {
 
   const handleComplete = async (id) => {
     try {
-      await api.put(`/api/bookings/${id}/complete`);
+      await axios.put(`${backendUrl}/api/bookings/${id}/complete`);
       toast.success("Service completed!");
       fetchBookings();
     } catch (error) { toast.error("Failed"); }

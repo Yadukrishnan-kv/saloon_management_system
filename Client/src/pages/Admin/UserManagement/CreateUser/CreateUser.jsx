@@ -4,10 +4,11 @@ import toast from "react-hot-toast";
 import Header from "../../../../components/layout/Header/Header";
 import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
 import Button from "../../../../components/common/Button/Button";
-import api from "../../../../utils/api";
+import axios from "axios";
 import "../../../../pages/Admin/UserManagement/UserList/UserList.css";
 
 const CreateUser = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [formData, setFormData] = useState({ username: "", email: "", password: "", role: "", phoneNumber: "" });
   const [roles, setRoles] = useState([]);
@@ -44,7 +45,7 @@ const CreateUser = () => {
     setIsLoading(true);
     try {
       if (isEdit) {
-        await api.put(`/api/users/updateUser/${userId}`, {
+        await axios.put(`${backendUrl}/api/users/updateUser/${userId}`, {
           username: formData.username,
           email: formData.email,
           role: formData.role,
@@ -52,7 +53,7 @@ const CreateUser = () => {
         });
         toast.success("User updated successfully!");
       } else {
-        await api.post("/api/users/createUser", formData);
+        await axios.post(`${backendUrl}/api/users/createUser`, formData);
         toast.success("User created successfully!");
       }
       setTimeout(() => navigate("/admin/users"), 1000);
@@ -65,7 +66,7 @@ const CreateUser = () => {
 
   const loadUserForEdit = useCallback(async (editId) => {
     try {
-      const { data } = await api.get(`/api/users/${editId}`);
+      const { data } = await axios.get(`${backendUrl}/api/users/${editId}`);
       setFormData({
         username: data.username || "",
         email: data.email || "",
@@ -84,7 +85,7 @@ const CreateUser = () => {
   useEffect(() => {
     const loadRoles = async () => {
       try {
-        const { data } = await api.get("/api/roles");
+        const { data } = await axios.get(`${backendUrl}/api/roles`);
         setRoles(
           (data.roles || []).filter(
             (role) => role.isActive && !["Customer", "Beautician"].includes(role.name)

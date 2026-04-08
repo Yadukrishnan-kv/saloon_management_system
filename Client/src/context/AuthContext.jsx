@@ -1,9 +1,10 @@
 import React, { createContext, useState, useEffect } from "react";
-import api from "../utils/api";
+import axios from "axios";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [user, setUser] = useState(null);
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,7 +12,7 @@ export const AuthProvider = ({ children }) => {
 
   const loadPermissions = async () => {
     try {
-      const { data } = await api.get("/api/roles/me");
+      const { data } = await axios.get(`${backendUrl}/api/roles/me`);
       const rolePermissions = data.permissions || [];
       setPermissions(rolePermissions);
       return rolePermissions;
@@ -30,7 +31,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        const { data } = await api.get("/api/auth/me");
+        const { data } = await axios.get(`${backendUrl}/api/auth/me`);
         setUser(data.user);
         await loadPermissions();
         setIsAuthenticated(true);
@@ -49,7 +50,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    const { data } = await api.post("/api/auth/login", { email, password });
+    const { data } = await axios.post(`${backendUrl}/api/auth/login`, { email, password });
     localStorage.setItem("token", data.token);
     localStorage.setItem("refreshToken", data.refreshToken);
     setUser(data.user);
@@ -59,7 +60,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (formData) => {
-    const { data } = await api.post("/api/auth/register", formData);
+    const { data } = await axios.post(`${backendUrl}/api/auth/register`, formData);
     localStorage.setItem("token", data.token);
     localStorage.setItem("refreshToken", data.refreshToken);
     setUser(data.user);
@@ -70,7 +71,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await api.post("/api/auth/logout");
+      await axios.post(`${backendUrl}/api/auth/logout`);
     } catch (error) {
       // Continue logout even if API call fails
     }

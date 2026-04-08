@@ -4,10 +4,11 @@ import Header from "../../../../components/layout/Header/Header";
 import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
 import Card from "../../../../components/common/Card/Card";
 import Loading from "../../../../components/common/Loading/Loading";
-import api from "../../../../utils/api";
+import axios from "axios";
 import { formatCurrency } from "../../../../utils/helpers";
 
 const RevenueReport = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [metrics, setMetrics] = useState(null);
   const [revenue, setRevenue] = useState([]);
@@ -18,8 +19,8 @@ const RevenueReport = () => {
     const fetchData = async () => {
       try {
         const [metricsRes, revenueRes] = await Promise.all([
-          api.get("/api/dashboard/metrics"),
-          api.get("/api/dashboard/revenue", { params: { period } }),
+          axios.get(`${backendUrl}/api/dashboard/metrics`),
+          axios.get(`${backendUrl}/api/dashboard/revenue`, { params: { period } }),
         ]);
         setMetrics(metricsRes.data);
         setRevenue(revenueRes.data || []);

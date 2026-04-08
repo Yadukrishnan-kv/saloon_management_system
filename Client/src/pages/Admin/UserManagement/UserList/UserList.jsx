@@ -7,10 +7,11 @@ import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
 import Table from "../../../../components/common/Table/Table";
 import Button from "../../../../components/common/Button/Button";
 import Loading from "../../../../components/common/Loading/Loading";
-import api from "../../../../utils/api";
+import axios from "axios";
 import "./UserList.css";
 
 const UserList = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -24,7 +25,7 @@ const UserList = () => {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/api/users/getAllUsers", {
+      const { data } = await axios.get(`${backendUrl}/api/users/getAllUsers`, {
         params: { page, limit: 10, search, role: roleFilter },
       });
       setUsers(data.users);
@@ -43,7 +44,7 @@ const UserList = () => {
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const { data } = await api.get("/api/roles");
+        const { data } = await axios.get(`${backendUrl}/api/roles`);
         setRoles(
           (data.roles || []).filter(
             (role) => role.isActive && !["Customer", "Beautician"].includes(role.name)
@@ -59,7 +60,7 @@ const UserList = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
     try {
-      await api.delete(`/api/users/deleteUser/${id}`);
+      await axios.delete(`${backendUrl}/api/users/deleteUser/${id}`);
       toast.success("User deleted successfully");
       fetchUsers();
     } catch (error) {
@@ -69,7 +70,7 @@ const UserList = () => {
 
   const handleStatusChange = async (id, action) => {
     try {
-      await api.put(`/api/users/${id}/status`, { action });
+      await axios.put(`${backendUrl}/api/users/${id}/status`, { action });
       toast.success(`User ${action}d successfully`);
       fetchUsers();
     } catch (error) {

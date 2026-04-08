@@ -7,11 +7,12 @@ import Table from "../../../components/common/Table/Table";
 import Modal from "../../../components/common/Modal/Modal";
 import Button from "../../../components/common/Button/Button";
 import Loading from "../../../components/common/Loading/Loading";
-import api from "../../../utils/api";
+import axios from "axios";
 import { formatDateTime } from "../../../utils/helpers";
 import "../UserManagement/UserList/UserList.css";
 
 const ReviewManagement = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +25,7 @@ const ReviewManagement = () => {
     try {
       setLoading(true);
       const endpoint = filter === "Pending" ? "/api/admin/reviews/pending" : `/api/admin/reviews?status=${filter}`;
-      const { data } = await api.get(endpoint);
+      const { data } = await axios.get(`${backendUrl}${endpoint}`);
       setReviews(data.reviews || []);
     } catch (error) {
       toast.error("Failed to load reviews");
@@ -37,7 +38,7 @@ const ReviewManagement = () => {
 
   const handleApprove = async (reviewId) => {
     try {
-      await api.put(`/api/admin/reviews/${reviewId}/approve`);
+      await axios.put(`${backendUrl}/api/admin/reviews/${reviewId}/approve`);
       toast.success("Review approved");
       fetchReviews();
     } catch (error) {
@@ -47,7 +48,7 @@ const ReviewManagement = () => {
 
   const handleReject = async () => {
     try {
-      await api.put(`/api/admin/reviews/${selected._id}/reject`, { reason: rejectReason });
+      await axios.put(`${backendUrl}/api/admin/reviews/${selected._id}/reject`, { reason: rejectReason });
       toast.success("Review rejected");
       setRejectModal(false);
       setRejectReason("");
@@ -60,7 +61,7 @@ const ReviewManagement = () => {
   const handleDelete = async (reviewId) => {
     if (!window.confirm("Are you sure you want to permanently delete this review?")) return;
     try {
-      await api.delete(`/api/admin/reviews/${reviewId}`);
+      await axios.delete(`${backendUrl}/api/admin/reviews/${reviewId}`);
       toast.success("Review deleted");
       fetchReviews();
     } catch (error) {

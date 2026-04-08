@@ -9,10 +9,11 @@ import Button from "../../../../components/common/Button/Button";
 import Modal from "../../../../components/common/Modal/Modal";
 import Loading from "../../../../components/common/Loading/Loading";
 import BeauticianDetailsCard from "../../../../components/common/BeauticianDetailsCard/BeauticianDetailsCard";
-import api from "../../../../utils/api";
+import axios from "axios";
 import "../../UserManagement/UserList/UserList.css";
 
 const BeauticianList = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [beauticians, setBeauticians] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +27,7 @@ const BeauticianList = () => {
   const fetchBeauticians = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/api/beauticians", {
+      const { data } = await axios.get(`${backendUrl}/api/beauticians`, {
         params: { page, limit: 10, search, status: statusFilter },
       });
       setBeauticians(data.beauticians);
@@ -43,7 +44,7 @@ const BeauticianList = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure?")) return;
     try {
-      await api.delete(`/api/beauticians/${id}`);
+      await axios.delete(`${backendUrl}/api/beauticians/${id}`);
       toast.success("Beautician deleted");
       fetchBeauticians();
     } catch (error) {
@@ -53,7 +54,7 @@ const BeauticianList = () => {
 
   const handleStatusChange = async (id, status) => {
     try {
-      await api.put(`/api/beauticians/${id}/status`, { status });
+      await axios.put(`${backendUrl}/api/beauticians/${id}/status`, { status });
       toast.success(`Beautician ${status.toLowerCase()}`);
       fetchBeauticians();
     } catch (error) {

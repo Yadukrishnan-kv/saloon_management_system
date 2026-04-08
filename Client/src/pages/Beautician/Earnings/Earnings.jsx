@@ -4,10 +4,11 @@ import Sidebar from "../../../components/layout/Sidebar/Sidebar";
 import Card from "../../../components/common/Card/Card";
 import Loading from "../../../components/common/Loading/Loading";
 import { FiDollarSign, FiTrendingUp } from "react-icons/fi";
-import api from "../../../utils/api";
+import axios from "axios";
 import { formatCurrency } from "../../../utils/helpers";
 
 const Earnings = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -15,7 +16,7 @@ const Earnings = () => {
   useEffect(() => {
     const fetchEarnings = async () => {
       try {
-        const { data } = await api.get("/api/beauticians/me");
+        const { data } = await axios.get(`${backendUrl}/api/beauticians/me`);
         setProfile(data);
       } catch (error) {
         console.error(error);

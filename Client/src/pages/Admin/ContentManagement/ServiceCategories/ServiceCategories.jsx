@@ -7,10 +7,11 @@ import Table from "../../../../components/common/Table/Table";
 import Button from "../../../../components/common/Button/Button";
 import Modal from "../../../../components/common/Modal/Modal";
 import Loading from "../../../../components/common/Loading/Loading";
-import api from "../../../../utils/api";
+import axios from "axios";
 import "../../UserManagement/UserList/UserList.css";
 
 const ServiceCategories = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +21,7 @@ const ServiceCategories = () => {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const { data } = await api.get("/api/categories");
+      const { data } = await axios.get(`${backendUrl}/api/categories`);
       // Show only top-level categories on this page
       setCategories(data.filter((c) => !c.parentCategory));
     } catch (error) {
@@ -37,10 +38,10 @@ const ServiceCategories = () => {
     if (!formData.name.trim()) { toast.error("Name is required"); return; }
     try {
       if (editCategory) {
-        await api.put(`/api/categories/${editCategory._id}`, formData);
+        await axios.put(`${backendUrl}/api/categories/${editCategory._id}`, formData);
         toast.success("Category updated");
       } else {
-        await api.post("/api/categories", formData);
+        await axios.post(`${backendUrl}/api/categories`, formData);
         toast.success("Category created");
       }
       setModalOpen(false);
@@ -72,7 +73,7 @@ const ServiceCategories = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this category?")) return;
     try {
-      await api.delete(`/api/categories/${id}`);
+      await axios.delete(`${backendUrl}/api/categories/${id}`);
       toast.success("Deleted");
       fetchCategories();
     } catch (err) {

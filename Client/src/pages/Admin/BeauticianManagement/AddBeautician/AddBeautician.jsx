@@ -5,9 +5,10 @@ import Header from "../../../../components/layout/Header/Header";
 import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
 import Button from "../../../../components/common/Button/Button";
 import { BEAUTICIAN_SKILLS } from "../../../../constants/constants";
-import api from "../../../../utils/api";
+import axios from "axios";
 
 const AddBeautician = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [beauticianId, setBeauticianId] = useState(null);
@@ -69,7 +70,7 @@ const AddBeautician = () => {
       let targetBeauticianId = beauticianId;
 
       if (isEdit) {
-        await api.put(`/api/beauticians/${beauticianId}`, {
+        await axios.put(`${backendUrl}/api/beauticians/${beauticianId}`, {
           fullName: formData.fullName,
           phoneNumber: formData.phoneNumber,
           bio: formData.bio,
@@ -79,7 +80,7 @@ const AddBeautician = () => {
           location: formData.location,
         });
       } else {
-        const { data } = await api.post("/api/beauticians", formData);
+        const { data } = await axios.post(`${backendUrl}/api/beauticians`, formData);
         targetBeauticianId = data?._id;
       }
 
@@ -87,7 +88,7 @@ const AddBeautician = () => {
         const payload = new FormData();
         documents.forEach((file) => payload.append("documents", file));
         payload.append("documentType", documentType);
-        await api.post(`/api/beauticians/${targetBeauticianId}/documents`, payload);
+        await axios.post(`${backendUrl}/api/beauticians/${targetBeauticianId}/documents`, payload);
       }
 
       toast.success(`Beautician ${isEdit ? "updated" : "created"}!`);
@@ -101,7 +102,7 @@ const AddBeautician = () => {
 
   const loadForEdit = useCallback(async (id) => {
     try {
-      const { data } = await api.get(`/api/beauticians/${id}`);
+      const { data } = await axios.get(`${backendUrl}/api/beauticians/${id}`);
       setFormData({
         username: data.user?.username || "",
         email: data.user?.email || "",

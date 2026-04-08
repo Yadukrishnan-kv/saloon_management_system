@@ -7,11 +7,12 @@ import Table from "../../../../components/common/Table/Table";
 import Modal from "../../../../components/common/Modal/Modal";
 import Button from "../../../../components/common/Button/Button";
 import Loading from "../../../../components/common/Loading/Loading";
-import api from "../../../../utils/api";
+import axios from "axios";
 import { formatDateTime, getStatusColor } from "../../../../utils/helpers";
 import "../../UserManagement/UserList/UserList.css";
 
 const ComplaintsList = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +25,7 @@ const ComplaintsList = () => {
 
   const fetchComplaints = useCallback(async () => {
     try {
-      const { data } = await api.get("/api/complaints", {
+      const { data } = await axios.get(`${backendUrl}/api/complaints`, {
         params: {
           category: categoryFilter || undefined,
           status: statusFilter || undefined,
@@ -42,7 +43,7 @@ const ComplaintsList = () => {
 
   const handleResolve = async () => {
     try {
-      await api.put(`/api/complaints/${selected._id}`, { status: newStatus, adminResponse: response });
+      await axios.put(`${backendUrl}/api/complaints/${selected._id}`, { status: newStatus, adminResponse: response });
       toast.success("Complaint updated");
       setModalOpen(false);
       fetchComplaints();

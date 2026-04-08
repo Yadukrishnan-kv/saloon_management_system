@@ -6,10 +6,11 @@ import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
 import Button from "../../../../components/common/Button/Button";
 import Modal from "../../../../components/common/Modal/Modal";
 import Loading from "../../../../components/common/Loading/Loading";
-import api from "../../../../utils/api";
+import axios from "axios";
 import "../../UserManagement/UserList/UserList.css";
 
 const PromotionalBanners = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [banners, setBanners] = useState([]);
   const [staticPages, setStaticPages] = useState([]);
@@ -23,8 +24,8 @@ const PromotionalBanners = () => {
   const fetchData = useCallback(async () => {
     try {
       const [bannerRes, staticContentRes] = await Promise.all([
-        api.get("/api/banners"),
-        api.get("/api/static-content"),
+        axios.get(`${backendUrl}/api/banners`),
+        axios.get(`${backendUrl}/api/static-content`),
       ]);
       setBanners(bannerRes.data);
       setStaticPages(staticContentRes.data);
@@ -41,7 +42,7 @@ const PromotionalBanners = () => {
     e.preventDefault();
     if (!formData.title.trim()) { toast.error("Title is required"); return; }
     try {
-      await api.post("/api/banners", formData);
+      await axios.post(`${backendUrl}/api/banners`, formData);
       toast.success("Banner created");
       setModalOpen(false);
       setFormData({ title: "", description: "", image: "", link: "", isActive: true });
@@ -65,7 +66,7 @@ const PromotionalBanners = () => {
     }
 
     try {
-      await api.put("/api/static-content", contentForm);
+      await axios.put(`${backendUrl}/api/static-content`, contentForm);
       toast.success("Static content updated");
       setContentModalOpen(false);
       setEditingPage(null);
@@ -78,7 +79,7 @@ const PromotionalBanners = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this banner?")) return;
     try {
-      await api.delete(`/api/banners/${id}`);
+      await axios.delete(`${backendUrl}/api/banners/${id}`);
       toast.success("Deleted");
       fetchData();
     } catch (err) {

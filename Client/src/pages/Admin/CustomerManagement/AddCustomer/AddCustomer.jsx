@@ -5,9 +5,10 @@ import Header from "../../../../components/layout/Header/Header";
 import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
 import Button from "../../../../components/common/Button/Button";
 import "../../UserManagement/UserList/UserList.css";
-import api from "../../../../utils/api";
+import axios from "axios";
 
 const AddCustomer = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
@@ -51,14 +52,14 @@ const AddCustomer = () => {
     try {
       setIsLoading(true);
       if (isEdit) {
-        await api.put(`/api/users/customers/${customerId}`, {
+        await axios.put(`${backendUrl}/api/users/customers/${customerId}`, {
           username: formData.username,
           email: formData.email,
           phoneNumber: formData.phoneNumber,
         });
         toast.success("Customer updated successfully");
       } else {
-        await api.post("/api/auth/register", formData);
+        await axios.post(`${backendUrl}/api/auth/register`, formData);
         toast.success("Customer created successfully");
       }
       setTimeout(() => navigate("/admin/customers"), 800);
@@ -71,7 +72,7 @@ const AddCustomer = () => {
 
   const loadCustomerForEdit = useCallback(async (editId) => {
     try {
-      const { data } = await api.get(`/api/users/customers/${editId}`);
+      const { data } = await axios.get(`${backendUrl}/api/users/customers/${editId}`);
       setFormData({
         username: data.username || "",
         email: data.email || "",

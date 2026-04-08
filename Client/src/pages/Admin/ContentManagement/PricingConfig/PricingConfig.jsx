@@ -7,11 +7,12 @@ import Table from "../../../../components/common/Table/Table";
 import Button from "../../../../components/common/Button/Button";
 import Modal from "../../../../components/common/Modal/Modal";
 import Loading from "../../../../components/common/Loading/Loading";
-import api from "../../../../utils/api";
+import axios from "axios";
 import { formatCurrency } from "../../../../utils/helpers";
 import "../../UserManagement/UserList/UserList.css";
 
 const PricingConfig = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const modalGridStyle = {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
@@ -38,8 +39,8 @@ const PricingConfig = () => {
   const fetchData = useCallback(async () => {
     try {
       const [servRes, catRes] = await Promise.all([
-        api.get("/api/services"),
-        api.get("/api/categories"),
+        axios.get(`${backendUrl}/api/services`),
+        axios.get(`${backendUrl}/api/categories`),
       ]);
       setServices(servRes.data);
       setCategories(catRes.data);
@@ -60,10 +61,10 @@ const PricingConfig = () => {
     }
     try {
       if (editService) {
-        await api.put(`/api/services/${editService._id}`, formData);
+        await axios.put(`${backendUrl}/api/services/${editService._id}`, formData);
         toast.success("Service updated");
       } else {
-        await api.post("/api/services", formData);
+        await axios.post(`${backendUrl}/api/services`, formData);
         toast.success("Service created");
       }
       setModalOpen(false);
@@ -89,7 +90,7 @@ const PricingConfig = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this service?")) return;
     try {
-      await api.delete(`/api/services/${id}`);
+      await axios.delete(`${backendUrl}/api/services/${id}`);
       toast.success("Deleted");
       fetchData();
     } catch (err) {

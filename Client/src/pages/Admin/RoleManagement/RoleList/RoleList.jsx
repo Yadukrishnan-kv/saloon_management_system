@@ -7,10 +7,11 @@ import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
 import Table from "../../../../components/common/Table/Table";
 import Button from "../../../../components/common/Button/Button";
 import Loading from "../../../../components/common/Loading/Loading";
-import api from "../../../../utils/api";
+import axios from "axios";
 import "../../UserManagement/UserList/UserList.css";
 
 const RoleList = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +21,7 @@ const RoleList = () => {
   const fetchRoles = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/api/roles", { params: { search } });
+      const { data } = await axios.get(`${backendUrl}/api/roles`, { params: { search } });
       setRoles(data.roles || []);
     } catch (error) {
       toast.error("Failed to load roles");
@@ -36,7 +37,7 @@ const RoleList = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this role?")) return;
     try {
-      await api.delete(`/api/roles/${id}`);
+      await axios.delete(`${backendUrl}/api/roles/${id}`);
       toast.success("Role deleted successfully");
       fetchRoles();
     } catch (error) {

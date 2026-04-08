@@ -7,10 +7,11 @@ import Table from "../../../../components/common/Table/Table";
 import Button from "../../../../components/common/Button/Button";
 import Modal from "../../../../components/common/Modal/Modal";
 import Loading from "../../../../components/common/Loading/Loading";
-import api from "../../../../utils/api";
+import axios from "axios";
 import "../../UserManagement/UserList/UserList.css";
 
 const SubCategories = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [subCategories, setSubCategories] = useState([]);
   const [parentCategories, setParentCategories] = useState([]);
@@ -21,7 +22,7 @@ const SubCategories = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      const { data } = await api.get("/api/categories");
+      const { data } = await axios.get(`${backendUrl}/api/categories`);
       const tops = data.filter((c) => !c.parentCategory);
       const subs = data.filter((c) => c.parentCategory);
       setParentCategories(tops);
@@ -41,10 +42,10 @@ const SubCategories = () => {
     if (!formData.parentCategory) { toast.error("Parent category is required"); return; }
     try {
       if (editItem) {
-        await api.put(`/api/categories/${editItem._id}`, formData);
+        await axios.put(`${backendUrl}/api/categories/${editItem._id}`, formData);
         toast.success("Sub category updated");
       } else {
-        await api.post("/api/categories", formData);
+        await axios.post(`${backendUrl}/api/categories`, formData);
         toast.success("Sub category created");
       }
       setModalOpen(false);
@@ -75,7 +76,7 @@ const SubCategories = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this sub category?")) return;
     try {
-      await api.delete(`/api/categories/${id}`);
+      await axios.delete(`${backendUrl}/api/categories/${id}`);
       toast.success("Deleted");
       fetchData();
     } catch (err) {

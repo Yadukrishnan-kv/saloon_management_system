@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import Header from "../../../../components/layout/Header/Header";
 import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
 import Button from "../../../../components/common/Button/Button";
-import api from "../../../../utils/api";
+import axios from "axios";
 import "../../UserManagement/UserList/UserList.css";
 import "./CreateRole.css";
 
@@ -38,6 +38,7 @@ const MENU_OPTIONS = [
 ];
 
 const CreateRole = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -87,10 +88,10 @@ const CreateRole = () => {
     setIsLoading(true);
     try {
       if (isEdit) {
-        await api.put(`/api/roles/${roleId}`, formData);
+        await axios.put(`${backendUrl}/api/roles/${roleId}`, formData);
         toast.success("Role updated successfully");
       } else {
-        await api.post("/api/roles", formData);
+        await axios.post(`${backendUrl}/api/roles`, formData);
         toast.success("Role created successfully");
       }
       setTimeout(() => navigate("/admin/roles"), 600);
@@ -103,7 +104,7 @@ const CreateRole = () => {
 
   const loadRoleForEdit = useCallback(async (editId) => {
     try {
-      const { data } = await api.get(`/api/roles/${editId}`);
+      const { data } = await axios.get(`${backendUrl}/api/roles/${editId}`);
       setFormData({
         name: data.name || "",
         description: data.description || "",

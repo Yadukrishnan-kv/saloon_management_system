@@ -4,10 +4,11 @@ import Header from "../../../components/layout/Header/Header";
 import Sidebar from "../../../components/layout/Sidebar/Sidebar";
 import Card from "../../../components/common/Card/Card";
 import Loading from "../../../components/common/Loading/Loading";
-import api from "../../../utils/api";
+import axios from "axios";
 import { formatCurrency, formatDate, getStatusColor } from "../../../utils/helpers";
 
 const BeauticianDashboard = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [data, setData] = useState({ profile: null, todayBookings: [], stats: {} });
   const [loading, setLoading] = useState(true);
@@ -16,8 +17,8 @@ const BeauticianDashboard = () => {
     const fetchData = async () => {
       try {
         const [profileRes, bookingsRes] = await Promise.all([
-          api.get("/api/beauticians/me"),
-          api.get("/api/bookings/today"),
+          axios.get(`${backendUrl}/api/beauticians/me`),
+          axios.get(`${backendUrl}/api/bookings/today`),
         ]);
         setData({
           profile: profileRes.data,

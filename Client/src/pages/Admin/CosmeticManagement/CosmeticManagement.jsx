@@ -7,11 +7,12 @@ import Table from "../../../components/common/Table/Table";
 import Modal from "../../../components/common/Modal/Modal";
 import Button from "../../../components/common/Button/Button";
 import Loading from "../../../components/common/Loading/Loading";
-import api from "../../../utils/api";
+import axios from "axios";
 import { formatDateTime } from "../../../utils/helpers";
 import "../UserManagement/UserList/UserList.css";
 
 const CosmeticManagement = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const modalGridStyle = {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
@@ -34,7 +35,7 @@ const CosmeticManagement = () => {
   const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/api/admin/cosmetics/items");
+      const { data } = await axios.get(`${backendUrl}/api/admin/cosmetics/items`);
       setItems(data.items || []);
     } catch (error) {
       toast.error("Failed to load cosmetic items");
@@ -45,7 +46,7 @@ const CosmeticManagement = () => {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const { data } = await api.get("/api/categories");
+      const { data } = await axios.get(`${backendUrl}/api/categories`);
       setCategories(data);
     } catch (error) {
       // silently ignore - categories are optional
@@ -55,7 +56,7 @@ const CosmeticManagement = () => {
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/api/admin/cosmetics/orders");
+      const { data } = await axios.get(`${backendUrl}/api/admin/cosmetics/orders`);
       setOrders(data.orders || []);
     } catch (error) {
       toast.error("Failed to load cosmetic orders");
@@ -82,10 +83,10 @@ const CosmeticManagement = () => {
         return toast.error("Name, category, and price are required");
       }
       if (editing) {
-        await api.put(`/api/admin/cosmetics/items/${editing._id}`, form);
+        await axios.put(`${backendUrl}/api/admin/cosmetics/items/${editing._id}`, form);
         toast.success("Item updated");
       } else {
-        await api.post("/api/admin/cosmetics/items", form);
+        await axios.post(`${backendUrl}/api/admin/cosmetics/items`, form);
         toast.success("Item created");
       }
       setItemModal(false);
@@ -100,7 +101,7 @@ const CosmeticManagement = () => {
   const handleDeleteItem = async (itemId) => {
     if (!window.confirm("Delete this cosmetic item?")) return;
     try {
-      await api.delete(`/api/admin/cosmetics/items/${itemId}`);
+      await axios.delete(`${backendUrl}/api/admin/cosmetics/items/${itemId}`);
       toast.success("Item deleted");
       fetchItems();
     } catch (error) {
@@ -110,7 +111,7 @@ const CosmeticManagement = () => {
 
   const handleUpdateOrderStatus = async (status) => {
     try {
-      await api.put(`/api/admin/cosmetics/orders/${selectedOrder._id}/status`, { status });
+      await axios.put(`${backendUrl}/api/admin/cosmetics/orders/${selectedOrder._id}/status`, { status });
       toast.success(`Order ${status.toLowerCase()}`);
       setOrderModal(false);
       fetchOrders();

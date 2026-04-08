@@ -4,10 +4,11 @@ import Header from "../../../components/layout/Header/Header";
 import Sidebar from "../../../components/layout/Sidebar/Sidebar";
 import Button from "../../../components/common/Button/Button";
 import useAuth from "../../../hooks/useAuth";
-import api from "../../../utils/api";
+import axios from "axios";
 import "./Profile.css";
 
 const Profile = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { user, updateUser } = useAuth();
   const [formData, setFormData] = useState({ username: "", email: "", phoneNumber: "" });
@@ -25,7 +26,7 @@ const Profile = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const { data } = await api.put("/api/users/profile", formData);
+      const { data } = await axios.put(`${backendUrl}/api/users/profile`, formData);
       updateUser(data);
       toast.success("Profile updated!");
     } catch (err) {
@@ -47,7 +48,7 @@ const Profile = () => {
     }
     setIsPwdLoading(true);
     try {
-      await api.put("/api/users/change-password", {
+      await axios.put(`${backendUrl}/api/users/change-password`, {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
       });

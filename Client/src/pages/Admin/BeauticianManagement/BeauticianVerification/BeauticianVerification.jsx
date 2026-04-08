@@ -8,10 +8,11 @@ import Modal from "../../../../components/common/Modal/Modal";
 import Button from "../../../../components/common/Button/Button";
 import Loading from "../../../../components/common/Loading/Loading";
 import BeauticianDetailsCard from "../../../../components/common/BeauticianDetailsCard/BeauticianDetailsCard";
-import api from "../../../../utils/api";
+import axios from "axios";
 import "../../UserManagement/UserList/UserList.css";
 
 const BeauticianVerification = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [beauticians, setBeauticians] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +20,7 @@ const BeauticianVerification = () => {
 
   const fetchPending = useCallback(async () => {
     try {
-      const { data } = await api.get("/api/beauticians", { params: { verificationStatus: "Pending" } });
+      const { data } = await axios.get(`${backendUrl}/api/beauticians`, { params: { verificationStatus: "Pending" } });
       setBeauticians(data.beauticians || []);
     } catch (error) {
       toast.error("Failed to load");
@@ -32,7 +33,7 @@ const BeauticianVerification = () => {
 
   const handleVerify = async (id, status) => {
     try {
-      await api.put(`/api/beauticians/${id}/verify`, { verificationStatus: status });
+      await axios.put(`${backendUrl}/api/beauticians/${id}/verify`, { verificationStatus: status });
       toast.success(`Beautician ${status.toLowerCase()}`);
       setSelected(null);
       setBeauticians((prev) => prev.filter((b) => b._id !== id));

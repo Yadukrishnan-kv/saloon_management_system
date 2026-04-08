@@ -4,11 +4,12 @@ import { FiSearch } from "react-icons/fi";
 import Header from "../../../components/layout/Header/Header";
 import Sidebar from "../../../components/layout/Sidebar/Sidebar";
 import Loading from "../../../components/common/Loading/Loading";
-import api from "../../../utils/api";
+import axios from "axios";
 import { formatCurrency } from "../../../utils/helpers";
 import "./BrowseServices.css";
 
 const BrowseServices = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [services, setServices] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -21,8 +22,8 @@ const BrowseServices = () => {
     const fetchData = async () => {
       try {
         const [servRes, catRes] = await Promise.all([
-          api.get("/api/services"),
-          api.get("/api/categories"),
+          axios.get(`${backendUrl}/api/services`),
+          axios.get(`${backendUrl}/api/categories`),
         ]);
         setServices(servRes.data);
         setCategories(catRes.data);

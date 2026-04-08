@@ -6,11 +6,12 @@ import Sidebar from "../../../components/layout/Sidebar/Sidebar";
 import Table from "../../../components/common/Table/Table";
 import Button from "../../../components/common/Button/Button";
 import Loading from "../../../components/common/Loading/Loading";
-import api from "../../../utils/api";
+import axios from "axios";
 import { formatDateTime } from "../../../utils/helpers";
 import "../UserManagement/UserList/UserList.css";
 
 const PayoutManagement = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +20,7 @@ const PayoutManagement = () => {
   const fetchPayouts = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/api/admin/payouts/pending");
+      const { data } = await axios.get(`${backendUrl}/api/admin/payouts/pending`);
       setPayouts(data.payouts || []);
       setTotalPending(data.totalPendingAmount || 0);
     } catch (error) {
@@ -34,7 +35,7 @@ const PayoutManagement = () => {
   const handleProcessPayout = async (bookingId) => {
     if (!window.confirm("Process this payout? This will credit the beautician's wallet.")) return;
     try {
-      const { data } = await api.post(`/api/admin/payouts/${bookingId}/process`);
+      const { data } = await axios.post(`${backendUrl}/api/admin/payouts/${bookingId}/process`);
       toast.success(`Payout of ₹${data.payoutAmount} processed`);
       fetchPayouts();
     } catch (error) {

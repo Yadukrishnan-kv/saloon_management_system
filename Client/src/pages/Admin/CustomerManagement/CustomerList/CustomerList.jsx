@@ -7,11 +7,12 @@ import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
 import Table from "../../../../components/common/Table/Table";
 import Button from "../../../../components/common/Button/Button";
 import Loading from "../../../../components/common/Loading/Loading";
-import api from "../../../../utils/api";
+import axios from "axios";
 import { formatDateTime } from "../../../../utils/helpers";
 import "../../UserManagement/UserList/UserList.css";
 
 const CustomerList = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +25,7 @@ const CustomerList = () => {
   const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/api/users/customers", {
+      const { data } = await axios.get(`${backendUrl}/api/users/customers`, {
         params: { page, limit: 10, search, status: statusFilter },
       });
       setCustomers(data.users || []);
@@ -42,7 +43,7 @@ const CustomerList = () => {
 
   const handleStatusChange = async (id, action) => {
     try {
-      await api.put(`/api/users/customers/${id}/status`, { action });
+      await axios.put(`${backendUrl}/api/users/customers/${id}/status`, { action });
       toast.success(`Customer ${action}d successfully`);
       fetchCustomers();
     } catch (error) {

@@ -4,11 +4,12 @@ import Header from "../../../components/layout/Header/Header";
 import Sidebar from "../../../components/layout/Sidebar/Sidebar";
 import Card from "../../../components/common/Card/Card";
 import Loading from "../../../components/common/Loading/Loading";
-import api from "../../../utils/api";
+import axios from "axios";
 import { formatCurrency } from "../../../utils/helpers";
 import "./Dashboard.css";
 
 const Dashboard = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -16,7 +17,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const metricsRes = await api.get("/api/dashboard/metrics");
+        const metricsRes = await axios.get(`${backendUrl}/api/dashboard/metrics`);
         setMetrics(metricsRes.data);
       } catch (error) {
         console.error("Dashboard fetch error:", error);

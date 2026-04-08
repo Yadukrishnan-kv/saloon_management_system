@@ -5,11 +5,12 @@ import Sidebar from "../../../components/layout/Sidebar/Sidebar";
 import Card from "../../../components/common/Card/Card";
 import Loading from "../../../components/common/Loading/Loading";
 import useAuth from "../../../hooks/useAuth";
-import api from "../../../utils/api";
+import axios from "axios";
 import { formatCurrency, formatDate } from "../../../utils/helpers";
 import "./CustomerDashboard.css";
 
 const CustomerDashboard = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
@@ -18,7 +19,7 @@ const CustomerDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data } = await api.get("/api/bookings", { params: { limit: 5 } });
+        const { data } = await axios.get(`${backendUrl}/api/bookings`, { params: { limit: 5 } });
         setBookings(data.bookings || []);
       } catch (error) {
         console.error(error);

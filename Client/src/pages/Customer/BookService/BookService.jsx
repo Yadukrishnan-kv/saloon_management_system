@@ -6,11 +6,12 @@ import Sidebar from "../../../components/layout/Sidebar/Sidebar";
 import ServiceList from "../../../components/beautician/ServiceList/ServiceList";
 import Button from "../../../components/common/Button/Button";
 import Loading from "../../../components/common/Loading/Loading";
-import api from "../../../utils/api";
+import axios from "axios";
 import { formatCurrency } from "../../../utils/helpers";
 import "./BookService.css";
 
 const BookService = () => {
+  const backendUrl = process.env.REACT_APP_BACKEND_IP;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [services, setServices] = useState([]);
   const [selectedServices, setSelectedServices] = useState([]);
@@ -27,7 +28,7 @@ const BookService = () => {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const { data } = await api.get("/api/services");
+        const { data } = await axios.get(`${backendUrl}/api/services`);
         setServices(data);
         const preselect = searchParams.get("service");
         if (preselect) setSelectedServices([preselect]);
@@ -65,7 +66,7 @@ const BookService = () => {
 
     setSubmitting(true);
     try {
-      await api.post("/api/bookings", {
+      await axios.post(`${backendUrl}/api/bookings`, {
         services: selectedServices,
         bookingDate,
         timeSlot: { startTime, endTime },
