@@ -10,6 +10,9 @@ const {
   deleteAddress,
   getBookingHistory,
   getBookingById,
+  getFavoriteStylists,
+  addFavoriteStylist,
+  removeFavoriteStylist,
 } = require("../controllers/mobileappUserController");
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 const upload = require("../middleware/uploadMiddleware");
@@ -27,6 +30,11 @@ router.post("/add-address", addAddress);
 router.get("/addresses", getAddresses);
 router.put("/address/:id", updateAddress);
 router.delete("/address/:id", deleteAddress);
+
+// Favorite stylists
+router.get("/favorites", getFavoriteStylists);
+router.post("/favorites", addFavoriteStylist);
+router.delete("/favorites/:beauticianId", removeFavoriteStylist);
 
 // Booking history
 router.get("/booking-history", getBookingHistory);

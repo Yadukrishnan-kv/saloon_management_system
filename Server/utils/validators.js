@@ -67,9 +67,8 @@ const validateCustomerRegister = (data) => {
     errors.email = "Please provide a valid email";
   }
 
-  if (!data.phone || !data.phone.trim()) {
-    errors.phone = "Phone number is required";
-  } else if (!/^\+?[1-9]\d{6,14}$/.test(data.phone.replace(/\s/g, ""))) {
+  // Phone is optional at signup (can be added later in profile)
+  if (data.phone && data.phone.trim() && !/^\+?[1-9]\d{6,14}$/.test(data.phone.replace(/\s/g, ""))) {
     errors.phone = "Please provide a valid phone number";
   }
 
@@ -79,9 +78,8 @@ const validateCustomerRegister = (data) => {
     errors.password = "Password must be at least 6 characters";
   }
 
-  if (!data.confirmPassword) {
-    errors.confirmPassword = "Confirm password is required";
-  } else if (data.password !== data.confirmPassword) {
+  // confirmPassword is optional (mobile app may validate client-side)
+  if (data.confirmPassword && data.password !== data.confirmPassword) {
     errors.confirmPassword = "Passwords do not match";
   }
 

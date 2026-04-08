@@ -1,5 +1,6 @@
 const Booking = require("../models/Booking");
 const Service = require("../models/Service");
+const ServiceAddon = require("../models/ServiceAddon");
 const Beautician = require("../models/Beautician");
 const Availability = require("../models/Availability");
 const Notification = require("../models/Notification");
@@ -16,6 +17,7 @@ const MAX_BOOKING_HOUR = 23; // No bookings after 11 PM
 const BROADCAST_COUNT = 4; // Send booking to 3-4 beauticians
 const RADIUS_KM = 5; // 5 km area restriction
 const PAYOUT_DAYS = 4; // Pay beautician in 4 days
+const TRAVEL_RATE_PER_KM = 10; // ₹10 per km concierge/travel fee
 
 // ─── HELPER: Generate time slots ──────────────────────────────────────────────
 const generateTimeSlots = (start, end, durationMinutes, breakStart, breakEnd) => {
@@ -62,7 +64,7 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Validation failed", errors });
     }
 
-    const { serviceId, beauticianId, bookingDate, bookingTime, locationType, address, notes, preferredGender } = req.body;
+    const { serviceId, beauticianId, bookingDate, bookingTime, locationType, address, notes, preferredGender, addonIds } = req.body;
 
     // ── 11 PM restriction: No bookings after 11 PM ──
     const bookingHour = parseInt(bookingTime.split(":")[0], 10);
@@ -92,6 +94,22 @@ const createBooking = async (req, res) => {
     const discountedPrice = service.price - (service.price * service.discount) / 100;
     const endTimeMinutes = parseTime(bookingTime) + service.duration;
     const endTime = formatTime(endTimeMinutes);
+
+    // ── Resolve add-ons ──
+    let bookingAddons = [];
+    let addonsTotal = 0;
+    if (addonIds && addonIds.length > 0) {
+      const addons = await ServiceAddon.find({ _id: { $in: addonIds }, isActive: true });
+      bookingAddons = addons.map((a) => ({
+        addon: a._id,
+        addonName: a.name,
+        price: a.price,
+      }));
+      addonsTotal = addons.reduce((sum, a) => sum + a.price, 0);
+    }
+
+    // ── Calculate travel/concierge fee based on distance ──
+    let travelFee = 0;
 
     // ── Multi-beautician broadcast: Find nearby beauticians and broadcast ──
     let broadcastedBeauticians = [];
@@ -127,6 +145,8 @@ const createBooking = async (req, res) => {
         if (distance > RADIUS_KM) {
           return res.status(400).json({ success: false, message: `Beautician is outside the ${RADIUS_KM} km service area` });
         }
+        // ── Travel / concierge fee: ₹10 per km ──
+        travelFee = Math.round(distance * TRAVEL_RATE_PER_KM);
       }
 
       // ── 30-min buffer check ──
@@ -164,18 +184,23 @@ const createBooking = async (req, res) => {
           duration: service.duration,
         },
       ],
+      addons: bookingAddons,
       bookingDate: new Date(bookingDate),
       timeSlot: {
         startTime: bookingTime,
         endTime,
       },
       status: assignedBeautician ? "Assigned" : "Requested",
-      totalAmount: service.price,
+      totalAmount: service.price + addonsTotal,
       discountAmount: service.price - discountedPrice,
-      finalAmount: discountedPrice,
+      addonsAmount: addonsTotal,
+      travelFee,
+      finalAmount: discountedPrice + addonsTotal + travelFee,
       address: address
         ? {
             street: address.address,
+            unit: address.unit || "",
+            gateCode: address.gateCode || "",
             city: address.city,
             pincode: address.pincode,
             coordinates: {
@@ -610,14 +635,26 @@ const beauticianGetBooking = async (req, res) => {
       _id: req.params.bookingId,
       beautician: req.beautician._id,
     })
-      .populate("customer", "username email phoneNumber profileImage")
-      .populate("services.service", "name price duration image category");
+      .populate("customer", "username email phoneNumber profileImage tier")
+      .populate("services.service", "name price duration image category")
+      .populate("addons.addon", "name price image");
 
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found" });
     }
 
-    res.json({ success: true, booking });
+    res.json({
+      success: true,
+      booking,
+      // Expose customer contact for chat/call (design shows message & phone icons)
+      customerContact: {
+        name: booking.customer?.username,
+        phone: booking.customer?.phoneNumber,
+        email: booking.customer?.email,
+        tier: booking.customer?.tier,
+        profileImage: booking.customer?.profileImage,
+      },
+    });
   } catch (error) {
     console.error("Beautician get booking error:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -749,7 +786,8 @@ const beauticianDeclineBooking = async (req, res) => {
 };
 
 // ─── BEAUTICIAN: START BOOKING ────────────────────────────────────────────────
-const beauticianStartBooking = async (req, res) => {
+// ─── BEAUTICIAN: ON THE WAY ───────────────────────────────────────────────────
+const beauticianOnTheWay = async (req, res) => {
   try {
     const booking = await Booking.findOne({
       _id: req.params.bookingId,
@@ -759,6 +797,50 @@ const beauticianStartBooking = async (req, res) => {
 
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found or not accepted" });
+    }
+
+    booking.status = "OnTheWay";
+    booking.onTheWayAt = new Date();
+    await booking.save();
+
+    // Notify customer
+    await Notification.create({
+      user: booking.customer,
+      title: "Stylist On The Way",
+      message: `Your stylist ${req.beautician.fullName} is on the way!`,
+      type: "booking",
+      data: { bookingId: booking._id },
+    });
+
+    res.json({ success: true, message: "Status updated to on the way" });
+  } catch (error) {
+    console.error("On the way error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+const beauticianStartBooking = async (req, res) => {
+  try {
+    const { biometricToken, professionalNotes } = req.body;
+
+    const booking = await Booking.findOne({
+      _id: req.params.bookingId,
+      beautician: req.beautician._id,
+      status: { $in: ["Accepted", "OnTheWay"] },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found or not accepted" });
+    }
+
+    // Record biometric verification (verified client-side, token acts as confirmation)
+    if (biometricToken) {
+      booking.biometricVerification.startVerified = true;
+      booking.biometricVerification.startVerifiedAt = new Date();
+    }
+
+    if (professionalNotes) {
+      booking.professionalNotes = professionalNotes;
     }
 
     booking.status = "InProgress";
@@ -774,7 +856,11 @@ const beauticianStartBooking = async (req, res) => {
       data: { bookingId: booking._id },
     });
 
-    res.json({ success: true, message: "Booking marked as in-progress" });
+    res.json({
+      success: true,
+      message: "Booking marked as in-progress",
+      biometricVerified: !!biometricToken,
+    });
   } catch (error) {
     console.error("Start booking error:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -784,6 +870,8 @@ const beauticianStartBooking = async (req, res) => {
 // ─── BEAUTICIAN: COMPLETE BOOKING ─────────────────────────────────────────────
 const beauticianCompleteBooking = async (req, res) => {
   try {
+    const { biometricToken } = req.body;
+
     const booking = await Booking.findOne({
       _id: req.params.bookingId,
       beautician: req.beautician._id,
@@ -792,6 +880,12 @@ const beauticianCompleteBooking = async (req, res) => {
 
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found or not in progress" });
+    }
+
+    // Record biometric verification for completion
+    if (biometricToken) {
+      booking.biometricVerification.completeVerified = true;
+      booking.biometricVerification.completeVerifiedAt = new Date();
     }
 
     booking.status = "Completed";
@@ -850,10 +944,12 @@ const beauticianCompleteBooking = async (req, res) => {
     res.json({
       success: true,
       message: "Booking completed",
+      jobId: booking.jobId,
       paymentAmount: booking.finalAmount,
       platformCommission: PLATFORM_COMMISSION,
       beauticianPayout: booking.finalAmount - PLATFORM_COMMISSION,
       payoutDate: payoutDate,
+      biometricVerified: !!biometricToken,
     });
   } catch (error) {
     console.error("Complete booking error:", error);
@@ -1037,6 +1133,7 @@ module.exports = {
   beauticianGetBooking,
   beauticianAcceptBooking,
   beauticianDeclineBooking,
+  beauticianOnTheWay,
   beauticianStartBooking,
   beauticianCompleteBooking,
   beauticianBookingHistory,

@@ -1,5 +1,6 @@
 const Service = require("../models/Service");
 const ServiceCategory = require("../models/ServiceCategory");
+const ServiceAddon = require("../models/ServiceAddon");
 const Beautician = require("../models/Beautician");
 const Review = require("../models/Review");
 const Banner = require("../models/Banner");
@@ -213,6 +214,112 @@ const getOffers = async (req, res) => {
   }
 };
 
+// ─── GET SUB-CATEGORIES ───────────────────────────────────────────────────────
+const getSubCategories = async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+
+    const parentCategory = await ServiceCategory.findById(categoryId);
+    if (!parentCategory) {
+      return res.status(404).json({ success: false, message: "Category not found" });
+    }
+
+    const subCategories = await ServiceCategory.find({
+      parentCategory: categoryId,
+      isActive: true,
+    }).sort({ sortOrder: 1 });
+
+    res.json({ success: true, parentCategory, subCategories });
+  } catch (error) {
+    console.error("Get sub-categories error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── GET SERVICE ADD-ONS ──────────────────────────────────────────────────────
+const getServiceAddons = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+
+    const service = await Service.findById(serviceId);
+    if (!service) {
+      return res.status(404).json({ success: false, message: "Service not found" });
+    }
+
+    // Find add-ons that apply to this service or its category (or all services)
+    const addons = await ServiceAddon.find({
+      isActive: true,
+      $or: [
+        { applicableServices: serviceId },
+        { applicableCategories: service.category },
+        { applicableServices: { $size: 0 }, applicableCategories: { $size: 0 } },
+      ],
+    }).sort({ sortOrder: 1 });
+
+    res.json({ success: true, addons });
+  } catch (error) {
+    console.error("Get service addons error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── HOME DASHBOARD (Aggregate endpoint) ─────────────────────────────────────
+const getHomeDashboard = async (req, res) => {
+  try {
+    // Active banners
+    const banners = await Banner.find({
+      isActive: true,
+      $or: [{ endDate: { $gte: new Date() } }, { endDate: null }],
+    })
+      .sort({ sortOrder: 1 })
+      .limit(5);
+
+    // Service categories
+    const categories = await ServiceCategory.find({
+      isActive: true,
+      parentCategory: null,
+    }).sort({ sortOrder: 1 });
+
+    const categoriesWithCount = await Promise.all(
+      categories.map(async (cat) => {
+        const serviceCount = await Service.countDocuments({ category: cat._id, isActive: true });
+        return {
+          _id: cat._id,
+          name: cat.name,
+          description: cat.description,
+          image: cat.image,
+          serviceCount,
+        };
+      })
+    );
+
+    // Popular / curated services
+    const popularServices = await Service.find({ isActive: true })
+      .populate("category", "name")
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    // Active offers
+    const offers = await Service.find({ isActive: true, discount: { $gt: 0 } })
+      .populate("category", "name")
+      .sort({ discount: -1 })
+      .limit(5);
+
+    res.json({
+      success: true,
+      dashboard: {
+        banners,
+        categories: categoriesWithCount,
+        popularServices,
+        offers,
+      },
+    });
+  } catch (error) {
+    console.error("Home dashboard error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 module.exports = {
   getCategories,
   getCategoryServices,
@@ -221,4 +328,7 @@ module.exports = {
   searchServices,
   getPopularServices,
   getOffers,
+  getSubCategories,
+  getServiceAddons,
+  getHomeDashboard,
 };

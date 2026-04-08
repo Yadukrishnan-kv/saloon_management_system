@@ -1,16 +1,35 @@
 const User = require("../models/User");
 const Booking = require("../models/Booking");
+const Review = require("../models/Review");
+const Beautician = require("../models/Beautician");
 const { validatePasswordChange } = require("../utils/validators");
 
-// ─── GET PROFILE ──────────────────────────────────────────────────────────────
+// ─── GET PROFILE (with stats) ─────────────────────────────────────────────────
 const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("-password");
+    const user = await User.findById(req.user._id)
+      .select("-password")
+      .populate("favoriteBeauticians", "fullName profileImage rating tier");
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    res.json({ success: true, user });
+    // Profile stats matching the design (bookings count, reviews count)
+    const [totalBookings, totalReviews] = await Promise.all([
+      Booking.countDocuments({ customer: req.user._id }),
+      Review.countDocuments({ customer: req.user._id }),
+    ]);
+
+    res.json({
+      success: true,
+      user,
+      stats: {
+        totalBookings,
+        totalReviews,
+        memberSince: user.createdAt,
+        tier: user.tier || "Classic",
+      },
+    });
   } catch (error) {
     console.error("Get profile error:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -255,6 +274,70 @@ const getBookingById = async (req, res) => {
   }
 };
 
+// ─── GET FAVORITE STYLISTS ────────────────────────────────────────────────────
+const getFavoriteStylists = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate({
+      path: "favoriteBeauticians",
+      select: "fullName profileImage rating totalReviews tier skills experience",
+    });
+
+    res.json({ success: true, favorites: user.favoriteBeauticians || [] });
+  } catch (error) {
+    console.error("Get favorites error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── ADD FAVORITE STYLIST ─────────────────────────────────────────────────────
+const addFavoriteStylist = async (req, res) => {
+  try {
+    const { beauticianId } = req.body;
+    if (!beauticianId) {
+      return res.status(400).json({ success: false, message: "beauticianId is required" });
+    }
+
+    const beautician = await Beautician.findById(beauticianId);
+    if (!beautician) {
+      return res.status(404).json({ success: false, message: "Beautician not found" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (user.favoriteBeauticians.includes(beauticianId)) {
+      return res.status(400).json({ success: false, message: "Already in favorites" });
+    }
+
+    user.favoriteBeauticians.push(beauticianId);
+    await user.save();
+
+    res.json({ success: true, message: "Added to favorites" });
+  } catch (error) {
+    console.error("Add favorite error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── REMOVE FAVORITE STYLIST ──────────────────────────────────────────────────
+const removeFavoriteStylist = async (req, res) => {
+  try {
+    const { beauticianId } = req.params;
+
+    const user = await User.findById(req.user._id);
+    const idx = user.favoriteBeauticians.indexOf(beauticianId);
+    if (idx === -1) {
+      return res.status(404).json({ success: false, message: "Not in favorites" });
+    }
+
+    user.favoriteBeauticians.splice(idx, 1);
+    await user.save();
+
+    res.json({ success: true, message: "Removed from favorites" });
+  } catch (error) {
+    console.error("Remove favorite error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
@@ -265,4 +348,7 @@ module.exports = {
   deleteAddress,
   getBookingHistory,
   getBookingById,
+  getFavoriteStylists,
+  addFavoriteStylist,
+  removeFavoriteStylist,
 };

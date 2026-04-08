@@ -53,6 +53,14 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    isPhoneVerified: {
+      type: Boolean,
+      default: false,
+    },
     refreshToken: {
       type: String,
       select: false,
@@ -80,6 +88,12 @@ const userSchema = new Schema(
       {
         token: { type: String },
         deviceType: { type: String, enum: ["ios", "android"] },
+      },
+    ],
+    favoriteBeauticians: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Beautician",
       },
     ],
     notificationSettings: {

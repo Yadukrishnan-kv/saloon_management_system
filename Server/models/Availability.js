@@ -36,6 +36,13 @@ const availabilitySchema = new Schema(
       default: 60, // minutes
     },
     unavailableDates: [unavailableDateSchema],
+    // Per-slot blocking for specific dates (design: My Availability per-slot toggle)
+    blockedSlots: [
+      {
+        date: { type: Date, required: true },
+        time: { type: String, required: true }, // e.g. "09:00"
+      },
+    ],
   },
   { timestamps: true }
 );

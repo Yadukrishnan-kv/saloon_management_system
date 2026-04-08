@@ -25,6 +25,14 @@ const beauticianSchema = new Schema(
       type: String,
       default: "",
     },
+    professionalTitle: {
+      type: String,
+      default: "",
+    },
+    isAcceptingBookings: {
+      type: Boolean,
+      default: true,
+    },
     skills: [
       {
         type: String,
@@ -57,9 +65,11 @@ const beauticianSchema = new Schema(
     documents: [
       {
         documentType: { type: String },
+        documentName: { type: String, default: "" },
         documentUrl: { type: String },
         isVerified: { type: Boolean, default: false },
         verifiedAt: { type: Date },
+        uploadedAt: { type: Date, default: Date.now },
       },
     ],
     isVerified: {
@@ -70,6 +80,21 @@ const beauticianSchema = new Schema(
       type: String,
       enum: ["Pending", "Approved", "Rejected"],
       default: "Pending",
+    },
+    verificationSteps: {
+      identityVerified: {
+        status: { type: String, enum: ["pending", "completed", "rejected"], default: "pending" },
+        verifiedAt: { type: Date },
+      },
+      portfolioReview: {
+        status: { type: String, enum: ["pending", "completed", "rejected"], default: "pending" },
+        reviewedAt: { type: Date },
+      },
+      finalApproval: {
+        status: { type: String, enum: ["pending", "in_progress", "completed", "rejected"], default: "pending" },
+        approvedAt: { type: Date },
+        approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
+      },
     },
     status: {
       type: String,
@@ -120,6 +145,21 @@ const beauticianSchema = new Schema(
       lastPaidAt: { type: Date },
       nextPayoutDate: { type: Date },
     },
+    paymentMethods: [
+      {
+        type: { type: String, enum: ["bank_account", "upi", "paypal"], default: "bank_account" },
+        label: { type: String, default: "" },
+        details: {
+          accountNumber: { type: String },
+          ifscCode: { type: String },
+          bankName: { type: String },
+          accountHolderName: { type: String },
+          upiId: { type: String },
+          paypalEmail: { type: String },
+        },
+        isDefault: { type: Boolean, default: false },
+      },
+    ],
   },
   { timestamps: true }
 );

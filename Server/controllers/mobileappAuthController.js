@@ -21,18 +21,24 @@ const customerRegister = async (req, res) => {
 
     const { name, email, phone, password } = req.body;
 
-    const existing = await User.findOne({ $or: [{ email }, { phoneNumber: phone }] });
+    // Build duplicate check query — phone is optional at signup
+    const orConditions = [{ email }];
+    if (phone) orConditions.push({ phoneNumber: phone });
+
+    const existing = await User.findOne({ $or: orConditions });
     if (existing) {
       return res.status(400).json({ success: false, message: "Email or phone number already in use" });
     }
 
-    const user = await User.create({
+    const userData = {
       username: name,
       email,
       password,
-      phoneNumber: phone,
       role: "Customer",
-    });
+    };
+    if (phone) userData.phoneNumber = phone;
+
+    const user = await User.create(userData);
 
     // Generate and send OTP
     const otp = generateOTP();
@@ -51,8 +57,10 @@ const customerRegister = async (req, res) => {
       html: `<h2>Welcome to Salon App!</h2><p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
     });
 
-    // Send OTP via SMS
-    await sendOTPSMS(phone, otp);
+    // Send OTP via SMS only if phone provided
+    if (phone) {
+      await sendOTPSMS(phone, otp);
+    }
 
     // Create wallet for customer
     await Wallet.create({ user: user._id });
@@ -102,7 +110,12 @@ const verifyOTP = async (req, res) => {
     otpRecord.isUsed = true;
     await otpRecord.save();
 
-    const user = await User.findById(userId).select("-password");
+    // Mark email/phone as verified based on OTP type
+    const verifyUpdate = {};
+    if (type === "email") verifyUpdate.isEmailVerified = true;
+    if (type === "phone") verifyUpdate.isPhoneVerified = true;
+
+    const user = await User.findByIdAndUpdate(userId, verifyUpdate, { new: true }).select("-password");
     const token = generateToken(user._id);
 
     res.json({
@@ -120,14 +133,21 @@ const verifyOTP = async (req, res) => {
 // ─── CUSTOMER LOGIN ────────────────────────────────────────────────────────────
 const customerLogin = async (req, res) => {
   try {
-    const { email, phone, password } = req.body;
-    const loginField = email || phone;
+    const { email, phone, username, password } = req.body;
+    const loginField = email || phone || username;
 
     if (!loginField || !password) {
-      return res.status(400).json({ success: false, message: "Email/phone and password are required" });
+      return res.status(400).json({ success: false, message: "Email/username/phone and password are required" });
     }
 
-    const query = email ? { email } : { phoneNumber: phone };
+    let query;
+    if (email) {
+      query = { email };
+    } else if (phone) {
+      query = { phoneNumber: phone };
+    } else {
+      query = { username };
+    }
     const user = await User.findOne({ ...query, role: "Customer" }).select("+password");
 
     if (!user) {

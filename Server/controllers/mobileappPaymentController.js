@@ -14,6 +14,9 @@ const getWallet = async (req, res) => {
       wallet = await Wallet.create({ user: req.user._id });
     }
 
+    const MIN_BALANCE_FOR_WORK = 50;
+    const isBeautician = req.user.role === "Beautician";
+
     res.json({
       success: true,
       wallet: {
@@ -21,6 +24,13 @@ const getWallet = async (req, res) => {
         points: wallet.points,
         currency: wallet.currency,
       },
+      // Work eligibility info (for beautician wallet screen)
+      ...(isBeautician && {
+        workEligibility: {
+          isEligible: wallet.balance >= MIN_BALANCE_FOR_WORK,
+          minimumRequired: MIN_BALANCE_FOR_WORK,
+        },
+      }),
     });
   } catch (error) {
     console.error("Get wallet error:", error);
@@ -121,7 +131,7 @@ const usePoints = async (req, res) => {
 // ─── GET TRANSACTIONS ─────────────────────────────────────────────────────────
 const getTransactions = async (req, res) => {
   try {
-    const { page = 1, limit = 10, type } = req.query;
+    const { page = 1, limit = 10, type, period } = req.query;
 
     const wallet = await Wallet.findOne({ user: req.user._id });
     if (!wallet) {
@@ -132,6 +142,19 @@ const getTransactions = async (req, res) => {
 
     if (type && type !== "all") {
       transactions = transactions.filter((t) => t.type === type);
+    }
+
+    // Period filter: "weekly" or "monthly" (design: Recent Transactions Weekly/Monthly tabs)
+    if (period === "weekly") {
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      transactions = transactions.filter((t) => new Date(t.date) >= weekStart);
+    } else if (period === "monthly") {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      transactions = transactions.filter((t) => new Date(t.date) >= monthStart);
     }
 
     // Sort by date descending

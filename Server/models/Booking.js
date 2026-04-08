@@ -1,7 +1,13 @@
 const { Schema, model } = require("mongoose");
 
+const crypto = require("crypto");
+
 const bookingSchema = new Schema(
   {
+    jobId: {
+      type: String,
+      unique: true,
+    },
     customer: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -33,6 +39,16 @@ const bookingSchema = new Schema(
         duration: { type: Number },
       },
     ],
+    addons: [
+      {
+        addon: {
+          type: Schema.Types.ObjectId,
+          ref: "ServiceAddon",
+        },
+        addonName: { type: String },
+        price: { type: Number },
+      },
+    ],
     bookingDate: {
       type: Date,
       required: [true, "Booking date is required"],
@@ -47,6 +63,7 @@ const bookingSchema = new Schema(
         "Requested",
         "Assigned",
         "Accepted",
+        "OnTheWay",
         "InProgress",
         "Completed",
         "Cancelled",
@@ -67,6 +84,14 @@ const bookingSchema = new Schema(
       type: Number,
       required: true,
       min: 0,
+    },
+    addonsAmount: {
+      type: Number,
+      default: 0,
+    },
+    travelFee: {
+      type: Number,
+      default: 0,
     },
     paymentStatus: {
       type: String,
@@ -90,6 +115,8 @@ const bookingSchema = new Schema(
     },
     address: {
       street: { type: String },
+      unit: { type: String, default: "" },
+      gateCode: { type: String, default: "" },
       city: { type: String },
       state: { type: String },
       pincode: { type: String },
@@ -99,6 +126,10 @@ const bookingSchema = new Schema(
       },
     },
     notes: {
+      type: String,
+      default: "",
+    },
+    professionalNotes: {
       type: String,
       default: "",
     },
@@ -113,9 +144,16 @@ const bookingSchema = new Schema(
     },
     assignedAt: { type: Date },
     acceptedAt: { type: Date },
+    onTheWayAt: { type: Date },
     startedAt: { type: Date },
     completedAt: { type: Date },
     cancelledAt: { type: Date },
+    biometricVerification: {
+      startVerified: { type: Boolean, default: false },
+      startVerifiedAt: { type: Date },
+      completeVerified: { type: Boolean, default: false },
+      completeVerifiedAt: { type: Date },
+    },
   },
   { timestamps: true }
 );
@@ -124,6 +162,16 @@ bookingSchema.index({ customer: 1, status: 1 });
 bookingSchema.index({ beautician: 1, status: 1 });
 bookingSchema.index({ bookingDate: 1 });
 bookingSchema.index({ status: 1 });
+bookingSchema.index({ jobId: 1 });
+
+// Auto-generate jobId before saving
+bookingSchema.pre("save", function (next) {
+  if (!this.jobId) {
+    const randomPart = crypto.randomBytes(3).toString("hex").toUpperCase();
+    this.jobId = `${randomPart}-BK`;
+  }
+  next();
+});
 
 const Booking = model("Booking", bookingSchema);
 module.exports = Booking;

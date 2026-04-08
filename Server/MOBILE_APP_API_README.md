@@ -72,6 +72,7 @@ Notes:
   "confirmPassword": "Pass@123"
 }
 ~~~
+- Note: `phone` and `confirmPassword` are optional. If phone is provided, SMS OTP is also sent.
 - Response:
 ~~~json
 {
@@ -126,16 +127,23 @@ Notes:
 ### 3) Customer Login
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/auth/customer/login
 - Method: POST
-- Description: Login with email or phone + password.
+- Description: Login with email, username, or phone + password.
 - Headers: Content-Type: application/json
-- Request Body (send either email or phone):
+- Request Body (send either email, username, or phone):
 ~~~json
 {
   "email": "asha@example.com",
   "password": "Pass@123"
 }
 ~~~
-- Alternative:
+- Alternative (username):
+~~~json
+{
+  "username": "Asha",
+  "password": "Pass@123"
+}
+~~~
+- Alternative (phone):
 ~~~json
 {
   "phone": "9876543210",
@@ -380,7 +388,7 @@ Notes:
 ### 1) Get Profile
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/user/profile
 - Method: GET
-- Description: Get current customer profile.
+- Description: Get current customer profile with stats and favorite stylists.
 - Headers: Authorization: Bearer <token>
 - Request Body: N/A
 - Response:
@@ -391,7 +399,22 @@ Notes:
     "_id": "...",
     "username": "Asha",
     "email": "asha@example.com",
-    "phoneNumber": "9876543210"
+    "phoneNumber": "9876543210",
+    "favoriteBeauticians": [
+      {
+        "_id": "...",
+        "fullName": "Riya",
+        "profileImage": "/uploads/riya.jpg",
+        "rating": 4.7,
+        "tier": "Premium"
+      }
+    ]
+  },
+  "stats": {
+    "totalBookings": 12,
+    "totalReviews": 5,
+    "memberSince": "2025-01-15T00:00:00.000Z",
+    "tier": "Classic"
   }
 }
 ~~~
@@ -628,11 +651,143 @@ Notes:
 }
 ~~~
 
+### 10) Get Favorite Stylists
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/user/favorites
+- Method: GET
+- Description: Get customer's favorite beauticians list.
+- Headers: Authorization: Bearer <token>
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "favorites": [
+    {
+      "_id": "...",
+      "fullName": "Riya",
+      "profileImage": "/uploads/riya.jpg",
+      "rating": 4.7,
+      "totalReviews": 40,
+      "tier": "Premium",
+      "skills": ["Facial", "Hair Styling"],
+      "experience": 5
+    }
+  ]
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Server error"
+}
+~~~
+
+### 11) Add Favorite Stylist
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/user/favorites
+- Method: POST
+- Description: Add a beautician to favorites.
+- Headers: Authorization: Bearer <token>
+- Request Body:
+~~~json
+{
+  "beauticianId": "6651..."
+}
+~~~
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Added to favorites"
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Already in favorites"
+}
+~~~
+
+### 12) Remove Favorite Stylist
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/user/favorites/:beauticianId
+- Method: DELETE
+- Description: Remove a beautician from favorites.
+- Headers: Authorization: Bearer <token>
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Removed from favorites"
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Not in favorites"
+}
+~~~
+
 ---
 
 ## Services APIs (/api/mobileapp/services)
 
-### 1) Get Categories
+### 1) Home Dashboard
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/home
+- Method: GET
+- Description: Aggregate home screen data — banners, categories, popular services, offers.
+- Headers: N/A
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "dashboard": {
+    "banners": [
+      {
+        "_id": "...",
+        "title": "Summer Sale",
+        "image": "/uploads/banner.jpg"
+      }
+    ],
+    "categories": [
+      {
+        "_id": "...",
+        "name": "Hair",
+        "image": "/uploads/hair.jpg",
+        "serviceCount": 8
+      }
+    ],
+    "popularServices": [
+      {
+        "_id": "...",
+        "name": "Facial",
+        "price": 999,
+        "category": { "_id": "...", "name": "Skin" }
+      }
+    ],
+    "offers": [
+      {
+        "_id": "...",
+        "name": "Deep Conditioning",
+        "price": 1200,
+        "discount": 20
+      }
+    ]
+  }
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Server error"
+}
+~~~
+
+### 2) Get Categories
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/categories
 - Method: GET
 - Description: Get active service categories.
@@ -659,7 +814,7 @@ Notes:
 }
 ~~~
 
-### 2) Get Category Services
+### 3) Get Category Services
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/categories/:categoryId
 - Method: GET
 - Description: Get category details and services.
@@ -681,7 +836,38 @@ Notes:
 }
 ~~~
 
-### 3) Search Services
+### 4) Get Sub Categories
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/categories/:categoryId/subcategories
+- Method: GET
+- Description: Get sub-categories under a parent category.
+- Headers: N/A
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "parentCategory": {
+    "_id": "...",
+    "name": "Hair"
+  },
+  "subCategories": [
+    {
+      "_id": "...",
+      "name": "Hair Coloring",
+      "image": "/uploads/coloring.jpg"
+    }
+  ]
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Category not found"
+}
+~~~
+
+### 5) Search Services
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/search
 - Method: GET
 - Description: Search services by query.
@@ -704,7 +890,7 @@ Notes:
 }
 ~~~
 
-### 4) Popular Services
+### 6) Popular Services
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/popular
 - Method: GET
 - Description: Get popular services.
@@ -725,7 +911,7 @@ Notes:
 }
 ~~~
 
-### 5) Offers
+### 7) Offers
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/offers
 - Method: GET
 - Description: Get discounted services and active banners.
@@ -749,7 +935,43 @@ Notes:
 }
 ~~~
 
-### 6) Get All Services
+### 8) Get Service Addons
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/:serviceId/addons
+- Method: GET
+- Description: Get add-ons applicable to a specific service or its category.
+- Headers: N/A
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "addons": [
+    {
+      "_id": "...",
+      "name": "Aromatherapy Oil",
+      "description": "Premium essential oil treatment",
+      "price": 250,
+      "image": "/uploads/aroma.jpg"
+    },
+    {
+      "_id": "...",
+      "name": "Deep Conditioning",
+      "description": "Intensive hair conditioning",
+      "price": 400,
+      "image": "/uploads/conditioning.jpg"
+    }
+  ]
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Service not found"
+}
+~~~
+
+### 9) Get All Services
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services
 - Method: GET
 - Description: List services with filters.
@@ -772,7 +994,7 @@ Notes:
 }
 ~~~
 
-### 7) Get Service By ID
+### 10) Get Service By ID
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/:serviceId
 - Method: GET
 - Description: Service detail with beautician suggestions.
@@ -807,7 +1029,7 @@ Notes:
 ### 1) Create Booking
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/bookings/create
 - Method: POST
-- Description: Create booking (assigned or broadcast flow).
+- Description: Create booking (assigned or broadcast flow). Supports service add-ons and calculates travel fee.
 - Headers: Authorization: Bearer <token>
 - Request Body:
 ~~~json
@@ -822,19 +1044,25 @@ Notes:
     "city": "Kochi",
     "pincode": "682001",
     "latitude": 9.9312,
-    "longitude": 76.2673
+    "longitude": 76.2673,
+    "unit": "Apt 4B",
+    "gateCode": "1234"
   },
   "notes": "Please be on time",
-  "preferredGender": "Female"
+  "preferredGender": "Female",
+  "addonIds": ["6654...", "6655..."]
 }
 ~~~
+- Note: `addonIds` is optional. `address.unit` and `address.gateCode` are optional. Travel fee is ₹10/km auto-calculated.
 - Response:
 ~~~json
 {
   "success": true,
   "message": "Booking created. Waiting for beautician to accept.",
-  "booking": { "_id": "...", "status": "Requested" },
+  "booking": { "_id": "...", "status": "Requested", "jobId": "A1B2C3-BK" },
   "estimatedPrice": 899,
+  "addonsAmount": 650,
+  "travelFee": 30,
   "assignedBeautician": null,
   "broadcastedCount": 4
 }
@@ -1088,7 +1316,7 @@ Notes:
 ### 12) Beautician Booking Detail
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/bookings/beautician/:bookingId
 - Method: GET
-- Description: Booking detail for assigned beautician.
+- Description: Booking detail for assigned beautician. Includes customer contact info and add-ons.
 - Headers: Authorization: Bearer <token>
 - Response:
 ~~~json
@@ -1096,7 +1324,28 @@ Notes:
   "success": true,
   "booking": {
     "_id": "...",
-    "status": "Assigned"
+    "jobId": "A1B2C3-BK",
+    "status": "Assigned",
+    "addons": [
+      { "addonName": "Aromatherapy Oil", "price": 250 }
+    ],
+    "address": {
+      "street": "12 MG Road",
+      "unit": "Apt 4B",
+      "gateCode": "1234",
+      "city": "Kochi"
+    },
+    "biometricVerification": {
+      "startVerified": false,
+      "completeVerified": false
+    }
+  },
+  "customerContact": {
+    "name": "Asha",
+    "phone": "9876543210",
+    "email": "asha@example.com",
+    "tier": "Classic",
+    "profileImage": "/uploads/asha.jpg"
   }
 }
 ~~~
@@ -1155,17 +1404,17 @@ Notes:
 }
 ~~~
 
-### 15) Start Booking
-- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/bookings/beautician/:bookingId/start
+### 15) On The Way
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/bookings/beautician/:bookingId/on-the-way
 - Method: PUT
-- Description: Mark accepted booking in progress.
+- Description: Mark accepted booking as en route. Notifies customer.
 - Headers: Authorization: Bearer <token>
 - Request Body: N/A
 - Response:
 ~~~json
 {
   "success": true,
-  "message": "Booking marked as in-progress"
+  "message": "Status updated to on the way"
 }
 ~~~
 - Error Response:
@@ -1176,26 +1425,59 @@ Notes:
 }
 ~~~
 
-### 16) Complete Booking
-- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/bookings/beautician/:bookingId/complete
+### 16) Start Booking
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/bookings/beautician/:bookingId/start
 - Method: PUT
-- Description: Complete service, trigger payout metadata.
+- Description: Mark booking in progress. Supports biometric verification token and professional notes. Accepts bookings in "Accepted" or "OnTheWay" status.
 - Headers: Authorization: Bearer <token>
 - Request Body:
 ~~~json
 {
-  "notes": "Service completed"
+  "biometricToken": "face_verify_token_abc",
+  "professionalNotes": "Client has sensitive skin"
 }
 ~~~
+- Note: `biometricToken` and `professionalNotes` are optional. Token acts as client-side biometric confirmation.
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Booking marked as in-progress",
+  "biometricVerified": true
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Booking not found or not accepted"
+}
+~~~
+
+### 17) Complete Booking
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/bookings/beautician/:bookingId/complete
+- Method: PUT
+- Description: Complete service, trigger payout metadata. Supports biometric verification. Returns jobId.
+- Headers: Authorization: Bearer <token>
+- Request Body:
+~~~json
+{
+  "notes": "Service completed",
+  "biometricToken": "face_verify_token_xyz"
+}
+~~~
+- Note: `biometricToken` is optional. Token acts as client-side biometric confirmation for completion.
 - Response:
 ~~~json
 {
   "success": true,
   "message": "Booking completed",
+  "jobId": "A1B2C3-BK",
   "paymentAmount": 1200,
   "platformCommission": 200,
   "beauticianPayout": 1000,
-  "payoutDate": "2026-04-12T00:00:00.000Z"
+  "payoutDate": "2026-04-12T00:00:00.000Z",
+  "biometricVerified": true
 }
 ~~~
 - Error Response:
@@ -1213,7 +1495,7 @@ Notes:
 ### 1) Get Profile
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/profile
 - Method: GET
-- Description: Beautician profile details.
+- Description: Beautician profile details including verification steps, professional title, and accepting status.
 - Headers: Authorization: Bearer <token>
 - Request Body: N/A
 - Response:
@@ -1222,8 +1504,19 @@ Notes:
   "success": true,
   "beautician": {
     "fullName": "Riya",
+    "professionalTitle": "Senior Hair Stylist",
     "skills": ["Facial"],
-    "verificationStatus": "Approved"
+    "verificationStatus": "Approved",
+    "isAcceptingBookings": true,
+    "tier": "Premium",
+    "verificationSteps": {
+      "identityVerified": { "status": "completed", "timestamp": "2026-01-10T..." },
+      "portfolioReview": { "status": "completed", "timestamp": "2026-01-12T..." },
+      "finalApproval": { "status": "completed", "timestamp": "2026-01-15T..." }
+    },
+    "paymentMethods": [
+      { "type": "bank_account", "label": "HDFC Bank", "isDefault": true }
+    ]
   }
 }
 ~~~
@@ -1248,10 +1541,16 @@ Notes:
   "name": "Riya P",
   "experience": 4,
   "skills": ["Facial", "Makeup"],
-  "bio": "Certified stylist"
+  "bio": "Certified stylist",
+  "professionalTitle": "Senior Hair Stylist",
+  "location": {
+    "coordinates": { "lat": 9.9312, "lng": 76.2673 },
+    "address": "Infopark, Kochi"
+  }
 }
 ~~~
 - Multipart field: profileImage (file)
+- Note: `professionalTitle` and `location` are optional fields.
 - Response:
 ~~~json
 {
@@ -1477,6 +1776,443 @@ Notes:
 }
 ~~~
 
+### 11) Home Dashboard
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/home
+- Method: GET
+- Description: Beautician home screen data — upcoming booking, weekly earnings, work eligibility.
+- Headers: Authorization: Bearer <token>
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "dashboard": {
+    "beautician": {
+      "fullName": "Riya",
+      "profileImage": "/uploads/riya.jpg",
+      "isAcceptingBookings": true,
+      "verificationStatus": "Approved",
+      "location": {}
+    },
+    "upcomingBooking": {
+      "_id": "...",
+      "bookingDate": "2026-04-08T...",
+      "status": "Accepted",
+      "customer": { "username": "Asha", "profileImage": "...", "tier": "Classic" },
+      "services": [{ "service": { "name": "Facial", "price": 999 } }]
+    },
+    "weeklyEarnings": {
+      "revenue": 7000,
+      "servicesCompleted": 5
+    },
+    "isEligibleForWork": true,
+    "walletBalance": 1500
+  }
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Beautician profile not found"
+}
+~~~
+
+### 12) Upload Profile Image
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/profile/upload-image
+- Method: POST
+- Description: Upload or update beautician profile image.
+- Headers:
+  - Authorization: Bearer <token>
+  - Content-Type: multipart/form-data
+- Request Body (form-data):
+  - profileImage: file
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Profile image uploaded successfully",
+  "profileImage": "/uploads/1712345678901.jpg"
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "No image file provided"
+}
+~~~
+
+### 13) Get Verification Status
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/verification-status
+- Method: GET
+- Description: Get multi-step verification status (identity, portfolio, final approval).
+- Headers: Authorization: Bearer <token>
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "verificationStatus": "Pending",
+  "steps": {
+    "identityVerified": { "status": "completed", "timestamp": "2026-01-10T..." },
+    "portfolioReview": { "status": "in_progress" },
+    "finalApproval": { "status": "pending" }
+  },
+  "isProfileLive": false,
+  "estimatedReviewTime": "24-48 hours"
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Beautician profile not found"
+}
+~~~
+
+### 14) Toggle Accepting Bookings
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/toggle-accepting
+- Method: PUT
+- Description: Toggle whether beautician is accepting new bookings (online/offline toggle).
+- Headers: Authorization: Bearer <token>
+- Request Body:
+~~~json
+{
+  "isAccepting": true
+}
+~~~
+- Note: If `isAccepting` is omitted, it toggles the current value.
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Now accepting bookings",
+  "isAcceptingBookings": true
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Beautician profile not found"
+}
+~~~
+
+### 15) Get Work Eligibility
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/work-eligibility
+- Method: GET
+- Description: Check if wallet balance meets minimum required to accept bookings.
+- Headers: Authorization: Bearer <token>
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "walletBalance": 1500,
+  "minimumRequired": 50,
+  "isEligibleForWork": true,
+  "currency": "INR",
+  "message": "Eligible for work"
+}
+~~~
+- Error Response (low balance):
+~~~json
+{
+  "success": true,
+  "walletBalance": 30,
+  "minimumRequired": 50,
+  "isEligibleForWork": false,
+  "currency": "INR",
+  "message": "Maintain a minimum balance of $50 to continue receiving bookings."
+}
+~~~
+
+### 16) Toggle Slot Availability
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/availability/toggle-slot
+- Method: PUT
+- Description: Block or unblock a specific time slot on a specific date.
+- Headers: Authorization: Bearer <token>
+- Request Body:
+~~~json
+{
+  "date": "2026-04-10",
+  "time": "14:00",
+  "isAvailable": false
+}
+~~~
+- Note: `isAvailable: false` blocks the slot, `isAvailable: true` unblocks it.
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Slot blocked successfully"
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Date and time are required"
+}
+~~~
+
+### 17) Get Documents
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/documents
+- Method: GET
+- Description: List all uploaded certificates/documents.
+- Headers: Authorization: Bearer <token>
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "documents": [
+    {
+      "_id": "...",
+      "documentType": "certificate",
+      "documentName": "Cosmetology Diploma",
+      "documentUrl": "/uploads/diploma.pdf",
+      "isVerified": true,
+      "uploadedAt": "2026-01-05T..."
+    }
+  ]
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Beautician profile not found"
+}
+~~~
+
+### 18) Add Document
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/documents
+- Method: POST
+- Description: Upload a certificate or verification document.
+- Headers:
+  - Authorization: Bearer <token>
+  - Content-Type: multipart/form-data
+- Request Body (form-data):
+  - document: file
+  - documentType: string (example: certificate, id_proof, license)
+  - documentName: string (optional, defaults to filename)
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Document uploaded successfully",
+  "document": {
+    "_id": "...",
+    "documentType": "certificate",
+    "documentName": "Cosmetology Diploma",
+    "documentUrl": "/uploads/1712345678901.pdf",
+    "isVerified": false,
+    "uploadedAt": "2026-04-08T..."
+  }
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "No document file provided"
+}
+~~~
+
+### 19) Delete Document
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/documents/:documentId
+- Method: DELETE
+- Description: Delete an uploaded document.
+- Headers: Authorization: Bearer <token>
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Document deleted successfully"
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Document not found"
+}
+~~~
+
+### 20) Get Payment Methods
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/payment-methods
+- Method: GET
+- Description: List beautician's saved payment/payout methods.
+- Headers: Authorization: Bearer <token>
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "paymentMethods": [
+    {
+      "_id": "...",
+      "type": "bank_account",
+      "label": "HDFC Bank",
+      "details": {
+        "accountNumber": "****1234",
+        "ifscCode": "HDFC0001234"
+      },
+      "isDefault": true
+    },
+    {
+      "_id": "...",
+      "type": "upi",
+      "label": "UPI",
+      "details": {
+        "upiId": "riya@upi"
+      },
+      "isDefault": false
+    }
+  ]
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Beautician profile not found"
+}
+~~~
+
+### 21) Add Payment Method
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/payment-methods
+- Method: POST
+- Description: Add a payout method (bank account, UPI, PayPal).
+- Headers: Authorization: Bearer <token>
+- Request Body:
+~~~json
+{
+  "type": "bank_account",
+  "label": "HDFC Savings",
+  "details": {
+    "accountNumber": "1234567890",
+    "ifscCode": "HDFC0001234",
+    "accountHolder": "Riya P"
+  },
+  "isDefault": true
+}
+~~~
+- Note: First payment method is auto-set as default. If `isDefault: true`, other methods are unset.
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Payment method added",
+  "paymentMethod": {
+    "_id": "...",
+    "type": "bank_account",
+    "label": "HDFC Savings",
+    "isDefault": true
+  }
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Payment method type and details are required"
+}
+~~~
+
+### 22) Delete Payment Method
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/payment-methods/:methodId
+- Method: DELETE
+- Description: Delete a saved payment method.
+- Headers: Authorization: Bearer <token>
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Payment method deleted"
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Payment method not found"
+}
+~~~
+
+### 23) Get Clients
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/clients
+- Method: GET
+- Description: List unique customers from completed bookings with stats.
+- Headers: Authorization: Bearer <token>
+- Query: page, limit
+- Response:
+~~~json
+{
+  "success": true,
+  "clients": [
+    {
+      "customer": {
+        "_id": "...",
+        "username": "Asha",
+        "email": "asha@example.com",
+        "phoneNumber": "9876543210",
+        "profileImage": "/uploads/asha.jpg",
+        "tier": "Classic"
+      },
+      "totalBookings": 5,
+      "totalSpent": 8500,
+      "lastBookingDate": "2026-04-05T...",
+      "services": ["Facial", "Hair Styling"]
+    }
+  ],
+  "total": 12
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Beautician profile not found"
+}
+~~~
+
+### 24) Get Schedule By Date
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/schedule
+- Method: GET
+- Description: Get all bookings for a specific date.
+- Headers: Authorization: Bearer <token>
+- Query: date (required, format: YYYY-MM-DD)
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "date": "2026-04-10T00:00:00.000Z",
+  "totalBookings": 3,
+  "bookings": [
+    {
+      "_id": "...",
+      "status": "Accepted",
+      "timeSlot": { "startTime": "10:00", "endTime": "11:00" },
+      "customer": { "username": "Asha", "phoneNumber": "9876543210" },
+      "services": [{ "service": { "name": "Facial", "price": 999 } }]
+    }
+  ]
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Date parameter is required"
+}
+~~~
+
 ---
 
 ## Reviews APIs (/api/mobileapp/reviews)
@@ -1659,7 +2395,7 @@ Notes:
 ### 2) Get Wallet
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/payment/wallet
 - Method: GET
-- Description: Get balance/points/currency.
+- Description: Get balance/points/currency. For beauticians, also returns work eligibility.
 - Headers: Authorization: Bearer <token>
 - Response:
 ~~~json
@@ -1669,9 +2405,15 @@ Notes:
     "balance": 1500,
     "points": 35,
     "currency": "INR"
+  },
+  "workEligibility": {
+    "walletBalance": 1500,
+    "minimumRequired": 50,
+    "isEligibleForWork": true
   }
 }
 ~~~
+- Note: `workEligibility` is only included for Beautician role.
 - Error Response:
 ~~~json
 {
@@ -1740,9 +2482,9 @@ Notes:
 ### 5) Transactions
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/payment/transactions
 - Method: GET
-- Description: Wallet transactions list.
+- Description: Wallet transactions list. Supports period filter for weekly/monthly grouping.
 - Headers: Authorization: Bearer <token>
-- Query: page, limit, type
+- Query: page, limit, type, period (weekly|monthly)
 - Response:
 ~~~json
 {
@@ -2293,6 +3035,118 @@ Notes:
 }
 ~~~
 
+---
+
+## Complaint APIs (/api/mobileapp/complaints)
+
+### 1) Create Complaint
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/complaints/create
+- Method: POST
+- Description: Submit a complaint. Notifies admin.
+- Headers: Authorization: Bearer <token>
+- Request Body:
+~~~json
+{
+  "subject": "Late arrival",
+  "description": "The beautician arrived 30 minutes late for my booking.",
+  "category": "Service",
+  "bookingId": "6653..."
+}
+~~~
+- Note: `category` defaults to "Other" if omitted. `bookingId` is optional.
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Complaint submitted successfully",
+  "complaint": {
+    "_id": "...",
+    "subject": "Late arrival",
+    "status": "Open",
+    "category": "Service",
+    "createdAt": "2026-04-08T..."
+  }
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Subject and description are required"
+}
+~~~
+
+### 2) Get My Complaints
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/complaints/my-complaints
+- Method: GET
+- Description: List complaints submitted by current user with pagination.
+- Headers: Authorization: Bearer <token>
+- Query: status, page, limit
+- Response:
+~~~json
+{
+  "success": true,
+  "complaints": [
+    {
+      "_id": "...",
+      "subject": "Late arrival",
+      "status": "Open",
+      "category": "Service",
+      "booking": {
+        "bookingDate": "2026-04-05T...",
+        "status": "Completed"
+      },
+      "createdAt": "2026-04-08T..."
+    }
+  ],
+  "total": 3,
+  "currentPage": 1,
+  "totalPages": 1
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Server error"
+}
+~~~
+
+### 3) Get Complaint By ID
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/complaints/:complaintId
+- Method: GET
+- Description: Get complaint detail.
+- Headers: Authorization: Bearer <token>
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "complaint": {
+    "_id": "...",
+    "subject": "Late arrival",
+    "description": "The beautician arrived 30 minutes late for my booking.",
+    "status": "Open",
+    "category": "Service",
+    "booking": {
+      "bookingDate": "2026-04-05T...",
+      "status": "Completed",
+      "beautician": "..."
+    },
+    "createdAt": "2026-04-08T..."
+  }
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Complaint not found"
+}
+~~~
+
+---
+
 ## 4. File Upload
 
 Supported file types:
@@ -2304,8 +3158,13 @@ Upload endpoints:
   - form-data key: profileImage
 - PUT /api/mobileapp/beautician/profile
   - form-data key: profileImage
+- POST /api/mobileapp/beautician/profile/upload-image
+  - form-data key: profileImage
+- POST /api/mobileapp/beautician/documents
+  - form-data key: document (single file)
+  - optional keys: documentType, documentName
 - POST /api/mobileapp/auth/beautician/upload-documents
-  - form-data key: documents (multiple)
+  - form-data key: documents (multiple, max 5)
   - optional key: documentType
 
 Multipart example (Dio):

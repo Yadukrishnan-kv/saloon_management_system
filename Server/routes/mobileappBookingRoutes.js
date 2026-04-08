@@ -13,6 +13,7 @@ const {
   beauticianGetBooking,
   beauticianAcceptBooking,
   beauticianDeclineBooking,
+  beauticianOnTheWay,
   beauticianStartBooking,
   beauticianCompleteBooking,
   beauticianBookingHistory,
@@ -78,6 +79,13 @@ router.put(
   authorizeRoles("Beautician"),
   attachBeauticianProfile,
   beauticianDeclineBooking
+);
+router.put(
+  "/beautician/:bookingId/on-the-way",
+  protect,
+  authorizeRoles("Beautician"),
+  attachBeauticianProfile,
+  beauticianOnTheWay
 );
 router.put(
   "/beautician/:bookingId/start",
