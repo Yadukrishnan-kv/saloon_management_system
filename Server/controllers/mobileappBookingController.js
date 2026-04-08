@@ -97,6 +97,9 @@ const createBooking = async (req, res) => {
     let broadcastedBeauticians = [];
     let assignedBeautician = null;
 
+    // Get customer tier for matching
+    const customerTier = req.user.tier || "Classic";
+
     if (beauticianId) {
       // Customer selected a specific beautician
       assignedBeautician = await Beautician.findOne({
@@ -106,6 +109,11 @@ const createBooking = async (req, res) => {
       });
       if (!assignedBeautician) {
         return res.status(404).json({ success: false, message: "Selected beautician not available" });
+      }
+
+      // ── Tier check: Classic customers can only book Classic beauticians ──
+      if (customerTier === "Classic" && assignedBeautician.tier === "Premium") {
+        return res.status(403).json({ success: false, message: "Upgrade to Premium to book Premium beauticians" });
       }
 
       // ── 5 km radius check ──
@@ -134,7 +142,8 @@ const createBooking = async (req, res) => {
         bookingTime,
         endTime,
         service,
-        preferredGender
+        preferredGender,
+        customerTier
       );
 
       broadcastedBeauticians = nearbyBeauticians.slice(0, BROADCAST_COUNT).map((b) => ({
@@ -935,12 +944,17 @@ const checkBeauticianBuffer = async (beauticianId, bookingDate, startTime, endTi
 };
 
 // ─── HELPER: Find nearby available beauticians for broadcast ──────────────────
-const findNearbyAvailableBeauticians = async (address, bookingDate, bookingTime, endTime, service, preferredGender) => {
+const findNearbyAvailableBeauticians = async (address, bookingDate, bookingTime, endTime, service, preferredGender, customerTier) => {
   const query = { isVerified: true, status: "Active" };
 
   // Filter by service skill
   if (service.name) {
     query.skills = { $in: [service.name] };
+  }
+
+  // ── Tier filtering: Classic customers see only Classic beauticians, Premium see all ──
+  if (customerTier === "Classic") {
+    query.tier = "Classic";
   }
 
   let beauticians = await Beautician.find(query).populate("user", "username");

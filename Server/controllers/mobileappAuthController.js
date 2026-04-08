@@ -399,6 +399,116 @@ const uploadDocuments = async (req, res) => {
   }
 };
 
+// ─── FORGOT PASSWORD ───────────────────────────────────────────────────────────
+const forgotPassword = async (req, res) => {
+  try {
+    const { email, phone } = req.body;
+
+    if (!email && !phone) {
+      return res.status(400).json({ success: false, message: "Email or phone is required" });
+    }
+
+    const query = email ? { email } : { phoneNumber: phone };
+    const user = await User.findOne(query);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "No account found with this credential" });
+    }
+
+    // Invalidate previous password-reset OTPs
+    await OTP.updateMany(
+      { user: user._id, purpose: "password-reset", isUsed: false },
+      { isUsed: true }
+    );
+
+    const otp = generateOTP();
+    const type = email ? "email" : "phone";
+
+    await OTP.create({
+      user: user._id,
+      otp,
+      type,
+      purpose: "password-reset",
+      expiresAt: getOTPExpiry(),
+    });
+
+    if (type === "email") {
+      await sendEmail({
+        to: user.email,
+        subject: "Password Reset OTP - Salon App",
+        html: `<h2>Password Reset</h2><p>Your password reset code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
+      });
+    } else {
+      await sendOTPSMS(user.phoneNumber, otp);
+    }
+
+    res.json({
+      success: true,
+      message: `Password reset OTP sent to your ${type}`,
+      userId: user._id,
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── RESET PASSWORD ────────────────────────────────────────────────────────────
+const resetPassword = async (req, res) => {
+  try {
+    const { userId, otp, newPassword, confirmPassword } = req.body;
+
+    if (!userId || !otp || !newPassword || !confirmPassword) {
+      return res.status(400).json({ success: false, message: "userId, otp, newPassword, and confirmPassword are required" });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ success: false, message: "Passwords do not match" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+    }
+
+    const otpRecord = await OTP.findOne({
+      user: userId,
+      purpose: "password-reset",
+      isUsed: false,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 });
+
+    if (!otpRecord) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+    }
+
+    if (otpRecord.attempts >= otpRecord.maxAttempts) {
+      return res.status(400).json({ success: false, message: "Maximum OTP attempts exceeded. Please request a new OTP." });
+    }
+
+    if (otpRecord.otp !== otp) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    otpRecord.isUsed = true;
+    await otpRecord.save();
+
+    const user = await User.findById(userId).select("+password");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.json({ success: true, message: "Password reset successfully. Please login with your new password." });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 // ─── LOGOUT ────────────────────────────────────────────────────────────────────
 const logout = async (req, res) => {
   try {
@@ -417,6 +527,8 @@ module.exports = {
   verifyOTP,
   customerLogin,
   resendOTP,
+  forgotPassword,
+  resetPassword,
   beauticianRegister,
   beauticianLogin,
   uploadDocuments,

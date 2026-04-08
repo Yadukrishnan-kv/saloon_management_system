@@ -5,6 +5,8 @@ const {
   verifyOTP,
   customerLogin,
   resendOTP,
+  forgotPassword,
+  resetPassword,
   beauticianRegister,
   beauticianLogin,
   uploadDocuments,
@@ -18,6 +20,10 @@ router.post("/customer/register", customerRegister);
 router.post("/customer/verify-otp", verifyOTP);
 router.post("/customer/login", customerLogin);
 router.post("/customer/resend-otp", resendOTP);
+
+// Forgot & Reset Password (common for customer & beautician)
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 // Beautician auth
 router.post("/beautician/register", beauticianRegister);

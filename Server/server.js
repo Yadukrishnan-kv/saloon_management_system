@@ -49,6 +49,7 @@ app.use('/api/mobileapp/payment', require('./routes/mobileappPaymentRoutes'));
 app.use('/api/mobileapp/notifications', require('./routes/mobileappNotificationRoutes'));
 app.use('/api/mobileapp/location', require('./routes/mobileappLocationRoutes'));
 app.use('/api/mobileapp/cosmetics', require('./routes/mobileappCosmeticRoutes'));
+app.use('/api/mobileapp/complaints', require('./routes/mobileappComplaintRoutes'));
 
 // Health check
 app.get('/api/ping', (req, res) => {
