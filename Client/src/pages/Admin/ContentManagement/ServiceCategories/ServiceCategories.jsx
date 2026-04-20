@@ -11,7 +11,7 @@ import axios from "axios";
 import "../../UserManagement/UserList/UserList.css";
 
 const ServiceCategories = () => {
-  const backendUrl = process.env.REACT_APP_BACKEND_IP;
+  const backendUrl = process.env.REACT_APP_BACKEND_IP || "http://localhost:5000";
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,8 +22,7 @@ const ServiceCategories = () => {
   const fetchCategories = useCallback(async () => {
     try {
       const { data } = await axios.get(`${backendUrl}/api/categories`);
-      // Show only top-level categories on this page
-      setCategories(data.filter((c) => !c.parentCategory));
+      setCategories(data);
     } catch (error) {
       toast.error("Failed to load categories");
     } finally {

@@ -11,7 +11,7 @@ import axios from "axios";
 import "../../UserManagement/UserList/UserList.css";
 
 const PromotionalBanners = () => {
-  const backendUrl = process.env.REACT_APP_BACKEND_IP;
+  const backendUrl = process.env.REACT_APP_BACKEND_IP || "http://localhost:5000";
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [banners, setBanners] = useState([]);
   const [staticPages, setStaticPages] = useState([]);

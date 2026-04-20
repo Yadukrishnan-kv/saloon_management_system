@@ -1,104 +1,11 @@
-const ServiceCategory = require("../models/ServiceCategory");
 const Service = require("../models/Service");
+const Category = require("../models/Category");
 
-// ===== CATEGORIES =====
-
-const getAllCategories = async (req, res) => {
-  try {
-    const categories = await ServiceCategory.find()
-      .populate("parentCategory", "name")
-      .sort({ parentCategory: 1, sortOrder: 1, name: 1 });
-    res.json(categories);
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-const createCategory = async (req, res) => {
-  try {
-    const { name, sortOrder, parentCategory } = req.body;
-
-    const existing = await ServiceCategory.findOne({ name });
-    if (existing) {
-      return res.status(400).json({ message: "Category already exists" });
-    }
-
-    if (parentCategory) {
-      const parentExists = await ServiceCategory.findById(parentCategory);
-      if (!parentExists) {
-        return res.status(400).json({ message: "Parent category not found" });
-      }
-    }
-
-    const category = await ServiceCategory.create({
-      name,
-      image: req.file ? `/uploads/${req.file.filename}` : undefined,
-      sortOrder,
-      parentCategory: parentCategory || null,
-    });
-    const populated = await ServiceCategory.findById(category._id).populate("parentCategory", "name");
-    res.status(201).json(populated);
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-const updateCategory = async (req, res) => {
-  try {
-    const { name, isActive, sortOrder, parentCategory } = req.body;
-
-    if (parentCategory) {
-      if (parentCategory === req.params.id) {
-        return res.status(400).json({ message: "A category cannot be its own parent" });
-      }
-
-      const parentExists = await ServiceCategory.findById(parentCategory);
-      if (!parentExists) {
-        return res.status(400).json({ message: "Parent category not found" });
-      }
-    }
-
-    const updateData = { name, isActive, sortOrder, parentCategory: parentCategory || null };
-    if (req.file) {
-      updateData.image = `/uploads/${req.file.filename}`;
-    }
-
-    const category = await ServiceCategory.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate("parentCategory", "name");
-
-    if (!category) return res.status(404).json({ message: "Category not found" });
-    res.json(category);
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-const deleteCategory = async (req, res) => {
-  try {
-    // Check if services exist under this category
-    const serviceCount = await Service.countDocuments({ category: req.params.id });
-    if (serviceCount > 0) {
-      return res.status(400).json({
-        message: "Cannot delete category with existing services. Remove services first.",
-      });
-    }
-
-    const childCategoryCount = await ServiceCategory.countDocuments({ parentCategory: req.params.id });
-    if (childCategoryCount > 0) {
-      return res.status(400).json({
-        message: "Cannot delete category with subcategories. Remove or reassign subcategories first.",
-      });
-    }
-
-    const category = await ServiceCategory.findByIdAndDelete(req.params.id);
-    if (!category) return res.status(404).json({ message: "Category not found" });
-    res.json({ message: "Category deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
-  }
+// Helper to get full image URL
+const getFullUrl = (req, imagePath) => {
+  if (!imagePath) return imagePath;
+  const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
+  return imagePath.startsWith("/uploads") ? `${baseUrl}${imagePath}` : imagePath;
 };
 
 // ===== SERVICES =====
@@ -118,7 +25,15 @@ const getAllServices = async (req, res) => {
       .populate("category", "name")
       .sort({ createdAt: -1 });
 
-    res.json(services);
+    // Map image fields to full URLs
+    const servicesWithFullImages = services.map((svc) => {
+      const obj = svc.toObject();
+      obj.image1 = getFullUrl(req, obj.image1);
+      obj.image2 = getFullUrl(req, obj.image2);
+      return obj;
+    });
+
+    res.json(servicesWithFullImages);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -141,7 +56,7 @@ const createService = async (req, res) => {
   try {
     const { name, description, category, price, pricingType, duration, discount, tags } = req.body;
 
-    const categoryExists = await ServiceCategory.findById(category);
+    const categoryExists = await Category.findById(category);
     if (!categoryExists) {
       return res.status(400).json({ message: "Invalid category" });
     }
@@ -206,10 +121,6 @@ const deleteService = async (req, res) => {
 };
 
 module.exports = {
-  getAllCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
   getAllServices,
   getServicesByCategory,
   createService,

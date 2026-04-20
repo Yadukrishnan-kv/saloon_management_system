@@ -827,87 +827,90 @@ profileImage: <file object> (optional - only include if uploading a new image)
 }
 ~~~
 
-### 3) Get Categories
-- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/categories
-- Method: GET
-- Description: Get active service categories with image URLs.
-- Headers: N/A
-- Request Body: N/A
-- Response:
-~~~json
-{
-  "success": true,
-  "categories": [
-    {
-      "_id": "...",
-      "name": "Hair",
-      "image": "https://sidi.mobilegear.co.in/uploads/hair.jpg",
-      "serviceCount": 8
-    }
-  ]
-}
-~~~
-- Note: Image field contains full URL to the category image.
-- Error Response:
-~~~json
-{
-  "success": false,
-  "message": "Server error"
-}
-~~~
 
-### 3) Get Category Services
-- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/categories/:categoryId
-- Method: GET
-- Description: Get category details and services.
-- Headers: N/A
-- Request Body: N/A
-- Response:
-~~~json
-{
-  "success": true,
-  "category": { "_id": "...", "name": "Hair" },
-  "services": []
-}
-~~~
-- Error Response:
-~~~json
-{
-  "success": false,
-  "message": "Category not found"
-}
-~~~
+### Category APIs
 
-### 4) Get Sub Categories
-- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/categories/:categoryId/subcategories
+#### 1) Get All Categories
+- Endpoint URL: https://sidi.mobilegear.co.in/api/categories
 - Method: GET
-- Description: Get sub-categories under a parent category with images.
+- Description: Get all top-level categories (no parent).
 - Headers: N/A
-- Request Body: N/A
 - Response:
 ~~~json
-{
-  "success": true,
-  "parentCategory": {
+[
+  {
     "_id": "...",
-    "name": "Hair"
-  },
-  "subCategories": [
-    {
-      "_id": "...",
-      "name": "Hair Coloring",
-      "image": "https://sidi.mobilegear.co.in/uploads/coloring.jpg"
-    }
-  ]
-}
+    "name": "Hair",
+    "image": "https://sidi.mobilegear.co.in/uploads/hair.jpg",
+    "isActive": true,
+    "sortOrder": 0
+  }
+]
 ~~~
-- Error Response:
+
+#### 2) Create Category
+- Endpoint URL: https://sidi.mobilegear.co.in/api/categories
+- Method: POST
+- Description: Create a new top-level category (with optional image).
+- Headers: Content-Type: multipart/form-data
+- Body:
+  - name: string (required)
+  - image: file (optional)
+  - sortOrder: number (optional)
+
+#### 3) Update Category
+- Endpoint URL: https://sidi.mobilegear.co.in/api/categories/:id
+- Method: PUT
+- Description: Update a category (with optional image).
+- Headers: Content-Type: multipart/form-data
+- Body: Same as create
+
+#### 4) Delete Category
+- Endpoint URL: https://sidi.mobilegear.co.in/api/categories/:id
+- Method: DELETE
+- Description: Delete a category.
+
+### SubCategory APIs
+
+#### 1) Get All SubCategories
+- Endpoint URL: https://sidi.mobilegear.co.in/api/subcategories
+- Method: GET
+- Description: Get all subcategories with parent category reference.
+- Headers: N/A
+- Response:
 ~~~json
-{
-  "success": false,
-  "message": "Category not found"
-}
+[
+  {
+    "_id": "...",
+    "name": "Hair Coloring",
+    "category": { "_id": "...", "name": "Hair" },
+    "isActive": true,
+    "sortOrder": 0
+  }
+]
 ~~~
+
+#### 2) Create SubCategory
+- Endpoint URL: https://sidi.mobilegear.co.in/api/subcategories
+- Method: POST
+- Description: Create a new subcategory (no image field).
+- Headers: Content-Type: application/json
+- Body:
+  - name: string (required)
+  - category: string (parent category _id, required)
+  - sortOrder: number (optional)
+
+#### 3) Update SubCategory
+- Endpoint URL: https://sidi.mobilegear.co.in/api/subcategories/:id
+- Method: PUT
+- Description: Update a subcategory.
+- Headers: Content-Type: application/json
+- Body: Same as create
+
+#### 4) Delete SubCategory
+- Endpoint URL: https://sidi.mobilegear.co.in/api/subcategories/:id
+- Method: DELETE
+- Description: Delete a subcategory.
 
 ### 5) Search Services
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/search

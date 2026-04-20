@@ -23,10 +23,23 @@ const ensureStaticContentSeeds = async () => {
 
 // ===== BANNERS =====
 
+// Helper to get full image URL
+const getFullUrl = (req, imagePath) => {
+  if (!imagePath) return imagePath;
+  const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
+  return imagePath.startsWith("/uploads") ? `${baseUrl}${imagePath}` : imagePath;
+};
+
 const getAllBanners = async (req, res) => {
   try {
     const banners = await Banner.find().sort({ sortOrder: 1 });
-    res.json(banners);
+    // Map image field to full URL
+    const bannersWithFullImages = banners.map(banner => {
+      const obj = banner.toObject();
+      obj.image = getFullUrl(req, obj.image);
+      return obj;
+    });
+    res.json(bannersWithFullImages);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }

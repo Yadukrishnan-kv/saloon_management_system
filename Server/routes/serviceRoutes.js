@@ -1,10 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const {
-  getAllCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
   getAllServices,
   getServicesByCategory,
   createService,
@@ -14,12 +10,8 @@ const {
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 const upload = require("../middleware/uploadMiddleware");
 
-// ===== Categories =====
-router.get("/categories", getAllCategories);
-router.post("/categories", protect, authorizeRoles("SuperAdmin", "Admin"), upload.single('image'), createCategory);
-router.put("/categories/:id", protect, authorizeRoles("SuperAdmin", "Admin"), upload.single('image'), updateCategory);
-router.delete("/categories/:id", protect, authorizeRoles("SuperAdmin", "Admin"), deleteCategory);
 
+// ===== Services =====
 // ===== Services =====
 router.get("/services", getAllServices);
 router.get("/services/by-category/:categoryId", getServicesByCategory);

@@ -12,7 +12,7 @@ import { formatCurrency } from "../../../../utils/helpers";
 import "../../UserManagement/UserList/UserList.css";
 
 const PricingConfig = () => {
-  const backendUrl = process.env.REACT_APP_BACKEND_IP;
+  const backendUrl = process.env.REACT_APP_BACKEND_IP || "http://localhost:5000";
   const modalGridStyle = {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
@@ -23,6 +23,7 @@ const PricingConfig = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [services, setServices] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [subCategories, setSubCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editService, setEditService] = useState(null);
@@ -31,19 +32,21 @@ const PricingConfig = () => {
   });
 
   // Derived: top-level categories and sub-categories filtered by selected category
-  const topLevelCategories = categories.filter((c) => !c.parentCategory);
-  const subCategoriesForSelected = categories.filter(
-    (c) => c.parentCategory && (c.parentCategory._id || c.parentCategory) === formData.category
+  const topLevelCategories = categories;
+  const subCategoriesForSelected = subCategories.filter(
+    (sc) => sc.category && (sc.category._id || sc.category) === formData.category
   );
 
   const fetchData = useCallback(async () => {
     try {
-      const [servRes, catRes] = await Promise.all([
+      const [servRes, catRes, subCatRes] = await Promise.all([
         axios.get(`${backendUrl}/api/services`),
         axios.get(`${backendUrl}/api/categories`),
+        axios.get(`${backendUrl}/api/subcategories`),
       ]);
       setServices(servRes.data);
       setCategories(catRes.data);
+      setSubCategories(subCatRes.data);
     } catch (error) {
       toast.error("Failed to load data");
     } finally {

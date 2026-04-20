@@ -22,7 +22,7 @@ const getProfile = async (req, res) => {
 
     // Construct full image URL if image exists
     const userResponse = user.toObject();
-    const baseUrl = process.env.BASE_URL || "http://localhost:5000";
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
     if (userResponse.profileImage && userResponse.profileImage.startsWith("/uploads")) {
       userResponse.profileImage = `${baseUrl}${userResponse.profileImage}`;
     }
@@ -78,7 +78,7 @@ const updateProfile = async (req, res) => {
 
     // Construct full image URL if image exists
     const userResponse = user.toObject();
-    const baseUrl = process.env.BASE_URL || "http://localhost:5000";
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
     if (userResponse.profileImage && userResponse.profileImage.startsWith("/uploads")) {
       userResponse.profileImage = `${baseUrl}${userResponse.profileImage}`;
     }

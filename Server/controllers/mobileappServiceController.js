@@ -5,6 +5,12 @@ const Beautician = require("../models/Beautician");
 const Review = require("../models/Review");
 const Banner = require("../models/Banner");
 
+const getFullUrl = (req, imagePath) => {
+  if (!imagePath) return imagePath;
+  const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
+  return imagePath.startsWith("/uploads") ? `${baseUrl}${imagePath}` : imagePath;
+};
+
 // ─── GET ALL CATEGORIES ───────────────────────────────────────────────────────
 const getCategories = async (req, res) => {
   try {
@@ -18,8 +24,8 @@ const getCategories = async (req, res) => {
           _id: cat._id,
           name: cat.name,
           description: cat.description,
-          icon: cat.image,
-          image: cat.image,
+          icon: getFullUrl(req, cat.image),
+          image: getFullUrl(req, cat.image),
           serviceCount,
         };
       })
@@ -44,7 +50,18 @@ const getCategoryServices = async (req, res) => {
 
     const services = await Service.find({ category: categoryId, isActive: true }).sort({ name: 1 });
 
-    res.json({ success: true, category, services });
+    const responseCategory = {
+      ...category.toObject(),
+      image: getFullUrl(req, category.image),
+    };
+    const responseServices = services.map((service) => ({
+      ...service.toObject(),
+      image1: getFullUrl(req, service.image1),
+      image2: getFullUrl(req, service.image2),
+      image: getFullUrl(req, service.image1 || service.image2),
+    }));
+
+    res.json({ success: true, category: responseCategory, services: responseServices });
   } catch (error) {
     console.error("Get category services error:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -83,7 +100,14 @@ const getAllServices = async (req, res) => {
 
     const total = await Service.countDocuments(query);
 
-    res.json({ success: true, services, total });
+    const responseServices = services.map((service) => ({
+      ...service.toObject(),
+      image1: getFullUrl(req, service.image1),
+      image2: getFullUrl(req, service.image2),
+      image: getFullUrl(req, service.image1 || service.image2),
+    }));
+
+    res.json({ success: true, services: responseServices, total });
   } catch (error) {
     console.error("Get all services error:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -108,6 +132,11 @@ const getServiceById = async (req, res) => {
       .select("fullName rating totalReviews profileImage experience skills")
       .limit(10);
 
+    const responseBeauticians = beauticians.map((beautician) => ({
+      ...beautician.toObject(),
+      profileImage: getFullUrl(req, beautician.profileImage),
+    }));
+
     res.json({
       success: true,
       service: {
@@ -117,11 +146,13 @@ const getServiceById = async (req, res) => {
         price: service.price,
         pricingType: service.pricingType,
         duration: service.duration,
-        image: service.image,
+        image1: getFullUrl(req, service.image1),
+        image2: getFullUrl(req, service.image2),
+        image: getFullUrl(req, service.image1 || service.image2),
         category: service.category,
         discount: service.discount,
         tags: service.tags,
-        beauticians,
+        beauticians: responseBeauticians,
       },
     });
   } catch (error) {
@@ -158,7 +189,18 @@ const searchServices = async (req, res) => {
       .select("fullName rating totalReviews profileImage skills location")
       .limit(10);
 
-    res.json({ success: true, services, availableBeauticians });
+    const responseServices = services.map((service) => ({
+      ...service.toObject(),
+      image1: getFullUrl(req, service.image1),
+      image2: getFullUrl(req, service.image2),
+      image: getFullUrl(req, service.image1 || service.image2),
+    }));
+    const responseBeauticians = availableBeauticians.map((beautician) => ({
+      ...beautician.toObject(),
+      profileImage: getFullUrl(req, beautician.profileImage),
+    }));
+
+    res.json({ success: true, services: responseServices, availableBeauticians: responseBeauticians });
   } catch (error) {
     console.error("Search services error:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -174,7 +216,14 @@ const getPopularServices = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(10);
 
-    res.json({ success: true, popularServices: services });
+    const responseServices = services.map((service) => ({
+      ...service.toObject(),
+      image1: getFullUrl(req, service.image1),
+      image2: getFullUrl(req, service.image2),
+      image: getFullUrl(req, service.image1 || service.image2),
+    }));
+
+    res.json({ success: true, popularServices: responseServices });
   } catch (error) {
     console.error("Popular services error:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -201,11 +250,22 @@ const getOffers = async (req, res) => {
       ],
     }).sort({ sortOrder: 1 });
 
+    const responseServices = services.map((service) => ({
+      ...service.toObject(),
+      image1: getFullUrl(req, service.image1),
+      image2: getFullUrl(req, service.image2),
+      image: getFullUrl(req, service.image1 || service.image2),
+    }));
+    const responseBanners = banners.map((banner) => ({
+      ...banner.toObject(),
+      image: getFullUrl(req, banner.image),
+    }));
+
     res.json({
       success: true,
       activeOffers: {
-        discountedServices: services,
-        banners,
+        discountedServices: responseServices,
+        banners: responseBanners,
       },
     });
   } catch (error) {
@@ -229,7 +289,16 @@ const getSubCategories = async (req, res) => {
       isActive: true,
     }).sort({ sortOrder: 1 });
 
-    res.json({ success: true, parentCategory, subCategories });
+    const responseParentCategory = {
+      ...parentCategory.toObject(),
+      image: getFullUrl(req, parentCategory.image),
+    };
+    const responseSubCategories = subCategories.map((sub) => ({
+      ...sub.toObject(),
+      image: getFullUrl(req, sub.image),
+    }));
+
+    res.json({ success: true, parentCategory: responseParentCategory, subCategories: responseSubCategories });
   } catch (error) {
     console.error("Get sub-categories error:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -256,7 +325,11 @@ const getServiceAddons = async (req, res) => {
       ],
     }).sort({ sortOrder: 1 });
 
-    res.json({ success: true, addons });
+    const responseAddons = addons.map((addon) => ({
+      ...addon.toObject(),
+      image: getFullUrl(req, addon.image),
+    }));
+    res.json({ success: true, addons: responseAddons });
   } catch (error) {
     console.error("Get service addons error:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -287,7 +360,7 @@ const getHomeDashboard = async (req, res) => {
           _id: cat._id,
           name: cat.name,
           description: cat.description,
-          image: cat.image,
+          image: getFullUrl(req, cat.image),
           serviceCount,
         };
       })
@@ -305,13 +378,32 @@ const getHomeDashboard = async (req, res) => {
       .sort({ discount: -1 })
       .limit(5);
 
+    const dashboardBanners = banners.map((banner) => ({
+      ...banner.toObject(),
+      image: getFullUrl(req, banner.image),
+    }));
+    const dashboardCategories = categoriesWithCount.map((cat) => ({
+      ...cat,
+      image: getFullUrl(req, cat.image),
+    }));
+    const dashboardPopularServices = popularServices.map((service) => ({
+      ...service.toObject(),
+      image1: getFullUrl(req, service.image1),
+      image2: getFullUrl(req, service.image2),
+    }));
+    const dashboardOffers = offers.map((service) => ({
+      ...service.toObject(),
+      image1: getFullUrl(req, service.image1),
+      image2: getFullUrl(req, service.image2),
+    }));
+
     res.json({
       success: true,
       dashboard: {
-        banners,
-        categories: categoriesWithCount,
-        popularServices,
-        offers,
+        banners: dashboardBanners,
+        categories: dashboardCategories,
+        popularServices: dashboardPopularServices,
+        offers: dashboardOffers,
       },
     });
   } catch (error) {

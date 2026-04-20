@@ -11,24 +11,25 @@ import axios from "axios";
 import "../../UserManagement/UserList/UserList.css";
 
 const SubCategories = () => {
-  const backendUrl = process.env.REACT_APP_BACKEND_IP;
+  const backendUrl = process.env.REACT_APP_BACKEND_IP || "http://localhost:5000";
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [subCategories, setSubCategories] = useState([]);
   const [parentCategories, setParentCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [formData, setFormData] = useState({ name: "", parentCategory: "", image: null });
+  const [formData, setFormData] = useState({ name: "", parentCategory: "" });
 
   const fetchData = useCallback(async () => {
     try {
-      const { data } = await axios.get(`${backendUrl}/api/categories`);
-      const tops = data.filter((c) => !c.parentCategory);
-      const subs = data.filter((c) => c.parentCategory);
-      setParentCategories(tops);
-      setSubCategories(subs);
+      // Fetch parent categories
+      const { data: parentData } = await axios.get(`${backendUrl}/api/categories`);
+      setParentCategories(parentData);
+      // Fetch subcategories
+      const { data: subData } = await axios.get(`${backendUrl}/api/subcategories`);
+      setSubCategories(subData);
     } catch (error) {
-      toast.error("Failed to load categories");
+      toast.error("Failed to load categories or subcategories");
     } finally {
       setLoading(false);
     }
@@ -41,29 +42,20 @@ const SubCategories = () => {
     if (!formData.name.trim()) { toast.error("Name is required"); return; }
     if (!formData.parentCategory) { toast.error("Parent category is required"); return; }
     try {
-      const data = new FormData();
-      data.append('name', formData.name);
-      data.append('parentCategory', formData.parentCategory);
-      if (formData.image) {
-        data.append('image', formData.image);
-      }
-
-      const config = {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const payload = {
+        name: formData.name,
+        category: formData.parentCategory,
       };
-
       if (editItem) {
-        await axios.put(`${backendUrl}/api/categories/${editItem._id}`, data, config);
+        await axios.put(`${backendUrl}/api/subcategories/${editItem._id}`, payload);
         toast.success("Sub category updated");
       } else {
-        await axios.post(`${backendUrl}/api/categories`, data, config);
+        await axios.post(`${backendUrl}/api/subcategories`, payload);
         toast.success("Sub category created");
       }
       setModalOpen(false);
       setEditItem(null);
-      setFormData({ name: "", parentCategory: "", image: null });
+      setFormData({ name: "", parentCategory: "" });
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed");
@@ -75,21 +67,20 @@ const SubCategories = () => {
     setFormData({
       name: cat.name,
       parentCategory: cat.parentCategory?._id || cat.parentCategory || "",
-      image: null,
     });
     setModalOpen(true);
   };
 
   const openCreate = () => {
     setEditItem(null);
-    setFormData({ name: "", parentCategory: "", image: null });
+    setFormData({ name: "", parentCategory: "" });
     setModalOpen(true);
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this sub category?")) return;
     try {
-      await axios.delete(`${backendUrl}/api/categories/${id}`);
+      await axios.delete(`${backendUrl}/api/subcategories/${id}`);
       toast.success("Deleted");
       fetchData();
     } catch (err) {
@@ -98,13 +89,8 @@ const SubCategories = () => {
   };
 
   const columns = [
-    { 
-      key: "image", 
-      label: "Image", 
-      render: (row) => row.image ? <img src={row.image} alt={row.name} style={{ width: "60px", height: "60px", borderRadius: "8px", objectFit: "cover" }} /> : <span style={{ color: "#bdc3c7" }}>No image</span>
-    },
     { key: "name", label: "Sub Category Name" },
-    { key: "parentCategory", label: "Parent Category", render: (row) => row.parentCategory?.name || "-" },
+    { key: "parentCategory", label: "Parent Category", render: (row) => row.category?.name || "-" },
     { key: "isActive", label: "Active", render: (row) => row.isActive ? "Yes" : "No" },
     { key: "sortOrder", label: "Order" },
     {
@@ -158,10 +144,7 @@ const SubCategories = () => {
                 placeholder="Enter sub category name"
               />
             </div>
-            <div className="form-group">
-              <label>Sub Category Image</label>
-              <input type="file" accept="image/*" onChange={(e) => setFormData({ ...formData, image: e.target.files[0] })} />
-            </div>
+            {/* No image upload for subcategory */}
             <div className="form-actions">
               <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
               <Button type="submit">{editItem ? "Update" : "Create"}</Button>

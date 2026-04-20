@@ -11,6 +11,7 @@ dotenv.config();
 connectDB().then(() => seedAdmin());
 
 const app = express();
+app.set('trust proxy', true);
 const clientBuildPath = path.join(__dirname, '..', 'Client', 'build');
 const hasClientBuild = fs.existsSync(path.join(clientBuildPath, 'index.html'));
 
@@ -19,8 +20,14 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Relax CSP and remove CORP for /uploads, then serve static files with CORS
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Content-Security-Policy', "default-src *; img-src * data:; script-src 'self'; style-src 'self' 'unsafe-inline'");
+  res.removeHeader && res.removeHeader('Cross-Origin-Resource-Policy');
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+app.use('/uploads', cors({ origin: '*', credentials: false }), express.static(path.join(__dirname, 'uploads')));
 
 // Serve React build files when a production build is available
 if (hasClientBuild) {
@@ -28,6 +35,8 @@ if (hasClientBuild) {
 }
 
 // API routes
+app.use('/api/categories', require('./routes/categoryRoutes'));
+app.use('/api/subcategories', require('./routes/subCategoryRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/roles', require('./routes/roleRoutes'));

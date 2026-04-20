@@ -13,7 +13,7 @@ const serviceSchema = new Schema(
     },
     category: {
       type: Schema.Types.ObjectId,
-      ref: "ServiceCategory",
+      ref: "Category",
       required: [true, "Category is required"],
     },
     price: {
