@@ -31,7 +31,11 @@ const serviceSchema = new Schema(
       required: [true, "Duration is required"],
       min: [1, "Duration must be at least 1 minute"],
     },
-    image: {
+    image1: {
+      type: String,
+      default: "",
+    },
+    image2: {
       type: String,
       default: "",
     },

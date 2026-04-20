@@ -27,7 +27,7 @@ const PricingConfig = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editService, setEditService] = useState(null);
   const [formData, setFormData] = useState({
-    name: "", description: "", category: "", subCategory: "", price: "", pricingType: "Fixed", duration: "", discount: 0, image: null,
+    name: "", description: "", category: "", subCategory: "", price: "", pricingType: "Fixed", duration: "", discount: 0, image1: null, image2: null,
   });
 
   // Derived: top-level categories and sub-categories filtered by selected category
@@ -61,13 +61,21 @@ const PricingConfig = () => {
     }
     try {
       const data = new FormData();
-      Object.keys(formData).forEach(key => {
-        if (key === 'image' && formData[key]) {
-          data.append(key, formData[key]);
-        } else if (key !== 'image') {
-          data.append(key, formData[key]);
-        }
-      });
+      data.append('name', formData.name);
+      data.append('description', formData.description);
+      data.append('category', formData.category);
+      data.append('subCategory', formData.subCategory);
+      data.append('price', formData.price);
+      data.append('pricingType', formData.pricingType);
+      data.append('duration', formData.duration);
+      data.append('discount', formData.discount);
+      
+      if (formData.image1) {
+        data.append('images', formData.image1);
+      }
+      if (formData.image2) {
+        data.append('images', formData.image2);
+      }
 
       const config = {
         headers: {
@@ -84,7 +92,7 @@ const PricingConfig = () => {
       }
       setModalOpen(false);
       setEditService(null);
-      setFormData({ name: "", description: "", category: "", subCategory: "", price: "", pricingType: "Fixed", duration: "", discount: 0, image: null });
+      setFormData({ name: "", description: "", category: "", subCategory: "", price: "", pricingType: "Fixed", duration: "", discount: 0, image1: null, image2: null });
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed");
@@ -97,7 +105,7 @@ const PricingConfig = () => {
       name: svc.name, description: svc.description || "",
       category: svc.category?._id || svc.category,
       subCategory: svc.subCategory?._id || svc.subCategory || "",
-      price: svc.price, pricingType: svc.pricingType, duration: svc.duration, discount: svc.discount || 0, image: null,
+      price: svc.price, pricingType: svc.pricingType, duration: svc.duration, discount: svc.discount || 0, image1: null, image2: null,
     });
     setModalOpen(true);
   };
@@ -116,6 +124,17 @@ const PricingConfig = () => {
   const columns = [
     { key: "name", label: "Service Name" },
     { key: "category", label: "Category", render: (row) => row.category?.name || "-" },
+    { 
+      key: "images", 
+      label: "Images", 
+      render: (row) => (
+        <div style={{ display: "flex", gap: "8px" }}>
+          {row.image1 && <img src={row.image1} alt="Image 1" style={{ width: "50px", height: "50px", borderRadius: "4px", objectFit: "cover" }} />}
+          {row.image2 && <img src={row.image2} alt="Image 2" style={{ width: "50px", height: "50px", borderRadius: "4px", objectFit: "cover" }} />}
+          {!row.image1 && !row.image2 && <span style={{ color: "#bdc3c7" }}>No images</span>}
+        </div>
+      )
+    },
     { key: "price", label: "Price", render: (row) => formatCurrency(row.price) },
     { key: "pricingType", label: "Type" },
     { key: "duration", label: "Duration", render: (row) => `${row.duration} mins` },
@@ -138,7 +157,7 @@ const PricingConfig = () => {
       <main className={`main-content ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         <div className="page-header">
           <div><h1>Services & Pricing</h1><p>Manage services and pricing</p></div>
-          <Button onClick={() => { setEditService(null); setFormData({ name: "", description: "", category: "", subCategory: "", price: "", pricingType: "Fixed", duration: "", discount: 0, image: null }); setModalOpen(true); }}>
+          <Button onClick={() => { setEditService(null); setFormData({ name: "", description: "", category: "", subCategory: "", price: "", pricingType: "Fixed", duration: "", discount: 0, image1: null, image2: null }); setModalOpen(true); }}>
             <FiPlus /> Add Service
           </Button>
         </div>
@@ -188,8 +207,12 @@ const PricingConfig = () => {
                 <input type="number" value={formData.discount} onChange={(e) => setFormData({ ...formData, discount: e.target.value })} min="0" max="100" placeholder="0" />
               </div>
               <div className="form-group" style={fullWidthStyle}>
-                <label>Service Image</label>
-                <input type="file" accept="image/*" onChange={(e) => setFormData({ ...formData, image: e.target.files[0] })} />
+                <label>Service Image 1</label>
+                <input type="file" accept="image/*" onChange={(e) => setFormData({ ...formData, image1: e.target.files[0] })} />
+              </div>
+              <div className="form-group" style={fullWidthStyle}>
+                <label>Service Image 2</label>
+                <input type="file" accept="image/*" onChange={(e) => setFormData({ ...formData, image2: e.target.files[0] })} />
               </div>
               <div className="form-group" style={fullWidthStyle}>
                 <label>Description</label>

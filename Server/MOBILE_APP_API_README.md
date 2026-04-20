@@ -400,11 +400,12 @@ Notes:
     "username": "Asha",
     "email": "asha@example.com",
     "phoneNumber": "9876543210",
+    "profileImage": "https://sidi.mobilegear.co.in/uploads/1234567890-filename.jpg",
     "favoriteBeauticians": [
       {
         "_id": "...",
         "fullName": "Riya",
-        "profileImage": "/uploads/riya.jpg",
+        "profileImage": "https://sidi.mobilegear.co.in/uploads/riya.jpg",
         "rating": 4.7,
         "tier": "Premium"
       }
@@ -418,13 +419,7 @@ Notes:
   }
 }
 ~~~
-- Error Response:
-~~~json
-{
-  "success": false,
-  "message": "User not found"
-}
-~~~
+- Note: The profileImage field will be a full URL if an image has been uploaded, or empty string if no image is set.
 
 ### 2) Update Profile
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/user/profile
@@ -432,8 +427,15 @@ Notes:
 - Description: Update customer profile; supports profile image upload.
 - Headers:
   - Authorization: Bearer <token>
-  - Content-Type: multipart/form-data or application/json
-- Request Body (JSON):
+  - Content-Type: multipart/form-data (when uploading image) OR application/json (when updating only text fields)
+- Request Body (FormData with file):
+~~~
+name: "Asha K"
+email: "asha.k@example.com"
+phone: "9876543210"
+profileImage: <file object> (optional - only include if uploading a new image)
+~~~
+- Request Body (JSON - text fields only):
 ~~~json
 {
   "name": "Asha K",
@@ -441,15 +443,17 @@ Notes:
   "phone": "9876543210"
 }
 ~~~
-- Multipart field for image: profileImage (file)
-- Response:
+- Response (with image URL):
 ~~~json
 {
   "success": true,
   "message": "Profile updated successfully",
   "user": {
     "_id": "...",
-    "username": "Asha K"
+    "username": "Asha K",
+    "email": "asha.k@example.com",
+    "phoneNumber": "9876543210",
+    "profileImage": "https://sidi.mobilegear.co.in/uploads/1234567890-filename.jpg"
   }
 }
 ~~~
@@ -460,6 +464,10 @@ Notes:
   "message": "Email already in use"
 }
 ~~~
+- Notes:
+  - Profile image is optional. Only send the profileImage field if you're uploading a new image.
+  - The returned profileImage will be a full URL pointing to the uploaded file.
+  - Only update the fields you want to change; other fields will remain unchanged.
 
 ### 3) Change Password
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/user/change-password
@@ -749,14 +757,16 @@ Notes:
       {
         "_id": "...",
         "title": "Summer Sale",
-        "image": "/uploads/banner.jpg"
+        "description": "Get 30% off on all services",
+        "image": "https://sidi.mobilegear.co.in/uploads/banner.jpg",
+        "isActive": true
       }
     ],
     "categories": [
       {
         "_id": "...",
         "name": "Hair",
-        "image": "/uploads/hair.jpg",
+        "image": "https://sidi.mobilegear.co.in/uploads/hair.jpg",
         "serviceCount": 8
       }
     ],
@@ -765,6 +775,8 @@ Notes:
         "_id": "...",
         "name": "Facial",
         "price": 999,
+        "image1": "https://sidi.mobilegear.co.in/uploads/facial1.jpg",
+        "image2": "https://sidi.mobilegear.co.in/uploads/facial2.jpg",
         "category": { "_id": "...", "name": "Skin" }
       }
     ],
@@ -773,7 +785,8 @@ Notes:
         "_id": "...",
         "name": "Deep Conditioning",
         "price": 1200,
-        "discount": 20
+        "discount": 20,
+        "image1": "https://sidi.mobilegear.co.in/uploads/conditioning1.jpg"
       }
     ]
   }
@@ -817,7 +830,7 @@ Notes:
 ### 3) Get Categories
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/categories
 - Method: GET
-- Description: Get active service categories.
+- Description: Get active service categories with image URLs.
 - Headers: N/A
 - Request Body: N/A
 - Response:
@@ -828,11 +841,13 @@ Notes:
     {
       "_id": "...",
       "name": "Hair",
+      "image": "https://sidi.mobilegear.co.in/uploads/hair.jpg",
       "serviceCount": 8
     }
   ]
 }
 ~~~
+- Note: Image field contains full URL to the category image.
 - Error Response:
 ~~~json
 {
@@ -866,7 +881,7 @@ Notes:
 ### 4) Get Sub Categories
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/categories/:categoryId/subcategories
 - Method: GET
-- Description: Get sub-categories under a parent category.
+- Description: Get sub-categories under a parent category with images.
 - Headers: N/A
 - Request Body: N/A
 - Response:
@@ -881,7 +896,7 @@ Notes:
     {
       "_id": "...",
       "name": "Hair Coloring",
-      "image": "/uploads/coloring.jpg"
+      "image": "https://sidi.mobilegear.co.in/uploads/coloring.jpg"
     }
   ]
 }
@@ -978,14 +993,14 @@ Notes:
       "name": "Aromatherapy Oil",
       "description": "Premium essential oil treatment",
       "price": 250,
-      "image": "/uploads/aroma.jpg"
+      "image": "https://sidi.mobilegear.co.in/uploads/aroma.jpg"
     },
     {
       "_id": "...",
       "name": "Deep Conditioning",
       "description": "Intensive hair conditioning",
       "price": 400,
-      "image": "/uploads/conditioning.jpg"
+      "image": "https://sidi.mobilegear.co.in/uploads/conditioning.jpg"
     }
   ]
 }
@@ -1001,7 +1016,7 @@ Notes:
 ### 9) Get All Services
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services
 - Method: GET
-- Description: List services with filters.
+- Description: List services with filters and multiple images.
 - Headers: N/A
 - Query: categoryId, search, minPrice, maxPrice, sortBy
 - Request Body: N/A
@@ -1009,7 +1024,20 @@ Notes:
 ~~~json
 {
   "success": true,
-  "services": [],
+  "services": [
+    {
+      "_id": "...",
+      "name": "Facial",
+      "price": 999,
+      "duration": 60,
+      "image1": "https://sidi.mobilegear.co.in/uploads/facial1.jpg",
+      "image2": "https://sidi.mobilegear.co.in/uploads/facial2.jpg",
+      "category": {
+        "_id": "...",
+        "name": "Skin"
+      }
+    }
+  ],
   "total": 25
 }
 ~~~
@@ -1024,7 +1052,7 @@ Notes:
 ### 10) Get Service By ID
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/:serviceId
 - Method: GET
-- Description: Service detail with beautician suggestions.
+- Description: Service detail with beautician suggestions and multiple images.
 - Headers: N/A
 - Request Body: N/A
 - Response:
@@ -1034,8 +1062,25 @@ Notes:
   "service": {
     "_id": "...",
     "name": "Facial",
+    "description": "Professional facial treatment",
     "price": 999,
-    "beauticians": []
+    "pricingType": "Fixed",
+    "duration": 60,
+    "image1": "https://sidi.mobilegear.co.in/uploads/facial1.jpg",
+    "image2": "https://sidi.mobilegear.co.in/uploads/facial2.jpg",
+    "discount": 10,
+    "category": {
+      "_id": "...",
+      "name": "Skin"
+    },
+    "beauticians": [
+      {
+        "_id": "...",
+        "fullName": "Riya",
+        "profileImage": "https://sidi.mobilegear.co.in/uploads/riya.jpg",
+        "rating": 4.7
+      }
+    ]
   }
 }
 ~~~

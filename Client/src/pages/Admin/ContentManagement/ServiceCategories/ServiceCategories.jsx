@@ -17,7 +17,7 @@ const ServiceCategories = () => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editCategory, setEditCategory] = useState(null);
-  const [formData, setFormData] = useState({ name: "" });
+  const [formData, setFormData] = useState({ name: "", image: null });
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -37,16 +37,28 @@ const ServiceCategories = () => {
     e.preventDefault();
     if (!formData.name.trim()) { toast.error("Name is required"); return; }
     try {
+      const data = new FormData();
+      data.append('name', formData.name);
+      if (formData.image) {
+        data.append('image', formData.image);
+      }
+
+      const config = {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      };
+
       if (editCategory) {
-        await axios.put(`${backendUrl}/api/categories/${editCategory._id}`, formData);
+        await axios.put(`${backendUrl}/api/categories/${editCategory._id}`, data, config);
         toast.success("Category updated");
       } else {
-        await axios.post(`${backendUrl}/api/categories`, formData);
+        await axios.post(`${backendUrl}/api/categories`, data, config);
         toast.success("Category created");
       }
       setModalOpen(false);
       setEditCategory(null);
-      setFormData({ name: "", description: "" });
+      setFormData({ name: "", image: null });
       fetchCategories();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed");
@@ -57,13 +69,14 @@ const ServiceCategories = () => {
     setEditCategory(cat);
     setFormData({
       name: cat.name,
+      image: null,
     });
     setModalOpen(true);
   };
 
   const resetForm = () => {
     setEditCategory(null);
-    setFormData({ name: "" });
+    setFormData({ name: "", image: null });
     setModalOpen(true);
   };
 
@@ -81,6 +94,11 @@ const ServiceCategories = () => {
   };
 
   const columns = [
+    { 
+      key: "image", 
+      label: "Image", 
+      render: (row) => row.image ? <img src={row.image} alt={row.name} style={{ width: "60px", height: "60px", borderRadius: "8px", objectFit: "cover" }} /> : <span style={{ color: "#bdc3c7" }}>No image</span>
+    },
     { key: "name", label: "Category Name" },
     { key: "isActive", label: "Active", render: (row) => row.isActive ? "Yes" : "No" },
     { key: "sortOrder", label: "Order" },
@@ -113,6 +131,10 @@ const ServiceCategories = () => {
             <div className="form-group">
               <label>Category Name *</label>
               <input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Enter category name" />
+            </div>
+            <div className="form-group">
+              <label>Category Image</label>
+              <input type="file" accept="image/*" onChange={(e) => setFormData({ ...formData, image: e.target.files[0] })} />
             </div>
             <div className="form-actions">
               <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>

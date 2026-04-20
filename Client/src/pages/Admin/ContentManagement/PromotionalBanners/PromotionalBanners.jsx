@@ -3,6 +3,7 @@ import { FiEdit2, FiPlus, FiTrash2 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import Header from "../../../../components/layout/Header/Header";
 import Sidebar from "../../../../components/layout/Sidebar/Sidebar";
+import Table from "../../../../components/common/Table/Table";
 import Button from "../../../../components/common/Button/Button";
 import Modal from "../../../../components/common/Modal/Modal";
 import Loading from "../../../../components/common/Loading/Loading";
@@ -102,6 +103,25 @@ const PromotionalBanners = () => {
     }
   };
 
+  const bannerColumns = [
+    { 
+      key: "image", 
+      label: "Image", 
+      render: (row) => row.image ? <img src={row.image} alt={row.title} style={{ width: "80px", height: "60px", borderRadius: "8px", objectFit: "cover" }} /> : <span style={{ color: "#bdc3c7" }}>No image</span>
+    },
+    { key: "title", label: "Title" },
+    { key: "description", label: "Description", render: (row) => row.description ? row.description.substring(0, 50) + "..." : "-" },
+    { key: "isActive", label: "Active", render: (row) => row.isActive ? "Yes" : "No" },
+    {
+      key: "actions", label: "Actions",
+      render: (row) => (
+        <div className="table-actions">
+          <button className="action-btn danger" onClick={() => handleDelete(row._id)}><FiTrash2 /></button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="dashboard-layout">
       <Header onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
@@ -118,20 +138,7 @@ const PromotionalBanners = () => {
           <>
             <div style={{ marginBottom: "24px" }}>
               <h2 style={{ margin: "0 0 12px", fontSize: "18px", color: "#2d3436" }}>Banners</h2>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
-                {banners.map((b) => (
-                  <div key={b._id} style={{ background: "#fff", borderRadius: "12px", padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-                    {b.image && <img src={b.image} alt={b.title} style={{ width: "100%", height: "150px", objectFit: "cover", borderRadius: "8px", marginBottom: "12px" }} />}
-                    <h3 style={{ margin: "0 0 4px", fontSize: "16px" }}>{b.title}</h3>
-                    <p style={{ color: "#636e72", fontSize: "13px", margin: "0 0 12px" }}>{b.description}</p>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span className={`user-status ${b.isActive ? "active" : "inactive"}`}>{b.isActive ? "Active" : "Inactive"}</span>
-                      <button className="action-btn danger" onClick={() => handleDelete(b._id)}><FiTrash2 /></button>
-                    </div>
-                  </div>
-                ))}
-                {banners.length === 0 && <p className="no-data">No banners yet</p>}
-              </div>
+              <Table columns={bannerColumns} data={banners} emptyMessage="No banners yet" />
             </div>
 
             <div>

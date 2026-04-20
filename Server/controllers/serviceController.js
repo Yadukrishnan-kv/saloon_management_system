@@ -16,7 +16,7 @@ const getAllCategories = async (req, res) => {
 
 const createCategory = async (req, res) => {
   try {
-    const { name, image, sortOrder, parentCategory } = req.body;
+    const { name, sortOrder, parentCategory } = req.body;
 
     const existing = await ServiceCategory.findOne({ name });
     if (existing) {
@@ -32,7 +32,7 @@ const createCategory = async (req, res) => {
 
     const category = await ServiceCategory.create({
       name,
-      image,
+      image: req.file ? `/uploads/${req.file.filename}` : undefined,
       sortOrder,
       parentCategory: parentCategory || null,
     });
@@ -45,7 +45,7 @@ const createCategory = async (req, res) => {
 
 const updateCategory = async (req, res) => {
   try {
-    const { name, image, isActive, sortOrder, parentCategory } = req.body;
+    const { name, isActive, sortOrder, parentCategory } = req.body;
 
     if (parentCategory) {
       if (parentCategory === req.params.id) {
@@ -58,9 +58,14 @@ const updateCategory = async (req, res) => {
       }
     }
 
+    const updateData = { name, isActive, sortOrder, parentCategory: parentCategory || null };
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+
     const category = await ServiceCategory.findByIdAndUpdate(
       req.params.id,
-      { name, image, isActive, sortOrder, parentCategory: parentCategory || null },
+      updateData,
       { new: true, runValidators: true }
     ).populate("parentCategory", "name");
 
@@ -141,18 +146,25 @@ const createService = async (req, res) => {
       return res.status(400).json({ message: "Invalid category" });
     }
 
-    const service = await Service.create({
+    const serviceData = {
       name,
       description,
       category,
       price,
       pricingType,
       duration,
-      image: req.file ? `/uploads/${req.file.filename}` : undefined,
       discount,
       tags,
-    });
+    };
 
+    if (req.files && req.files.length > 0) {
+      serviceData.image1 = `/uploads/${req.files[0].filename}`;
+      if (req.files.length > 1) {
+        serviceData.image2 = `/uploads/${req.files[1].filename}`;
+      }
+    }
+
+    const service = await Service.create(serviceData);
     const populated = await Service.findById(service._id).populate("category", "name");
     res.status(201).json(populated);
   } catch (error) {
@@ -163,9 +175,14 @@ const createService = async (req, res) => {
 const updateService = async (req, res) => {
   try {
     const updateData = { ...req.body };
-    if (req.file) {
-      updateData.image = `/uploads/${req.file.filename}`;
+    
+    if (req.files && req.files.length > 0) {
+      updateData.image1 = `/uploads/${req.files[0].filename}`;
+      if (req.files.length > 1) {
+        updateData.image2 = `/uploads/${req.files[1].filename}`;
+      }
     }
+    
     const service = await Service.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,

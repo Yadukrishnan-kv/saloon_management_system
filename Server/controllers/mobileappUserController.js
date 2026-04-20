@@ -20,9 +20,16 @@ const getProfile = async (req, res) => {
       Review.countDocuments({ customer: req.user._id }),
     ]);
 
+    // Construct full image URL if image exists
+    const userResponse = user.toObject();
+    const baseUrl = process.env.BASE_URL || "http://localhost:5000";
+    if (userResponse.profileImage && userResponse.profileImage.startsWith("/uploads")) {
+      userResponse.profileImage = `${baseUrl}${userResponse.profileImage}`;
+    }
+
     res.json({
       success: true,
-      user,
+      user: userResponse,
       stats: {
         totalBookings,
         totalReviews,
@@ -39,7 +46,7 @@ const getProfile = async (req, res) => {
 // ─── UPDATE PROFILE ───────────────────────────────────────────────────────────
 const updateProfile = async (req, res) => {
   try {
-    const { name, email, phone, profileImage } = req.body;
+    const { name, email, phone } = req.body;
     const updateData = {};
 
     if (name) updateData.username = name;
@@ -58,9 +65,8 @@ const updateProfile = async (req, res) => {
       }
       updateData.phoneNumber = phone;
     }
-    if (profileImage) updateData.profileImage = profileImage;
 
-    // Handle file upload for profile image
+    // Handle file upload for profile image - only update if file is provided
     if (req.file) {
       updateData.profileImage = `/uploads/${req.file.filename}`;
     }
@@ -70,10 +76,17 @@ const updateProfile = async (req, res) => {
       runValidators: true,
     }).select("-password");
 
+    // Construct full image URL if image exists
+    const userResponse = user.toObject();
+    const baseUrl = process.env.BASE_URL || "http://localhost:5000";
+    if (userResponse.profileImage && userResponse.profileImage.startsWith("/uploads")) {
+      userResponse.profileImage = `${baseUrl}${userResponse.profileImage}`;
+    }
+
     res.json({
       success: true,
       message: "Profile updated successfully",
-      user,
+      user: userResponse,
     });
   } catch (error) {
     console.error("Update profile error:", error);

@@ -18,7 +18,7 @@ const SubCategories = () => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [formData, setFormData] = useState({ name: "", parentCategory: "" });
+  const [formData, setFormData] = useState({ name: "", parentCategory: "", image: null });
 
   const fetchData = useCallback(async () => {
     try {
@@ -41,16 +41,29 @@ const SubCategories = () => {
     if (!formData.name.trim()) { toast.error("Name is required"); return; }
     if (!formData.parentCategory) { toast.error("Parent category is required"); return; }
     try {
+      const data = new FormData();
+      data.append('name', formData.name);
+      data.append('parentCategory', formData.parentCategory);
+      if (formData.image) {
+        data.append('image', formData.image);
+      }
+
+      const config = {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      };
+
       if (editItem) {
-        await axios.put(`${backendUrl}/api/categories/${editItem._id}`, formData);
+        await axios.put(`${backendUrl}/api/categories/${editItem._id}`, data, config);
         toast.success("Sub category updated");
       } else {
-        await axios.post(`${backendUrl}/api/categories`, formData);
+        await axios.post(`${backendUrl}/api/categories`, data, config);
         toast.success("Sub category created");
       }
       setModalOpen(false);
       setEditItem(null);
-      setFormData({ name: "", description: "", parentCategory: "" });
+      setFormData({ name: "", parentCategory: "", image: null });
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed");
@@ -62,13 +75,14 @@ const SubCategories = () => {
     setFormData({
       name: cat.name,
       parentCategory: cat.parentCategory?._id || cat.parentCategory || "",
+      image: null,
     });
     setModalOpen(true);
   };
 
   const openCreate = () => {
     setEditItem(null);
-    setFormData({ name: "", parentCategory: "" });
+    setFormData({ name: "", parentCategory: "", image: null });
     setModalOpen(true);
   };
 
@@ -84,6 +98,11 @@ const SubCategories = () => {
   };
 
   const columns = [
+    { 
+      key: "image", 
+      label: "Image", 
+      render: (row) => row.image ? <img src={row.image} alt={row.name} style={{ width: "60px", height: "60px", borderRadius: "8px", objectFit: "cover" }} /> : <span style={{ color: "#bdc3c7" }}>No image</span>
+    },
     { key: "name", label: "Sub Category Name" },
     { key: "parentCategory", label: "Parent Category", render: (row) => row.parentCategory?.name || "-" },
     { key: "isActive", label: "Active", render: (row) => row.isActive ? "Yes" : "No" },
@@ -138,6 +157,10 @@ const SubCategories = () => {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Enter sub category name"
               />
+            </div>
+            <div className="form-group">
+              <label>Sub Category Image</label>
+              <input type="file" accept="image/*" onChange={(e) => setFormData({ ...formData, image: e.target.files[0] })} />
             </div>
             <div className="form-actions">
               <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
