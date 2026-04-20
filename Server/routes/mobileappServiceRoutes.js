@@ -11,10 +11,14 @@ const {
   getSubCategories,
   getServiceAddons,
   getHomeDashboard,
+  getLocationFromCoordinates,
 } = require("../controllers/mobileappServiceController");
 
 // Home dashboard (aggregate: banners + categories + popular + offers)
 router.get("/home", getHomeDashboard);
+
+// Location
+router.get("/location", getLocationFromCoordinates);
 
 // Public routes (no auth required for browsing)
 router.get("/categories", getCategories);

@@ -18,7 +18,7 @@ const PromotionalBanners = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [contentModalOpen, setContentModalOpen] = useState(false);
   const [editingPage, setEditingPage] = useState(null);
-  const [formData, setFormData] = useState({ title: "", description: "", image: "", link: "", isActive: true });
+  const [formData, setFormData] = useState({ title: "", description: "", image: null, isActive: true });
   const [contentForm, setContentForm] = useState({ key: "", title: "", content: "" });
 
   const fetchData = useCallback(async () => {
@@ -42,10 +42,25 @@ const PromotionalBanners = () => {
     e.preventDefault();
     if (!formData.title.trim()) { toast.error("Title is required"); return; }
     try {
-      await axios.post(`${backendUrl}/api/banners`, formData);
+      const data = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (key === 'image' && formData[key]) {
+          data.append(key, formData[key]);
+        } else if (key !== 'image') {
+          data.append(key, formData[key]);
+        }
+      });
+
+      const config = {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      };
+
+      await axios.post(`${backendUrl}/api/banners`, data, config);
       toast.success("Banner created");
       setModalOpen(false);
-      setFormData({ title: "", description: "", image: "", link: "", isActive: true });
+      setFormData({ title: "", description: "", image: null, isActive: true });
       fetchData();
     } catch (err) {
       toast.error("Failed");
@@ -145,8 +160,7 @@ const PromotionalBanners = () => {
           <form onSubmit={handleSubmit}>
             <div className="form-group"><label>Title</label><input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} /></div>
             <div className="form-group"><label>Description</label><input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
-            <div className="form-group"><label>Image URL</label><input value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })} /></div>
-            <div className="form-group"><label>Link</label><input value={formData.link} onChange={(e) => setFormData({ ...formData, link: e.target.value })} /></div>
+            <div className="form-group"><label>Banner Image</label><input type="file" accept="image/*" onChange={(e) => setFormData({ ...formData, image: e.target.files[0] })} /></div>
             <div className="form-actions">
               <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
               <Button type="submit">Create Banner</Button>

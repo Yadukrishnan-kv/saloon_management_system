@@ -17,7 +17,7 @@ const ServiceCategories = () => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editCategory, setEditCategory] = useState(null);
-  const [formData, setFormData] = useState({ name: "", description: "" });
+  const [formData, setFormData] = useState({ name: "" });
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -57,14 +57,13 @@ const ServiceCategories = () => {
     setEditCategory(cat);
     setFormData({
       name: cat.name,
-      description: cat.description || "",
     });
     setModalOpen(true);
   };
 
   const resetForm = () => {
     setEditCategory(null);
-    setFormData({ name: "", description: "" });
+    setFormData({ name: "" });
     setModalOpen(true);
   };
 
@@ -83,7 +82,6 @@ const ServiceCategories = () => {
 
   const columns = [
     { key: "name", label: "Category Name" },
-    { key: "description", label: "Description" },
     { key: "isActive", label: "Active", render: (row) => row.isActive ? "Yes" : "No" },
     { key: "sortOrder", label: "Order" },
     {
@@ -115,10 +113,6 @@ const ServiceCategories = () => {
             <div className="form-group">
               <label>Category Name *</label>
               <input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Enter category name" />
-            </div>
-            <div className="form-group">
-              <label>Description</label>
-              <input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Optional description" />
             </div>
             <div className="form-actions">
               <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>

@@ -787,7 +787,34 @@ Notes:
 }
 ~~~
 
-### 2) Get Categories
+### 2) Get Location from Coordinates
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/location?lat=<latitude>&lng=<longitude>
+- Method: GET
+- Description: Get location details from latitude and longitude coordinates.
+- Headers: N/A
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "location": {
+    "address": "123 Main St, City, State, Country",
+    "city": "City",
+    "state": "State",
+    "country": "Country",
+    "postalCode": "123456"
+  }
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Latitude and longitude are required"
+}
+~~~
+
+### 3) Get Categories
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/services/categories
 - Method: GET
 - Description: Get active service categories.

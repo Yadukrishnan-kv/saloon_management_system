@@ -16,7 +16,7 @@ const getAllCategories = async (req, res) => {
 
 const createCategory = async (req, res) => {
   try {
-    const { name, description, image, sortOrder, parentCategory } = req.body;
+    const { name, image, sortOrder, parentCategory } = req.body;
 
     const existing = await ServiceCategory.findOne({ name });
     if (existing) {
@@ -32,7 +32,6 @@ const createCategory = async (req, res) => {
 
     const category = await ServiceCategory.create({
       name,
-      description,
       image,
       sortOrder,
       parentCategory: parentCategory || null,
@@ -46,7 +45,7 @@ const createCategory = async (req, res) => {
 
 const updateCategory = async (req, res) => {
   try {
-    const { name, description, image, isActive, sortOrder, parentCategory } = req.body;
+    const { name, image, isActive, sortOrder, parentCategory } = req.body;
 
     if (parentCategory) {
       if (parentCategory === req.params.id) {
@@ -61,7 +60,7 @@ const updateCategory = async (req, res) => {
 
     const category = await ServiceCategory.findByIdAndUpdate(
       req.params.id,
-      { name, description, image, isActive, sortOrder, parentCategory: parentCategory || null },
+      { name, image, isActive, sortOrder, parentCategory: parentCategory || null },
       { new: true, runValidators: true }
     ).populate("parentCategory", "name");
 
@@ -135,7 +134,7 @@ const getServicesByCategory = async (req, res) => {
 
 const createService = async (req, res) => {
   try {
-    const { name, description, category, price, pricingType, duration, image, discount, tags } = req.body;
+    const { name, description, category, price, pricingType, duration, discount, tags } = req.body;
 
     const categoryExists = await ServiceCategory.findById(category);
     if (!categoryExists) {
@@ -149,7 +148,7 @@ const createService = async (req, res) => {
       price,
       pricingType,
       duration,
-      image,
+      image: req.file ? `/uploads/${req.file.filename}` : undefined,
       discount,
       tags,
     });
@@ -163,7 +162,11 @@ const createService = async (req, res) => {
 
 const updateService = async (req, res) => {
   try {
-    const service = await Service.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = { ...req.body };
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+    const service = await Service.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     }).populate("category", "name");

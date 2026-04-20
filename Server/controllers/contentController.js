@@ -34,13 +34,12 @@ const getAllBanners = async (req, res) => {
 
 const createBanner = async (req, res) => {
   try {
-    const { title, description, image, link, isActive, sortOrder, startDate, endDate } = req.body;
+    const { title, description, isActive, sortOrder, startDate, endDate } = req.body;
 
     const banner = await Banner.create({
       title,
       description,
-      image,
-      link,
+      image: req.file ? `/uploads/${req.file.filename}` : undefined,
       isActive,
       sortOrder,
       startDate,
@@ -56,7 +55,11 @@ const createBanner = async (req, res) => {
 
 const updateBanner = async (req, res) => {
   try {
-    const banner = await Banner.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = { ...req.body };
+    if (req.file) {
+      updateData.image = `/uploads/${req.file.filename}`;
+    }
+    const banner = await Banner.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     });

@@ -15,11 +15,12 @@ const {
   getBeauticianReviews,
 } = require("../controllers/contentController");
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
+const upload = require("../middleware/uploadMiddleware");
 
 // ===== Banners =====
 router.get("/banners", getAllBanners);
-router.post("/banners", protect, authorizeRoles("SuperAdmin", "Admin"), createBanner);
-router.put("/banners/:id", protect, authorizeRoles("SuperAdmin", "Admin"), updateBanner);
+router.post("/banners", protect, authorizeRoles("SuperAdmin", "Admin"), upload.single('image'), createBanner);
+router.put("/banners/:id", protect, authorizeRoles("SuperAdmin", "Admin"), upload.single('image'), updateBanner);
 router.delete("/banners/:id", protect, authorizeRoles("SuperAdmin", "Admin"), deleteBanner);
 
 // ===== Static Content =====

@@ -27,7 +27,7 @@ const Sidebar = ({ collapsed }) => {
   const { user, permissions } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [expanded, setExpanded] = useState({ users: false, categories: true });
+  const [expanded, setExpanded] = useState({ users: false, categories: false });
 
   const adminMenu = [
     { label: "Dashboard", icon: <FiGrid />, path: "/dashboard" },
@@ -138,7 +138,12 @@ const Sidebar = ({ collapsed }) => {
               <div key={item.label} className="sidebar-group">
                 <button
                   className={`sidebar-item sidebar-group-btn ${sectionActive ? "active" : ""}`}
-                  onClick={() => setExpanded((prev) => ({ ...prev, [item.sectionKey]: !sectionOpen }))}
+                  onClick={() => setExpanded((prev) => {
+                    const newExpanded = {};
+                    Object.keys(prev).forEach(key => newExpanded[key] = false);
+                    newExpanded[item.sectionKey] = !sectionOpen;
+                    return newExpanded;
+                  })}
                   title={item.label}
                 >
                   <span className="sidebar-icon">{item.icon}</span>
@@ -152,7 +157,7 @@ const Sidebar = ({ collapsed }) => {
                       <button
                         key={child.path}
                         className={`sidebar-subitem ${isPathActive(child.path) ? "active" : ""}`}
-                        onClick={() => navigate(child.path)}
+                        onClick={() => { setExpanded({}); navigate(child.path); }}
                       >
                         {child.label}
                       </button>
@@ -167,7 +172,7 @@ const Sidebar = ({ collapsed }) => {
             <button
               key={item.path}
               className={`sidebar-item ${isPathActive(item.path) ? "active" : ""}`}
-              onClick={() => navigate(item.path)}
+              onClick={() => { setExpanded({}); navigate(item.path); }}
               title={collapsed ? item.label : ""}
             >
               <span className="sidebar-icon">{item.icon}</span>

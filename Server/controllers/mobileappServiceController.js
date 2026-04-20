@@ -320,6 +320,31 @@ const getHomeDashboard = async (req, res) => {
   }
 };
 
+// ─── GET LOCATION FROM COORDINATES ────────────────────────────────────────────
+const getLocationFromCoordinates = async (req, res) => {
+  try {
+    const { lat, lng } = req.query;
+
+    if (!lat || !lng) {
+      return res.status(400).json({ success: false, message: "Latitude and longitude are required" });
+    }
+
+    // For now, return a mock location. In production, use a geocoding service.
+    const location = {
+      address: "Mock Address, City, State, Country",
+      city: "City",
+      state: "State",
+      country: "Country",
+      postalCode: "123456"
+    };
+
+    res.json({ success: true, location });
+  } catch (error) {
+    console.error("Get location error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 module.exports = {
   getCategories,
   getCategoryServices,
@@ -331,4 +356,5 @@ module.exports = {
   getSubCategories,
   getServiceAddons,
   getHomeDashboard,
+  getLocationFromCoordinates,
 };

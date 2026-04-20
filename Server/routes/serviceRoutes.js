@@ -12,6 +12,7 @@ const {
   deleteService,
 } = require("../controllers/serviceController");
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
+const upload = require("../middleware/uploadMiddleware");
 
 // ===== Categories =====
 router.get("/categories", getAllCategories);
@@ -22,8 +23,8 @@ router.delete("/categories/:id", protect, authorizeRoles("SuperAdmin", "Admin"),
 // ===== Services =====
 router.get("/services", getAllServices);
 router.get("/services/by-category/:categoryId", getServicesByCategory);
-router.post("/services", protect, authorizeRoles("SuperAdmin", "Admin"), createService);
-router.put("/services/:id", protect, authorizeRoles("SuperAdmin", "Admin"), updateService);
+router.post("/services", protect, authorizeRoles("SuperAdmin", "Admin"), upload.single('image'), createService);
+router.put("/services/:id", protect, authorizeRoles("SuperAdmin", "Admin"), upload.single('image'), updateService);
 router.delete("/services/:id", protect, authorizeRoles("SuperAdmin", "Admin"), deleteService);
 
 module.exports = router;

@@ -18,7 +18,7 @@ const SubCategories = () => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [formData, setFormData] = useState({ name: "", description: "", parentCategory: "" });
+  const [formData, setFormData] = useState({ name: "", parentCategory: "" });
 
   const fetchData = useCallback(async () => {
     try {
@@ -61,7 +61,6 @@ const SubCategories = () => {
     setEditItem(cat);
     setFormData({
       name: cat.name,
-      description: cat.description || "",
       parentCategory: cat.parentCategory?._id || cat.parentCategory || "",
     });
     setModalOpen(true);
@@ -69,7 +68,7 @@ const SubCategories = () => {
 
   const openCreate = () => {
     setEditItem(null);
-    setFormData({ name: "", description: "", parentCategory: "" });
+    setFormData({ name: "", parentCategory: "" });
     setModalOpen(true);
   };
 
@@ -87,7 +86,6 @@ const SubCategories = () => {
   const columns = [
     { key: "name", label: "Sub Category Name" },
     { key: "parentCategory", label: "Parent Category", render: (row) => row.parentCategory?.name || "-" },
-    { key: "description", label: "Description" },
     { key: "isActive", label: "Active", render: (row) => row.isActive ? "Yes" : "No" },
     { key: "sortOrder", label: "Order" },
     {
@@ -139,14 +137,6 @@ const SubCategories = () => {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Enter sub category name"
-              />
-            </div>
-            <div className="form-group">
-              <label>Description</label>
-              <input
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Optional description"
               />
             </div>
             <div className="form-actions">
