@@ -3,18 +3,26 @@
  * Configure with your preferred SMS provider (Twilio, AWS SNS, MSG91, etc.)
  */
 
+
+// --- Twilio Integration ---
+const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
+const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+let twilioClient = null;
+if (twilioAccountSid && twilioAuthToken) {
+  twilioClient = require('twilio')(twilioAccountSid, twilioAuthToken);
+}
+
 const sendSMS = async ({ to, message }) => {
   try {
-    // TODO: Integrate with SMS provider
-    // Example with Twilio:
-    // const twilio = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-    // await twilio.messages.create({
-    //   body: message,
-    //   from: process.env.TWILIO_PHONE_NUMBER,
-    //   to: to,
-    // });
-
-    console.log(`[SMS] To: ${to}, Message: ${message}`);
+    if (!twilioClient) {
+      throw new Error('Twilio credentials not set in environment variables.');
+    }
+    await twilioClient.messages.create({
+      body: message,
+      from: twilioPhoneNumber,
+      to: to,
+    });
     return { success: true };
   } catch (error) {
     console.error("SMS sending failed:", error);

@@ -1,3 +1,19 @@
+// ─── GET ALL FAVORITES (BEAUTICIANS & SERVICES) ─────────────────────────────
+const getAllFavorites = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .populate({ path: "favoriteBeauticians", select: "fullName profileImage rating tier skills experience status isVerified" })
+      .populate({ path: "favoriteServices", select: "name price duration image1 image2 category" });
+    res.json({
+      success: true,
+      favoriteBeauticians: user.favoriteBeauticians || [],
+      favoriteServices: user.favoriteServices || [],
+    });
+  } catch (error) {
+    console.error("Get all favorites error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
 const User = require("../models/User");
 const Booking = require("../models/Booking");
 const Review = require("../models/Review");
@@ -351,6 +367,61 @@ const removeFavoriteStylist = async (req, res) => {
   }
 };
 
+
+// ─── FAVORITE SERVICES ──────────────────────────────────────────────────────
+const getFavoriteServices = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate({
+      path: "favoriteServices",
+      select: "name price duration image1 image2 category",
+    });
+    res.json({ success: true, favorites: user.favoriteServices || [] });
+  } catch (error) {
+    console.error("Get favorite services error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+const addFavoriteService = async (req, res) => {
+  try {
+    const { serviceId } = req.body;
+    if (!serviceId) {
+      return res.status(400).json({ success: false, message: "serviceId is required" });
+    }
+    const service = await require("../models/Service").findById(serviceId);
+    if (!service) {
+      return res.status(404).json({ success: false, message: "Service not found" });
+    }
+    const user = await User.findById(req.user._id);
+    if (user.favoriteServices.includes(serviceId)) {
+      return res.status(400).json({ success: false, message: "Already in favorites" });
+    }
+    user.favoriteServices.push(serviceId);
+    await user.save();
+    res.json({ success: true, message: "Added to favorites" });
+  } catch (error) {
+    console.error("Add favorite service error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+const removeFavoriteService = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+    const user = await User.findById(req.user._id);
+    const idx = user.favoriteServices.indexOf(serviceId);
+    if (idx === -1) {
+      return res.status(404).json({ success: false, message: "Not in favorites" });
+    }
+    user.favoriteServices.splice(idx, 1);
+    await user.save();
+    res.json({ success: true, message: "Removed from favorites" });
+  } catch (error) {
+    console.error("Remove favorite service error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
@@ -364,4 +435,8 @@ module.exports = {
   getFavoriteStylists,
   addFavoriteStylist,
   removeFavoriteStylist,
+  getFavoriteServices,
+  addFavoriteService,
+  removeFavoriteService,
+  getAllFavorites,
 };

@@ -1,0 +1,183 @@
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #f5f6fa;
+}
+
+.main-content {
+  flex: 1;
+  padding: 32px 24px;
+  background: #f5f6fa;
+  min-height: 100vh;
+  transition: margin-left 0.2s;
+}
+
+.sidebar-collapsed {
+  margin-left: 80px !important;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.filters-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1.5px solid #dfe6e9;
+  border-radius: 10px;
+  padding: 0 14px;
+  flex: 1;
+  max-width: 360px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-box:focus-within {
+  border-color: #6c5ce7;
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.08);
+}
+
+.search-box input {
+  border: none;
+  outline: none;
+  padding: 10px 0;
+  font-size: 14px;
+  width: 100%;
+  font-family: inherit;
+}
+
+.filters-row select {
+  padding: 10px 14px;
+  border: 1.5px solid #dfe6e9;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+  cursor: pointer;
+}
+
+.curated-services-page {
+  padding: 24px;
+}
+
+.curated-services-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.curated-services-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  margin-bottom: 24px;
+}
+.curated-services-table th, .curated-services-table td {
+  border: 1px solid #eee;
+  padding: 10px;
+  text-align: left;
+}
+.curated-services-table img {
+  border-radius: 4px;
+  max-width: 40px;
+  max-height: 40px;
+}
+.table-actions {
+  display: flex;
+  gap: 6px;
+}
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+.action-btn.edit { background: #e3f2fd; color: #0984e3; }
+.action-btn.edit:hover { background: #0984e3; color: #fff; transform: scale(1.1); }
+.action-btn.danger { background: #fde8e8; color: #e74c3c; }
+.action-btn.danger:hover { background: #e74c3c; color: #fff; transform: scale(1.1); }
+.action-btn.success { background: #e8f5e9; color: #00b894; }
+.action-btn.success:hover { background: #00b894; color: #fff; transform: scale(1.1); }
+.action-btn.warning { background: #fff3e0; color: #f39c12; }
+.action-btn.warning:hover { background: #f39c12; color: #fff; transform: scale(1.1); }
+
+.role-badge {
+  padding: 4px 12px;
+  background: linear-gradient(135deg, rgba(108, 92, 231, 0.1), rgba(162, 155, 254, 0.15));
+  color: #6c5ce7;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.user-status {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.user-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.user-status.active { background: #e8f5e9; color: #27ae60; }
+.user-status.active::before { background: #27ae60; }
+.user-status.inactive { background: #f5f6fa; color: #b2bec3; }
+.user-status.inactive::before { background: #b2bec3; }
+.user-status.suspended { background: #fde8e8; color: #e74c3c; }
+.user-status.suspended::before { background: #e74c3c; }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 16px 0;
+}
+
+.pagination button {
+  padding: 8px 20px;
+  border: 1.5px solid #dfe6e9;
+  background: #fff;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.pagination button:hover:not(:disabled) { border-color: #6c5ce7; color: #fff; background: #6c5ce7; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(108, 92, 231, 0.25); }
+.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.pagination span { font-size: 13px; color: #636e72; }

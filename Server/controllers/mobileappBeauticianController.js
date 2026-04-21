@@ -1,3 +1,33 @@
+// ─── GET ALL BEAUTICIANS (PUBLIC) ───────────────────────────────────────────
+const getAllBeauticians = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search = "", status } = req.query;
+    const query = {};
+    if (search) {
+      query.fullName = { $regex: search, $options: "i" };
+    }
+    if (status) {
+      query.status = status;
+    }
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const beauticians = await Beautician.find(query)
+      .select("fullName profileImage rating tier skills experience status isVerified")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    const total = await Beautician.countDocuments(query);
+    res.json({
+      success: true,
+      beauticians,
+      total,
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+    });
+  } catch (error) {
+    console.error("Get all beauticians error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
 const Beautician = require("../models/Beautician");
 const Availability = require("../models/Availability");
 const Booking = require("../models/Booking");
@@ -953,4 +983,5 @@ module.exports = {
   getClients,
   getScheduleByDate,
   getBeauticianHomeDashboard,
+  getAllBeauticians,
 };

@@ -29,7 +29,11 @@ const {
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 const upload = require("../middleware/uploadMiddleware");
 
-// All routes require authentication and Beautician role
+
+// Public endpoint to fetch all beauticians
+router.get("/all", require("../controllers/mobileappBeauticianController").getAllBeauticians);
+
+// All routes below require authentication and Beautician role
 router.use(protect, authorizeRoles("Beautician"));
 
 // Home dashboard (aggregate)

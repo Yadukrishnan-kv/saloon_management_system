@@ -57,22 +57,22 @@ Notes:
 
 ## Auth APIs (/api/mobileapp/auth)
 
+
 ### 1) Customer Register
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/auth/customer/register
 - Method: POST
-- Description: Register customer and trigger OTP verification.
+- Description: Register customer and trigger OTP verification via email.
 - Headers: Content-Type: application/json
 - Request Body:
 ~~~json
 {
   "name": "Asha",
   "email": "asha@example.com",
-  "phone": "9876543210",
   "password": "Pass@123",
   "confirmPassword": "Pass@123"
 }
 ~~~
-- Note: `phone` and `confirmPassword` are optional. If phone is provided, SMS OTP is also sent.
+- Note: Only email is required for OTP verification. OTP will be sent to the provided email address. Phone is not required.
 - Response:
 ~~~json
 {
@@ -86,14 +86,15 @@ Notes:
 ~~~json
 {
   "success": false,
-  "message": "Email or phone number already in use"
+  "message": "Email already in use"
 }
 ~~~
+
 
 ### 2) Verify OTP
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/auth/customer/verify-otp
 - Method: POST
-- Description: Verify OTP and return JWT token.
+- Description: Verify OTP sent to email and return JWT token.
 - Headers: Content-Type: application/json
 - Request Body:
 ~~~json
@@ -173,16 +174,16 @@ Notes:
 }
 ~~~
 
+
 ### 4) Customer Resend OTP
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/auth/customer/resend-otp
 - Method: POST
-- Description: Resend verification OTP.
+- Description: Resend verification OTP to email.
 - Headers: Content-Type: application/json
 - Request Body:
 ~~~json
 {
-  "userId": "6650...",
-  "type": "email"
+  "userId": "6650..."
 }
 ~~~
 - Response:
@@ -196,21 +197,21 @@ Notes:
 ~~~json
 {
   "success": false,
-  "message": "userId and type are required"
+  "message": "userId is required"
 }
 ~~~
+
 
 ### 5) Beautician Register
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/auth/beautician/register
 - Method: POST
-- Description: Register beautician account (pending admin verification).
+- Description: Register beautician account (pending admin verification). OTP will be sent to email.
 - Headers: Content-Type: application/json
 - Request Body:
 ~~~json
 {
   "name": "Riya",
   "email": "riya@example.com",
-  "phone": "9123456789",
   "password": "Pass@123",
   "experience": 3,
   "skills": ["Facial", "Hair Styling"]
@@ -231,7 +232,7 @@ Notes:
 ~~~json
 {
   "success": false,
-  "message": "Email or phone number already in use"
+  "message": "Email already in use"
 }
 ~~~
 
@@ -319,21 +320,16 @@ Notes:
 }
 ~~~
 
+
 ### 9) Forgot Password
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/auth/forgot-password
 - Method: POST
-- Description: Send password reset OTP to email or phone.
+- Description: Send password reset OTP to email.
 - Headers: Content-Type: application/json
-- Request Body (send either email or phone):
+- Request Body:
 ~~~json
 {
   "email": "asha@example.com"
-}
-~~~
-- Alternative:
-~~~json
-{
-  "phone": "9876543210"
 }
 ~~~
 - Response:
@@ -659,6 +655,7 @@ profileImage: <file object> (optional - only include if uploading a new image)
 }
 ~~~
 
+
 ### 10) Get Favorite Stylists
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/user/favorites
 - Method: GET
@@ -735,6 +732,161 @@ profileImage: <file object> (optional - only include if uploading a new image)
 {
   "success": false,
   "message": "Not in favorites"
+}
+~~~
+
+### 13) Get Favorite Services
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/user/favorite-services
+- Method: GET
+- Description: Get customer's favorite services list.
+- Headers: Authorization: Bearer <token>
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "favorites": [
+    {
+      "_id": "...",
+      "name": "Facial",
+      "price": 999,
+      "duration": 60,
+      "image1": "/uploads/facial1.jpg",
+      "image2": "/uploads/facial2.jpg",
+      "category": { "_id": "...", "name": "Skin" }
+    }
+  ]
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Server error"
+}
+~~~
+
+### 14) Add Favorite Service
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/user/favorite-services
+- Method: POST
+- Description: Add a service to favorites.
+- Headers: Authorization: Bearer <token>
+- Request Body:
+~~~json
+{
+  "serviceId": "6652..."
+}
+~~~
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Added to favorites"
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Already in favorites"
+}
+~~~
+
+### 15) Remove Favorite Service
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/user/favorite-services/:serviceId
+- Method: DELETE
+- Description: Remove a service from favorites.
+- Headers: Authorization: Bearer <token>
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Removed from favorites"
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Not in favorites"
+}
+~~~
+
+### 16) Get All Favorites (Beauticians & Services)
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/user/favorites/all
+- Method: GET
+- Description: Get both favorite beauticians and favorite services in a single response.
+- Headers: Authorization: Bearer <token>
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "favoriteBeauticians": [
+    {
+      "_id": "...",
+      "fullName": "Riya",
+      "profileImage": "/uploads/riya.jpg",
+      "rating": 4.7,
+      "tier": "Premium"
+    }
+  ],
+  "favoriteServices": [
+    {
+      "_id": "...",
+      "name": "Facial",
+      "price": 999,
+      "duration": 60,
+      "image1": "/uploads/facial1.jpg",
+      "image2": "/uploads/facial2.jpg",
+      "category": { "_id": "...", "name": "Skin" }
+    }
+  ]
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Server error"
+}
+~~~
+
+### 17) Get All Beauticians (Public)
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/beautician/all
+- Method: GET
+- Description: Get all beauticians (public endpoint, supports search, pagination, status filter).
+- Query: page, limit, search, status
+- Headers: N/A
+- Request Body: N/A
+- Response:
+~~~json
+{
+  "success": true,
+  "beauticians": [
+    {
+      "_id": "...",
+      "fullName": "Riya",
+      "profileImage": "/uploads/riya.jpg",
+      "rating": 4.7,
+      "tier": "Premium",
+      "skills": ["Facial", "Hair Styling"],
+      "experience": 5,
+      "status": "Active",
+      "isVerified": true
+    }
+  ],
+  "total": 1,
+  "currentPage": 1,
+  "totalPages": 1
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Server error"
 }
 ~~~
 

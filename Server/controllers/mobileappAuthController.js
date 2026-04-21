@@ -3,7 +3,7 @@ const Beautician = require("../models/Beautician");
 const OTP = require("../models/OTP");
 const Wallet = require("../models/Wallet");
 const { generateOTP, getOTPExpiry } = require("../utils/otpGenerator");
-const { sendOTPSMS } = require("../utils/smsSender");
+// const { sendOTPSMS } = require("../utils/smsSender");
 const sendEmail = require("../utils/emailSender");
 const { generateToken } = require("../utils/tokenHelper");
 const {
@@ -19,28 +19,22 @@ const customerRegister = async (req, res) => {
       return res.status(400).json({ success: false, message: "Validation failed", errors });
     }
 
-    const { name, email, phone, password } = req.body;
+    const { name, email, password } = req.body;
 
-    // Build duplicate check query — phone is optional at signup
-    const orConditions = [{ email }];
-    if (phone) orConditions.push({ phoneNumber: phone });
-
-    const existing = await User.findOne({ $or: orConditions });
+    // Only check for duplicate email
+    const existing = await User.findOne({ email });
     if (existing) {
-      return res.status(400).json({ success: false, message: "Email or phone number already in use" });
+      return res.status(400).json({ success: false, message: "Email already in use" });
     }
 
-    const userData = {
+    const user = await User.create({
       username: name,
       email,
       password,
       role: "Customer",
-    };
-    if (phone) userData.phoneNumber = phone;
+    });
 
-    const user = await User.create(userData);
-
-    // Generate and send OTP
+    // Generate and send OTP via email
     const otp = generateOTP();
     await OTP.create({
       user: user._id,
@@ -49,18 +43,11 @@ const customerRegister = async (req, res) => {
       purpose: "registration",
       expiresAt: getOTPExpiry(),
     });
-
-    // Send OTP via email
     await sendEmail({
-      to: email,
-      subject: "Verify Your Account - Salon App",
-      html: `<h2>Welcome to Salon App!</h2><p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
+      to: user.email,
+      subject: "Your OTP Code - Salon App",
+      html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
     });
-
-    // Send OTP via SMS only if phone provided
-    if (phone) {
-      await sendOTPSMS(phone, otp);
-    }
 
     // Create wallet for customer
     await Wallet.create({ user: user._id });
@@ -188,10 +175,10 @@ const customerLogin = async (req, res) => {
 // ─── RESEND OTP ────────────────────────────────────────────────────────────────
 const resendOTP = async (req, res) => {
   try {
-    const { userId, type } = req.body;
+    const { userId } = req.body;
 
-    if (!userId || !type) {
-      return res.status(400).json({ success: false, message: "userId and type are required" });
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "userId is required" });
     }
 
     const user = await User.findById(userId);
@@ -201,7 +188,7 @@ const resendOTP = async (req, res) => {
 
     // Invalidate previous OTPs
     await OTP.updateMany(
-      { user: userId, type, isUsed: false },
+      { user: userId, type: "email", isUsed: false },
       { isUsed: true }
     );
 
@@ -209,22 +196,18 @@ const resendOTP = async (req, res) => {
     await OTP.create({
       user: userId,
       otp,
-      type,
+      type: "email",
       purpose: "registration",
       expiresAt: getOTPExpiry(),
     });
 
-    if (type === "email") {
-      await sendEmail({
-        to: user.email,
-        subject: "Your OTP Code - Salon App",
-        html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
-      });
-    } else {
-      await sendOTPSMS(user.phoneNumber, otp);
-    }
+    await sendEmail({
+      to: user.email,
+      subject: "Your OTP Code - Salon App",
+      html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
+    });
 
-    res.json({ success: true, message: `OTP sent to your ${type}` });
+    res.json({ success: true, message: `OTP sent to your email` });
   } catch (error) {
     console.error("Resend OTP error:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -239,18 +222,18 @@ const beauticianRegister = async (req, res) => {
       return res.status(400).json({ success: false, message: "Validation failed", errors });
     }
 
-    const { name, email, phone, password, experience, skills } = req.body;
+    const { name, email, password, experience, skills } = req.body;
 
-    const existing = await User.findOne({ $or: [{ email }, { phoneNumber: phone }] });
+    // Only check for duplicate email
+    const existing = await User.findOne({ email });
     if (existing) {
-      return res.status(400).json({ success: false, message: "Email or phone number already in use" });
+      return res.status(400).json({ success: false, message: "Email already in use" });
     }
 
     const user = await User.create({
       username: name,
       email,
       password,
-      phoneNumber: phone,
       role: "Beautician",
       isActive: false,
     });
@@ -271,7 +254,7 @@ const beauticianRegister = async (req, res) => {
       };
     }
 
-    let beautician = await Beautician.findOne({ phoneNumber: phone });
+    let beautician = await Beautician.findOne({ email });
 
     if (beautician && beautician.user) {
       return res.status(400).json({ success: false, message: "Beautician profile already linked to another account" });
@@ -298,7 +281,7 @@ const beauticianRegister = async (req, res) => {
       beautician = await Beautician.create({
         user: user._id,
         fullName: name,
-        phoneNumber: phone,
+        email,
         experience: experience || 0,
         skills: skills || [],
         isVerified: false,
@@ -307,6 +290,21 @@ const beauticianRegister = async (req, res) => {
         pccDocument,
       });
     }
+
+    // Generate and send OTP via email
+    const otp = generateOTP();
+    await OTP.create({
+      user: user._id,
+      otp,
+      type: "email",
+      purpose: "registration",
+      expiresAt: getOTPExpiry(),
+    });
+    await sendEmail({
+      to: user.email,
+      subject: "Your OTP Code - Salon App",
+      html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
+    });
 
     // Create wallet for beautician with ₹1000 initial balance
     const INITIAL_WALLET_BALANCE = 1000;
@@ -422,14 +420,13 @@ const uploadDocuments = async (req, res) => {
 // ─── FORGOT PASSWORD ───────────────────────────────────────────────────────────
 const forgotPassword = async (req, res) => {
   try {
-    const { email, phone } = req.body;
+    const { email } = req.body;
 
-    if (!email && !phone) {
-      return res.status(400).json({ success: false, message: "Email or phone is required" });
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
     }
 
-    const query = email ? { email } : { phoneNumber: phone };
-    const user = await User.findOne(query);
+    const user = await User.findOne({ email });
 
     if (!user) {
       return res.status(404).json({ success: false, message: "No account found with this credential" });
@@ -442,29 +439,24 @@ const forgotPassword = async (req, res) => {
     );
 
     const otp = generateOTP();
-    const type = email ? "email" : "phone";
 
     await OTP.create({
       user: user._id,
       otp,
-      type,
+      type: "email",
       purpose: "password-reset",
       expiresAt: getOTPExpiry(),
     });
 
-    if (type === "email") {
-      await sendEmail({
-        to: user.email,
-        subject: "Password Reset OTP - Salon App",
-        html: `<h2>Password Reset</h2><p>Your password reset code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
-      });
-    } else {
-      await sendOTPSMS(user.phoneNumber, otp);
-    }
+    await sendEmail({
+      to: user.email,
+      subject: "Password Reset OTP - Salon App",
+      html: `<h2>Password Reset</h2><p>Your password reset code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
+    });
 
     res.json({
       success: true,
-      message: `Password reset OTP sent to your ${type}`,
+      message: `Password reset OTP sent to your email`,
       userId: user._id,
     });
   } catch (error) {

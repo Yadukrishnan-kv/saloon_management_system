@@ -96,6 +96,12 @@ const userSchema = new Schema(
         ref: "Beautician",
       },
     ],
+    favoriteServices: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Service",
+      },
+    ],
     notificationSettings: {
       bookingUpdates: { type: Boolean, default: true },
       promotional: { type: Boolean, default: true },

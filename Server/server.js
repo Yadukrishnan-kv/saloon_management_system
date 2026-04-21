@@ -60,6 +60,9 @@ app.use('/api/mobileapp/location', require('./routes/mobileappLocationRoutes'));
 app.use('/api/mobileapp/cosmetics', require('./routes/mobileappCosmeticRoutes'));
 app.use('/api/mobileapp/complaints', require('./routes/mobileappComplaintRoutes'));
 
+// Curated Service API
+app.use('/api/curated-services', require('./routes/curatedServiceRoutes'));
+
 // Health check
 app.get('/api/ping', (req, res) => {
   res.status(200).json({ message: 'Salon server is running 🚀' });

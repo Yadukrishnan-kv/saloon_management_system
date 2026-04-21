@@ -61,6 +61,12 @@ const Sidebar = ({ collapsed }) => {
     { label: "Payouts", icon: <FiDollarSign />, path: "/admin/payouts" },
     { label: "Notifications", icon: <FiBell />, path: "/admin/notifications" },
     { label: "Reports", icon: <FiBarChart2 />, path: "/admin/reports" },
+    {
+      label: "Curated Services",
+      icon: <FiShoppingBag />,
+      path: "/admin/curated-services",
+      permission: "Curated Services",
+    },
   ];
 
   const customerMenu = [

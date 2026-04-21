@@ -35,6 +35,7 @@ const MENU_OPTIONS = [
   "Service Requests",
   "Earnings",
   "Profile",
+  "Curated Services",
 ];
 
 const CreateRole = () => {
