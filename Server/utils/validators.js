@@ -99,8 +99,10 @@ const validateBeauticianRegister = (data) => {
     errors.email = "Please provide a valid email";
   }
 
-  if (!data.phone || !data.phone.trim()) {
-    errors.phone = "Phone number is required";
+  if (!data.phoneNumber || !data.phoneNumber.trim()) {
+    errors.phoneNumber = "Phone number is required";
+  } else if (!/^\+?[1-9]\d{6,14}$/.test(data.phoneNumber.replace(/\s/g, ""))) {
+    errors.phoneNumber = "Please provide a valid phone number";
   }
 
   if (!data.password) {

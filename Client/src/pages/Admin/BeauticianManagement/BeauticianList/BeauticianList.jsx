@@ -19,6 +19,7 @@ const BeauticianList = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [verificationFilter, setVerificationFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selected, setSelected] = useState(null);
@@ -28,7 +29,13 @@ const BeauticianList = () => {
     try {
       setLoading(true);
       const { data } = await axios.get(`${backendUrl}/api/beauticians`, {
-        params: { page, limit: 10, search, status: statusFilter },
+        params: {
+          page,
+          limit: 10,
+          search,
+          status: statusFilter,
+          verificationStatus: verificationFilter,
+        },
       });
       setBeauticians(data.beauticians);
       setTotalPages(data.totalPages);
@@ -37,7 +44,7 @@ const BeauticianList = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, verificationFilter]);
 
   useEffect(() => { fetchBeauticians(); }, [fetchBeauticians]);
 
@@ -72,6 +79,12 @@ const BeauticianList = () => {
     {
       key: "isVerified", label: "Verified",
       render: (row) => row.isVerified ? <FiCheckCircle color="#00b894" /> : <FiXCircle color="#e74c3c" />,
+    },
+    {
+      key: "verificationStatus", label: "Verification Status",
+      render: (row) => (
+        <span className={`verification-status ${row.verificationStatus?.toLowerCase()}`}>{row.verificationStatus}</span>
+      ),
     },
     {
       key: "status", label: "Status",
@@ -109,10 +122,23 @@ const BeauticianList = () => {
             <option value="Inactive">Inactive</option>
             <option value="Suspended">Suspended</option>
           </select>
+          <select value={verificationFilter} onChange={(e) => { setVerificationFilter(e.target.value); setPage(1); }}>
+            <option value="">All Verification</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+          </select>
         </div>
         {loading ? <Loading /> : (
           <>
-            <Table columns={columns} data={beauticians} emptyMessage="No beauticians found" />
+            <Table
+              columns={columns}
+              data={beauticians}
+              emptyMessage="No beauticians found"
+              rowClassName={(row) =>
+                row.verificationStatus === "Pending" ? "pending-verification-row" : ""
+              }
+            />
             {totalPages > 1 && (
               <div className="pagination">
                 <button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>

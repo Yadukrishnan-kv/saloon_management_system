@@ -34,20 +34,20 @@ const customerRegister = async (req, res) => {
       role: "Customer",
     });
 
-    // Generate and send OTP via email
-    const otp = generateOTP();
-    await OTP.create({
-      user: user._id,
-      otp,
-      type: "email",
-      purpose: "registration",
-      expiresAt: getOTPExpiry(),
-    });
-    await sendEmail({
-      to: user.email,
-      subject: "Your OTP Code - Salon App",
-      html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
-    });
+    // TODO: Enable OTP email verification before production
+    // const otp = generateOTP();
+    // await OTP.create({
+    //   user: user._id,
+    //   otp,
+    //   type: "email",
+    //   purpose: "registration",
+    //   expiresAt: getOTPExpiry(),
+    // });
+    // await sendEmail({
+    //   to: user.email,
+    //   subject: "Your OTP Code - Salon App",
+    //   html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
+    // });
 
     // Create wallet for customer
     await Wallet.create({ user: user._id });
@@ -222,7 +222,19 @@ const beauticianRegister = async (req, res) => {
       return res.status(400).json({ success: false, message: "Validation failed", errors });
     }
 
-    const { name, email, password, experience, skills } = req.body;
+    // Accept all fields admin can set
+    const {
+      name,
+      email,
+      password,
+      phoneNumber,
+      skills,
+      experience,
+      bio,
+      qualifications,
+      location,
+      professionalTitle
+    } = req.body;
 
     // Only check for duplicate email
     const existing = await User.findOne({ email });
@@ -234,12 +246,15 @@ const beauticianRegister = async (req, res) => {
       username: name,
       email,
       password,
+      phoneNumber,
       role: "Beautician",
       isActive: false,
     });
 
-    // Handle PCC document upload
+    // Handle PCC document upload and additional documents
     let pccDocument = {};
+    let documentsArr = [];
+    // Accept both single and multiple file uploads
     if (req.files && req.files.pccDocument) {
       pccDocument = {
         documentUrl: `/uploads/${req.files.pccDocument[0].filename}`,
@@ -253,6 +268,23 @@ const beauticianRegister = async (req, res) => {
         uploadedAt: new Date(),
       };
     }
+    // Handle additional documents (array or single)
+    if (req.files && req.files.documents) {
+      const docType = req.body.documentType || "Other";
+      documentsArr = req.files.documents.map((file) => ({
+        documentType: docType,
+        documentUrl: `/uploads/${file.filename}`,
+        isVerified: false,
+        uploadedAt: new Date(),
+      }));
+    } else if (req.file && req.body.documentType) {
+      documentsArr.push({
+        documentType: req.body.documentType,
+        documentUrl: `/uploads/${req.file.filename}`,
+        isVerified: false,
+        uploadedAt: new Date(),
+      });
+    }
 
     let beautician = await Beautician.findOne({ email });
 
@@ -262,49 +294,61 @@ const beauticianRegister = async (req, res) => {
 
     if (beautician) {
       beautician.user = user._id;
-      beautician.fullName = beautician.fullName || name;
+      beautician.fullName = name || beautician.fullName;
+      beautician.phoneNumber = phoneNumber || beautician.phoneNumber;
       beautician.experience = experience || beautician.experience || 0;
       beautician.skills = (skills && skills.length) ? skills : beautician.skills;
+      beautician.bio = bio || beautician.bio;
+      beautician.qualifications = qualifications || beautician.qualifications;
+      beautician.location = location || beautician.location;
+      beautician.professionalTitle = professionalTitle || beautician.professionalTitle;
       if (pccDocument.documentUrl) {
         beautician.pccDocument = pccDocument;
       }
-
+      if (documentsArr.length > 0) {
+        beautician.documents = beautician.documents.concat(documentsArr);
+      }
       // Keep existing admin approval if already approved; otherwise keep pending.
       if (beautician.verificationStatus !== "Approved") {
         beautician.isVerified = false;
         beautician.verificationStatus = "Pending";
         beautician.status = "Inactive";
       }
-
       await beautician.save();
     } else {
       beautician = await Beautician.create({
         user: user._id,
         fullName: name,
+        phoneNumber,
         email,
         experience: experience || 0,
         skills: skills || [],
+        bio: bio || "",
+        qualifications: qualifications || "",
+        location: location || {},
+        professionalTitle: professionalTitle || "",
         isVerified: false,
         verificationStatus: "Pending",
         status: "Inactive",
         pccDocument,
+        documents: documentsArr,
       });
     }
 
-    // Generate and send OTP via email
-    const otp = generateOTP();
-    await OTP.create({
-      user: user._id,
-      otp,
-      type: "email",
-      purpose: "registration",
-      expiresAt: getOTPExpiry(),
-    });
-    await sendEmail({
-      to: user.email,
-      subject: "Your OTP Code - Salon App",
-      html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
-    });
+    // TODO: Enable OTP email verification before production
+    // const otp = generateOTP();
+    // await OTP.create({
+    //   user: user._id,
+    //   otp,
+    //   type: "email",
+    //   purpose: "registration",
+    //   expiresAt: getOTPExpiry(),
+    // });
+    // await sendEmail({
+    //   to: user.email,
+    //   subject: "Your OTP Code - Salon App",
+    //   html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
+    // });
 
     // Create wallet for beautician with ₹1000 initial balance
     const INITIAL_WALLET_BALANCE = 1000;
@@ -339,14 +383,14 @@ const beauticianRegister = async (req, res) => {
 // ─── BEAUTICIAN LOGIN ─────────────────────────────────────────────────────────
 const beauticianLogin = async (req, res) => {
   try {
-    const { email, phone, password } = req.body;
-    const loginField = email || phone;
+    const { email, phoneNumber, password } = req.body;
+    const loginField = email || phoneNumber;
 
     if (!loginField || !password) {
-      return res.status(400).json({ success: false, message: "Email/phone and password are required" });
+      return res.status(400).json({ success: false, message: "Email/phoneNumber and password are required" });
     }
 
-    const query = email ? { email } : { phoneNumber: phone };
+    const query = email ? { email } : { phoneNumber };
     const user = await User.findOne({ ...query, role: "Beautician" }).select("+password");
 
     if (!user) {

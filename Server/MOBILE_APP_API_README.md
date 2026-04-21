@@ -202,21 +202,52 @@ Notes:
 ~~~
 
 
-### 5) Beautician Register
+### 5) Beautician Register (Updated)
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/auth/beautician/register
 - Method: POST
-- Description: Register beautician account (pending admin verification). OTP will be sent to email.
-- Headers: Content-Type: application/json
-- Request Body:
-~~~json
-{
-  "name": "Riya",
-  "email": "riya@example.com",
-  "password": "Pass@123",
-  "experience": 3,
-  "skills": ["Facial", "Hair Styling"]
-}
+- Description: Register beautician account (pending admin verification). OTP will be sent to email. All fields required by admin are supported. **Profile image is NOT required at registration and can be updated later from the profile page.**
+- Headers:
+  - Content-Type: multipart/form-data
+- Request Body (all fields except profileImage and tier):
+  - name: string (required)
+  - email: string (required)
+  - password: string (required)
+  - phoneNumber: string (required)
+  - skills: string[] (required)
+  - experience: number (required)
+  - bio: string (optional)
+  - qualifications: string (optional)
+  - location[address]: string (optional)
+  - location[city]: string (optional)
+  - location[state]: string (optional)
+  - location[pincode]: string (optional)
+  - professionalTitle: string (optional)
+  - documents: file[] (optional, max 5)
+  - documentType: string (optional, applies to all uploaded documents)
+
+Example (FormData):
 ~~~
+name: Riya
+email: riya@example.com
+password: Pass@123
+phoneNumber: 9123456789
+skills: Facial
+skills: Hair
+experience: 3
+bio: Certified beautician with 3 years experience
+qualifications: Diploma in Beauty Therapy
+location[address]: 123 Main St
+location[city]: Mumbai
+location[state]: MH
+location[pincode]: 400001
+professionalTitle: Senior Beautician
+documentType: Qualification
+documents: <file1.pdf>
+documents: <file2.jpg>
+~~~
+- Required fields: name, email, password, phoneNumber, skills, experience
+- Note: `profileImage` and `tier` should NOT be sent at registration. Beauticians can upload or update their profile image after registration from their profile page (like customers).
+- Note: `documents` and `documentType` are optional but recommended for admin verification. Multiple documents can be uploaded; all will use the same `documentType` value.
 - Response:
 ~~~json
 {
@@ -239,12 +270,19 @@ Notes:
 ### 6) Beautician Login
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/auth/beautician/login
 - Method: POST
-- Description: Beautician login with email/phone and password.
+- Description: Beautician login with email or phoneNumber and password.
 - Headers: Content-Type: application/json
-- Request Body:
+- Request Body (use either email or phoneNumber):
 ~~~json
 {
-  "phone": "9123456789",
+  "email": "riya@example.com",
+  "password": "Pass@123"
+}
+~~~
+or
+~~~json
+{
+  "phoneNumber": "9123456789",
   "password": "Pass@123"
 }
 ~~~
@@ -3369,6 +3407,47 @@ profileImage: <file object> (optional - only include if uploading a new image)
 {
   "success": false,
   "message": "Complaint not found"
+}
+~~~
+
+
+---
+
+## Curated Services APIs (/api/mobileapp/curated-services)
+
+### 1) Get All Curated Services
+- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/curated-services
+- Method: GET
+- Description: List all curated services with images, category, and details.
+- Headers: N/A
+- Query: categoryId (optional), search (optional)
+- Response:
+~~~json
+{
+  "success": true,
+  "curatedServices": [
+    {
+      "_id": "...",
+      "curatedServiceName": "Bridal Package",
+      "curatedServiceTitle": "Premium Bridal Look",
+      "category": { "_id": "...", "name": "Makeup" },
+      "subCategory": { "_id": "...", "name": "Bridal" },
+      "price": 4999,
+      "duration": 180,
+      "discount": 10,
+      "image1": "https://sidi.mobilegear.co.in/uploads/bridal1.jpg",
+      "image2": "https://sidi.mobilegear.co.in/uploads/bridal2.jpg",
+      "description": "Full bridal makeup and hair styling"
+    }
+  ],
+  "total": 5
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Server error"
 }
 ~~~
 

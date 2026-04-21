@@ -1,6 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+
+const backendUrl = process.env.REACT_APP_BACKEND_IP || "http://localhost:5000";
 import './CuratedServices.css';
+import Table from '../../../../components/common/Table/Table';
+
+const modalGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: "16px",
+  alignItems: "start",
+};
+const fullWidthStyle = { gridColumn: "1 / -1" };
 import Header from '../../../../components/layout/Header/Header';
 import Sidebar from '../../../../components/layout/Sidebar/Sidebar';
 import Modal from '../../../../components/common/Modal/Modal';
@@ -36,17 +47,17 @@ const CuratedServices = () => {
   }, []);
 
   const fetchCuratedServices = async () => {
-    const res = await axios.get('/api/curated-services');
+    const res = await axios.get(`${backendUrl}/api/curated-services`);
     setCuratedServices(res.data.curatedServices || []);
   };
 
   const fetchCategories = async () => {
-    const res = await axios.get('/api/categories');
+    const res = await axios.get(`${backendUrl}/api/categories`);
     setCategories(res.data || []);
   };
 
   const fetchSubCategories = async (categoryId) => {
-    const res = await axios.get('/api/subcategories?category=' + categoryId);
+    const res = await axios.get(`${backendUrl}/api/subcategories?category=${categoryId}`);
     setSubCategories(res.data || []);
   };
 
@@ -77,7 +88,7 @@ const CuratedServices = () => {
         }
       }
     });
-    await axios.post('/api/curated-services', data);
+    await axios.post(`${backendUrl}/api/curated-services`, data);
     setLoading(false);
     setShowForm(false);
     fetchCuratedServices();
@@ -128,7 +139,7 @@ const CuratedServices = () => {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this curated service?')) return;
     try {
-      await axios.delete(`/api/curated-services/${id}`);
+      await axios.delete(`${backendUrl}/api/curated-services/${id}`);
       fetchCuratedServices();
     } catch (err) {
       alert('Failed to delete');
@@ -148,69 +159,92 @@ const CuratedServices = () => {
           <Button onClick={resetForm}>+ Add Curated Service</Button>
         </div>
         {loading ? <Loading /> : (
-          <table className="curated-services-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Title</th>
-                <th>Category</th>
-                <th>Sub Category</th>
-                <th>Price</th>
-                <th>Duration</th>
-                <th>Discount</th>
-                <th>Image 1</th>
-                <th>Image 2</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {curatedServices.map((cs) => (
-                <tr key={cs._id}>
-                  <td>{cs.curatedServiceName}</td>
-                  <td>{cs.curatedServiceTitle}</td>
-                  <td>{cs.category?.name}</td>
-                  <td>{cs.subCategory?.name}</td>
-                  <td>{cs.price}</td>
-                  <td>{cs.duration}</td>
-                  <td>{cs.discount}</td>
-                  <td>{cs.image1 && <img src={`/${cs.image1}`} alt="img1" width={40} />}</td>
-                  <td>{cs.image2 && <img src={`/${cs.image2}`} alt="img2" width={40} />}</td>
-                  <td>
-                    <Button variant="secondary" onClick={() => handleEdit(cs)}>Edit</Button>
-                    <Button variant="danger" onClick={() => handleDelete(cs._id)}>Delete</Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Table
+            columns={[
+              { key: "curatedServiceName", label: "Name" },
+              { key: "curatedServiceTitle", label: "Title" },
+              { key: "category", label: "Category", render: (row) => row.category?.name || "-" },
+              { key: "subCategory", label: "Sub Category", render: (row) => row.subCategory?.name || "-" },
+              { key: "price", label: "Price" },
+              { key: "duration", label: "Duration" },
+              { key: "discount", label: "Discount" },
+              { key: "image1", label: "Image 1", render: (row) => row.image1 ? <img src={`/${row.image1}`} alt="img1" width={40} /> : null },
+              { key: "image2", label: "Image 2", render: (row) => row.image2 ? <img src={`/${row.image2}`} alt="img2" width={40} /> : null },
+              {
+                key: "actions", label: "Actions", render: (row) => (
+                  <div className="table-actions">
+                    <button className="action-btn edit" onClick={() => handleEdit(row)}>Edit</button>
+                    <button className="action-btn danger" onClick={() => handleDelete(row._id)}>Delete</button>
+                  </div>
+                )
+              },
+            ]}
+            data={curatedServices}
+            emptyMessage="No curated services"
+          />
         )}
-        <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editService ? "Edit Curated Service" : "Add Curated Service"}>
-          <form className="curated-service-form" onSubmit={handleSubmit}>
-            <input name="curatedServiceName" value={form.curatedServiceName} onChange={handleChange} placeholder="Curated Service Name" required />
-            <input name="curatedServiceTitle" value={form.curatedServiceTitle} onChange={handleChange} placeholder="Curated Service Title" required />
-            <select name="category" value={form.category} onChange={handleCategoryChange} required>
-              <option value="">Select Category</option>
-              {categories.map((cat) => (
-                <option key={cat._id} value={cat._id}>{cat.name}</option>
-              ))}
-            </select>
-            <select name="subCategory" value={form.subCategory} onChange={handleChange} required>
-              <option value="">Select Sub Category</option>
-              {subCategories.map((sub) => (
-                <option key={sub._id} value={sub._id}>{sub.name}</option>
-              ))}
-            </select>
-            <textarea name="description" value={form.description} onChange={handleChange} placeholder="Description" />
-            <select name="pricingType" value={form.pricingType} onChange={handleChange} required>
-              <option value="Fixed">Fixed</option>
-              <option value="Hourly">Hourly</option>
-              <option value="Package">Package</option>
-            </select>
-            <input name="price" type="number" min="0" step="0.01" value={form.price} onChange={handleChange} placeholder="Price (₹)" required />
-            <input name="duration" type="number" min="1" value={form.duration} onChange={handleChange} placeholder="Duration (mins)" required />
-            <input name="discount" type="number" min="0" max="100" value={form.discount} onChange={handleChange} placeholder="Discount (%)" />
-            <label>Image 1: <input name="image1" type="file" accept="image/*" onChange={handleChange} /></label>
-            <label>Image 2: <input name="image2" type="file" accept="image/*" onChange={handleChange} /></label>
+        <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editService ? "Edit Curated Service" : "Add Curated Service"} size="large">
+          <form onSubmit={handleSubmit}>
+            <div style={modalGridStyle}>
+              <div className="form-group">
+                <label>Curated Service Name</label>
+                <input name="curatedServiceName" value={form.curatedServiceName} onChange={handleChange} placeholder="Curated Service Name" required />
+              </div>
+              <div className="form-group">
+                <label>Curated Service Title</label>
+                <input name="curatedServiceTitle" value={form.curatedServiceTitle} onChange={handleChange} placeholder="Curated Service Title" required />
+              </div>
+              <div className="form-group">
+                <label>Category</label>
+                <select name="category" value={form.category} onChange={handleCategoryChange} required>
+                  <option value="">Select Category</option>
+                  {categories.map((cat) => (
+                    <option key={cat._id} value={cat._id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Sub Category</label>
+                <select name="subCategory" value={form.subCategory} onChange={handleChange} required>
+                  <option value="">Select Sub Category</option>
+                  {subCategories.map((sub) => (
+                    <option key={sub._id} value={sub._id}>{sub.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Pricing Type</label>
+                <select name="pricingType" value={form.pricingType} onChange={handleChange} required>
+                  <option value="Fixed">Fixed</option>
+                  <option value="Hourly">Hourly</option>
+                  <option value="Package">Package</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Price (₹)</label>
+                <input name="price" type="number" min="0" step="0.01" value={form.price} onChange={handleChange} placeholder="Price (₹)" required />
+              </div>
+              <div className="form-group">
+                <label>Duration (mins)</label>
+                <input name="duration" type="number" min="1" value={form.duration} onChange={handleChange} placeholder="Duration (mins)" required />
+              </div>
+              <div className="form-group">
+                <label>Discount (%)</label>
+                <input name="discount" type="number" min="0" max="100" value={form.discount} onChange={handleChange} placeholder="Discount (%)" />
+              </div>
+              <div className="form-group" style={fullWidthStyle}>
+                <label>Image 1</label>
+                <input name="image1" type="file" accept="image/*" onChange={handleChange} />
+              </div>
+              <div className="form-group" style={fullWidthStyle}>
+                <label>Image 2</label>
+                <input name="image2" type="file" accept="image/*" onChange={handleChange} />
+              </div>
+              <div className="form-group" style={fullWidthStyle}>
+                <label>Description</label>
+                <textarea name="description" rows="4" value={form.description} onChange={handleChange} placeholder="Description" style={{ resize: "vertical" }} />
+              </div>
+            </div>
             <div className="form-actions">
               <Button variant="secondary" onClick={() => setModalOpen(false)} type="button">Cancel</Button>
               <Button type="submit" disabled={loading}>{loading ? 'Saving...' : (editService ? 'Update' : 'Create')}</Button>
