@@ -350,17 +350,24 @@ const addFavoriteStylist = async (req, res) => {
 const removeFavoriteStylist = async (req, res) => {
   try {
     const { beauticianId } = req.params;
-
     const user = await User.findById(req.user._id);
-    const idx = user.favoriteBeauticians.indexOf(beauticianId);
-    if (idx === -1) {
+    // Use ObjectId.equals for robust comparison
+    const beauticianObjectId = beauticianId.toString();
+    let found = false;
+    user.favoriteBeauticians = user.favoriteBeauticians.filter((b) => {
+      if (!found && b && b.toString() === beauticianObjectId) {
+        found = true;
+        return false;
+      }
+      return true;
+    });
+    if (!found) {
       return res.status(404).json({ success: false, message: "Not in favorites" });
     }
-
-    user.favoriteBeauticians.splice(idx, 1);
     await user.save();
-
-    res.json({ success: true, message: "Removed from favorites" });
+    // Populate and return updated favorites
+    await user.populate({ path: "favoriteBeauticians", select: "fullName profileImage rating totalReviews tier skills experience" });
+    res.json({ success: true, message: "Removed from favorites", favorites: user.favoriteBeauticians });
   } catch (error) {
     console.error("Remove favorite error:", error);
     res.status(500).json({ success: false, message: "Server error" });
