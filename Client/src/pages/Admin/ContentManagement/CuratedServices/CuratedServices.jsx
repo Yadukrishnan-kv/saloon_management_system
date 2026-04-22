@@ -91,6 +91,21 @@ const CuratedServices = () => {
     await axios.post(`${backendUrl}/api/curated-services`, data);
     setLoading(false);
     setShowForm(false);
+    setModalOpen(false);
+    setEditService(null);
+    setForm({
+      curatedServiceName: '',
+      curatedServiceTitle: '',
+      category: '',
+      subCategory: '',
+      description: '',
+      pricingType: 'Fixed',
+      price: '',
+      duration: '',
+      discount: '',
+      image1: null,
+      image2: null,
+    });
     fetchCuratedServices();
   };
 
@@ -159,29 +174,33 @@ const CuratedServices = () => {
           <Button onClick={resetForm}>+ Add Curated Service</Button>
         </div>
         {loading ? <Loading /> : (
-          <Table
-            columns={[
-              { key: "curatedServiceName", label: "Name" },
-              { key: "curatedServiceTitle", label: "Title" },
-              { key: "category", label: "Category", render: (row) => row.category?.name || "-" },
-              { key: "subCategory", label: "Sub Category", render: (row) => row.subCategory?.name || "-" },
-              { key: "price", label: "Price" },
-              { key: "duration", label: "Duration" },
-              { key: "discount", label: "Discount" },
-              { key: "image1", label: "Image 1", render: (row) => row.image1 ? <img src={`/${row.image1}`} alt="img1" width={40} /> : null },
-              { key: "image2", label: "Image 2", render: (row) => row.image2 ? <img src={`/${row.image2}`} alt="img2" width={40} /> : null },
-              {
-                key: "actions", label: "Actions", render: (row) => (
-                  <div className="table-actions">
-                    <button className="action-btn edit" onClick={() => handleEdit(row)}>Edit</button>
-                    <button className="action-btn danger" onClick={() => handleDelete(row._id)}>Delete</button>
-                  </div>
-                )
-              },
-            ]}
-            data={curatedServices}
-            emptyMessage="No curated services"
-          />
+          <div style={{width:'100%',overflowX:'auto'}}>
+            <div style={{maxHeight:'400px',overflowY:'auto',minWidth:'900px'}}>
+              <Table
+                columns={[
+                  { key: "curatedServiceName", label: "Name" },
+                  { key: "curatedServiceTitle", label: "Title" },
+                  { key: "category", label: "Category", render: (row) => row.category?.name || "-" },
+                  { key: "subCategory", label: "Sub Category", render: (row) => row.subCategory?.name || "-" },
+                  { key: "price", label: "Price" },
+                  { key: "duration", label: "Duration" },
+                  { key: "discount", label: "Discount" },
+                  { key: "image1", label: "Image 1", render: (row) => row.image1 ? <img src={`${backendUrl}/uploads/${row.image1.split(/[\\/]/).pop()}`} alt="img1" width={40} /> : null },
+                  { key: "image2", label: "Image 2", render: (row) => row.image2 ? <img src={`${backendUrl}/uploads/${row.image2.split(/[\\/]/).pop()}`} alt="img2" width={40} /> : null },
+                  {
+                    key: "actions", label: "Actions", render: (row) => (
+                      <div className="table-actions">
+                        <button className="action-btn edit" onClick={() => handleEdit(row)}>Edit</button>
+                        <button className="action-btn danger" onClick={() => handleDelete(row._id)}>Delete</button>
+                      </div>
+                    )
+                  },
+                ]}
+                data={curatedServices}
+                emptyMessage="No curated services"
+              />
+            </div>
+          </div>
         )}
         <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editService ? "Edit Curated Service" : "Add Curated Service"} size="large">
           <form onSubmit={handleSubmit}>

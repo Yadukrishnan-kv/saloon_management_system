@@ -7,8 +7,8 @@ exports.createCuratedService = async (req, res) => {
   try {
     const data = req.body;
     if (req.files) {
-      if (req.files.image1) data.image1 = req.files.image1[0].path;
-      if (req.files.image2) data.image2 = req.files.image2[0].path;
+      if (req.files.image1) data.image1 = req.files.image1[0].filename;
+      if (req.files.image2) data.image2 = req.files.image2[0].filename;
     }
     const curatedService = await CuratedService.create(data);
     res.status(201).json({ success: true, curatedService });
@@ -47,8 +47,8 @@ exports.updateCuratedService = async (req, res) => {
   try {
     const data = req.body;
     if (req.files) {
-      if (req.files.image1) data.image1 = req.files.image1[0].path;
-      if (req.files.image2) data.image2 = req.files.image2[0].path;
+      if (req.files.image1) data.image1 = req.files.image1[0].filename;
+      if (req.files.image2) data.image2 = req.files.image2[0].filename;
     }
     const curatedService = await CuratedService.findByIdAndUpdate(req.params.id, data, { new: true });
     if (!curatedService) return res.status(404).json({ success: false, message: 'Not found' });
