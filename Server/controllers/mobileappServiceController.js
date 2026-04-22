@@ -437,6 +437,71 @@ const getLocationFromCoordinates = async (req, res) => {
   }
 };
 
+// ─── BEAUTICIAN SERVICE CRUD ────────────────────────────────────────────────
+const createBeauticianService = async (req, res) => {
+  try {
+    const beauticianId = req.user._id;
+    const { name, description, category, price, pricingType, duration, discount, tags } = req.body;
+    if (!name || !category || !price || !duration) {
+      return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+    const serviceData = {
+      name,
+      description,
+      category,
+      price,
+      pricingType,
+      duration,
+      discount,
+      tags,
+      beautician: beauticianId,
+    };
+    if (req.files && req.files.length > 0) {
+      serviceData.image1 = `/uploads/${req.files[0].filename}`;
+      if (req.files.length > 1) {
+        serviceData.image2 = `/uploads/${req.files[1].filename}`;
+      }
+    }
+    const service = await Service.create(serviceData);
+    res.status(201).json({ success: true, service });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+const updateBeauticianService = async (req, res) => {
+  try {
+    const beauticianId = req.user._id;
+    const { serviceId } = req.params;
+    const service = await Service.findOne({ _id: serviceId, beautician: beauticianId });
+    if (!service) return res.status(404).json({ success: false, message: "Service not found or not owned by you" });
+    const updateData = { ...req.body };
+    if (req.files && req.files.length > 0) {
+      updateData.image1 = `/uploads/${req.files[0].filename}`;
+      if (req.files.length > 1) {
+        updateData.image2 = `/uploads/${req.files[1].filename}`;
+      }
+    }
+    Object.assign(service, updateData);
+    await service.save();
+    res.json({ success: true, service });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+const deleteBeauticianService = async (req, res) => {
+  try {
+    const beauticianId = req.user._id;
+    const { serviceId } = req.params;
+    const service = await Service.findOneAndDelete({ _id: serviceId, beautician: beauticianId });
+    if (!service) return res.status(404).json({ success: false, message: "Service not found or not owned by you" });
+    res.json({ success: true, message: "Service deleted" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 module.exports = {
   getCategories,
   getCategoryServices,
@@ -449,4 +514,7 @@ module.exports = {
   getServiceAddons,
   getHomeDashboard,
   getLocationFromCoordinates,
+  createBeauticianService,
+  updateBeauticianService,
+  deleteBeauticianService,
 };

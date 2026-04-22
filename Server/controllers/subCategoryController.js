@@ -1,10 +1,16 @@
 const SubCategory = require('../models/SubCategory');
 const Category = require('../models/Category');
 
-// Get all subcategories
+// Get all subcategories, optionally filter by category
 exports.getAllSubCategories = async (req, res) => {
   try {
-    const subcategories = await SubCategory.find().populate('category', 'name').sort({ sortOrder: 1, name: 1 });
+    const filter = {};
+    if (req.query.category) {
+      filter.category = req.query.category;
+    }
+    const subcategories = await SubCategory.find(filter)
+      .populate('category', 'name')
+      .sort({ sortOrder: 1, name: 1 });
     res.json(subcategories);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });

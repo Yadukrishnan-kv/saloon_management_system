@@ -31,4 +31,12 @@ router.get("/:serviceId/addons", getServiceAddons);
 router.get("/", getAllServices);
 router.get("/:serviceId", getServiceById);
 
+const { protect } = require("../middleware/authMiddleware");
+const upload = require("../middleware/uploadMiddleware");
+
+// Beautician CRUD for their own services
+router.post("/", protect, upload.array('images', 2), require("../controllers/mobileappServiceController").createBeauticianService);
+router.put("/:serviceId", protect, upload.array('images', 2), require("../controllers/mobileappServiceController").updateBeauticianService);
+router.delete("/:serviceId", protect, require("../controllers/mobileappServiceController").deleteBeauticianService);
+
 module.exports = router;

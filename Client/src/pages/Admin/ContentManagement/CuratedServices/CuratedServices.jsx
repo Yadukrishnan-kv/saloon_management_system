@@ -21,19 +21,21 @@ import Loading from '../../../../components/common/Loading/Loading';
 const CuratedServices = () => {
   const [curatedServices, setCuratedServices] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    curatedServiceName: '',
-    curatedServiceTitle: '',
-    category: '',
-    subCategory: '',
-    description: '',
-    pricingType: 'Fixed',
-    price: '',
-    duration: '',
-    discount: '',
-    image1: null,
-    image2: null,
-  });
+  const [beauticians, setBeauticians] = useState([]);
+    const [form, setForm] = useState({
+      curatedServiceName: '',
+      curatedServiceTitle: '',
+      category: '',
+      subCategory: '',
+      beautician: '',
+      description: '',
+      pricingType: 'Fixed',
+      price: '',
+      duration: '',
+      discount: '',
+      image1: null,
+      image2: null,
+    });
   const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -44,7 +46,13 @@ const CuratedServices = () => {
   useEffect(() => {
     fetchCuratedServices();
     fetchCategories();
-  }, []);
+      fetchBeauticians();
+    }, []);
+
+    const fetchBeauticians = async () => {
+      const res = await axios.get(`${backendUrl}/api/beauticians`);
+      setBeauticians(res.data.beauticians || res.data);
+    };
 
   const fetchCuratedServices = async () => {
     const res = await axios.get(`${backendUrl}/api/curated-services`);
@@ -79,15 +87,15 @@ const CuratedServices = () => {
     e.preventDefault();
     setLoading(true);
     const data = new FormData();
-    Object.keys(form).forEach((key) => {
-      if (form[key]) {
-        if (key === 'image1' || key === 'image2') {
-          if (form[key][0]) data.append(key, form[key][0]);
-        } else {
-          data.append(key, form[key]);
+      Object.keys(form).forEach((key) => {
+        if (form[key]) {
+          if (key === 'image1' || key === 'image2') {
+            if (form[key][0]) data.append(key, form[key][0]);
+          } else {
+            data.append(key, form[key]);
+          }
         }
-      }
-    });
+      });
     await axios.post(`${backendUrl}/api/curated-services`, data);
     setLoading(false);
     setShowForm(false);
@@ -129,19 +137,26 @@ const CuratedServices = () => {
 
   const handleEdit = (service) => {
     setEditService(service);
-    setForm({
-      curatedServiceName: service.curatedServiceName,
-      curatedServiceTitle: service.curatedServiceTitle,
-      category: service.category?._id || '',
-      subCategory: service.subCategory?._id || '',
-      description: service.description,
-      pricingType: service.pricingType,
-      price: service.price,
-      duration: service.duration,
-      discount: service.discount,
-      image1: null,
-      image2: null,
-    });
+    const categoryId = service.category?._id || '';
+      setForm({
+        curatedServiceName: service.curatedServiceName,
+        curatedServiceTitle: service.curatedServiceTitle,
+        category: categoryId,
+        subCategory: service.subCategory?._id || '',
+        beautician: service.beautician?._id || service.beautician || '',
+        description: service.description,
+        pricingType: service.pricingType,
+        price: service.price,
+        duration: service.duration,
+        discount: service.discount,
+        image1: null,
+        image2: null,
+      });
+    if (categoryId) {
+      fetchSubCategories(categoryId);
+    } else {
+      setSubCategories([]);
+    }
     setModalOpen(true);
   };
 
@@ -182,6 +197,11 @@ const CuratedServices = () => {
                   { key: "curatedServiceTitle", label: "Title" },
                   { key: "category", label: "Category", render: (row) => row.category?.name || "-" },
                   { key: "subCategory", label: "Sub Category", render: (row) => row.subCategory?.name || "-" },
+                  {
+                    key: "beautician",
+                    label: "Beautician",
+                    render: (row) => row.beautician ? `${row.beautician.fullName || "-"} (${row.beautician.phoneNumber || "-"})` : "-"
+                  },
                   { key: "price", label: "Price" },
                   { key: "duration", label: "Duration" },
                   { key: "discount", label: "Discount" },
@@ -224,13 +244,28 @@ const CuratedServices = () => {
               </div>
               <div className="form-group">
                 <label>Sub Category</label>
-                <select name="subCategory" value={form.subCategory} onChange={handleChange} required>
+                <select
+                  name="subCategory"
+                  value={form.subCategory}
+                  onChange={handleChange}
+                  required
+                  disabled={!form.category}
+                >
                   <option value="">Select Sub Category</option>
                   {subCategories.map((sub) => (
                     <option key={sub._id} value={sub._id}>{sub.name}</option>
                   ))}
                 </select>
               </div>
+                <div className="form-group">
+                  <label>Beautician</label>
+                  <select name="beautician" value={form.beautician} onChange={handleChange} required>
+                    <option value="">Select Beautician</option>
+                    {beauticians.map((b) => (
+                      <option key={b._id} value={b._id}>{b.fullName} ({b.phoneNumber})</option>
+                    ))}
+                  </select>
+                </div>
               <div className="form-group">
                 <label>Pricing Type</label>
                 <select name="pricingType" value={form.pricingType} onChange={handleChange} required>

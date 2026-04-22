@@ -27,8 +27,9 @@ const PricingConfig = () => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editService, setEditService] = useState(null);
+  const [beauticians, setBeauticians] = useState([]);
   const [formData, setFormData] = useState({
-    name: "", description: "", category: "", subCategory: "", price: "", pricingType: "Fixed", duration: "", discount: 0, image1: null, image2: null,
+    name: "", description: "", category: "", subCategory: "", price: "", pricingType: "Fixed", duration: "", discount: 0, image1: null, image2: null, beautician: "",
   });
 
   // Derived: top-level categories and sub-categories filtered by selected category
@@ -39,14 +40,16 @@ const PricingConfig = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [servRes, catRes, subCatRes] = await Promise.all([
+      const [servRes, catRes, subCatRes, beautRes] = await Promise.all([
         axios.get(`${backendUrl}/api/services`),
         axios.get(`${backendUrl}/api/categories`),
         axios.get(`${backendUrl}/api/subcategories`),
+        axios.get(`${backendUrl}/api/beauticians`),
       ]);
       setServices(servRes.data);
       setCategories(catRes.data);
       setSubCategories(subCatRes.data);
+      setBeauticians(beautRes.data.beauticians || beautRes.data);
     } catch (error) {
       toast.error("Failed to load data");
     } finally {
@@ -72,7 +75,7 @@ const PricingConfig = () => {
       data.append('pricingType', formData.pricingType);
       data.append('duration', formData.duration);
       data.append('discount', formData.discount);
-      
+      data.append('beautician', formData.beautician);
       if (formData.image1) {
         data.append('images', formData.image1);
       }
@@ -95,7 +98,7 @@ const PricingConfig = () => {
       }
       setModalOpen(false);
       setEditService(null);
-      setFormData({ name: "", description: "", category: "", subCategory: "", price: "", pricingType: "Fixed", duration: "", discount: 0, image1: null, image2: null });
+      setFormData({ name: "", description: "", category: "", subCategory: "", price: "", pricingType: "Fixed", duration: "", discount: 0, image1: null, image2: null, beautician: "" });
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed");
@@ -109,6 +112,7 @@ const PricingConfig = () => {
       category: svc.category?._id || svc.category,
       subCategory: svc.subCategory?._id || svc.subCategory || "",
       price: svc.price, pricingType: svc.pricingType, duration: svc.duration, discount: svc.discount || 0, image1: null, image2: null,
+      beautician: svc.beautician?._id || svc.beautician || "",
     });
     setModalOpen(true);
   };
@@ -127,9 +131,14 @@ const PricingConfig = () => {
   const columns = [
     { key: "name", label: "Service Name" },
     { key: "category", label: "Category", render: (row) => row.category?.name || "-" },
-    { 
-      key: "images", 
-      label: "Images", 
+    {
+      key: "beautician",
+      label: "Beautician",
+      render: (row) => row.beautician ? `${row.beautician.fullName || "-"} (${row.beautician.phoneNumber || "-"})` : "-"
+    },
+    {
+      key: "images",
+      label: "Images",
       render: (row) => (
         <div style={{ display: "flex", gap: "8px" }}>
           {row.image1 && <img src={row.image1} alt="Image 1" style={{ width: "50px", height: "50px", borderRadius: "4px", objectFit: "cover" }} />}
@@ -187,6 +196,15 @@ const PricingConfig = () => {
                 <select value={formData.subCategory} onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })} disabled={!formData.category}>
                   <option value="">Select Sub Category (optional)</option>
                   {subCategoriesForSelected.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Beautician</label>
+                <select value={formData.beautician} onChange={e => setFormData({ ...formData, beautician: e.target.value })} required>
+                  <option value="">Select Beautician</option>
+                  {beauticians.map(b => (
+                    <option key={b._id} value={b._id}>{b.fullName} ({b.phoneNumber})</option>
+                  ))}
                 </select>
               </div>
               <div className="form-group">

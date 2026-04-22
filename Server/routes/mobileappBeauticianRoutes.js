@@ -1,5 +1,8 @@
+
 const express = require("express");
 const router = express.Router();
+const { protect, authorizeRoles } = require("../middleware/authMiddleware");
+const upload = require("../middleware/uploadMiddleware");
 const {
   getProfile,
   updateProfile,
@@ -26,8 +29,14 @@ const {
   getScheduleByDate,
   getBeauticianHomeDashboard,
 } = require("../controllers/mobileappBeauticianController");
-const { protect, authorizeRoles } = require("../middleware/authMiddleware");
-const upload = require("../middleware/uploadMiddleware");
+
+// Curated Service CRUD (Beautician)
+router.get("/curated-services", require("../controllers/mobileappBeauticianController").listBeauticianCuratedServices);
+router.post("/curated-services", upload.fields([{ name: "image1", maxCount: 1 }, { name: "image2", maxCount: 1 }]), require("../controllers/mobileappBeauticianController").createBeauticianCuratedService);
+router.put("/curated-services/:curatedServiceId", upload.fields([{ name: "image1", maxCount: 1 }, { name: "image2", maxCount: 1 }]), require("../controllers/mobileappBeauticianController").updateBeauticianCuratedService);
+router.delete("/curated-services/:curatedServiceId", require("../controllers/mobileappBeauticianController").deleteBeauticianCuratedService);
+// Public endpoint to fetch all services and curated services for a beautician
+router.get("/:beauticianId/services", require("../controllers/mobileappBeauticianController").getBeauticianServicesAndCurated);
 
 
 // Public endpoint to fetch all beauticians

@@ -5,6 +5,7 @@ const CuratedServiceSchema = new mongoose.Schema({
   curatedServiceTitle: { type: String, required: true, trim: true },
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
   subCategory: { type: mongoose.Schema.Types.ObjectId, ref: 'SubCategory', required: true },
+  beautician: { type: mongoose.Schema.Types.ObjectId, ref: 'Beautician', required: true },
   description: { type: String, default: '' },
   pricingType: { type: String, enum: ['Fixed', 'Hourly', 'Package'], default: 'Fixed' },
   price: { type: Number, required: true, min: 0 },

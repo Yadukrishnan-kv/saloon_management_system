@@ -1,3 +1,103 @@
+// ─── BEAUTICIAN CRUD FOR CURATED SERVICES ───────────────────────────────────
+const multer = require("multer");
+const CuratedService = require("../models/CuratedService");
+const Service = require("../models/Service");
+
+// Create curated service (beautician)
+const createBeauticianCuratedService = async (req, res) => {
+  try {
+    const data = req.body;
+    data.beautician = req.user._id || req.user.beautician || req.user.id;
+    if (req.files) {
+      if (req.files.image1) data.image1 = req.files.image1[0].filename;
+      if (req.files.image2) data.image2 = req.files.image2[0].filename;
+    }
+    const curatedService = await CuratedService.create(data);
+    const populated = await CuratedService.findById(curatedService._id)
+      .populate("category", "name")
+      .populate("subCategory", "name")
+      .populate("beautician", "fullName phoneNumber profileImage rating tier");
+    res.status(201).json({ success: true, curatedService: populated });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+// Update curated service (beautician)
+const updateBeauticianCuratedService = async (req, res) => {
+  try {
+    const { curatedServiceId } = req.params;
+    const data = req.body;
+    if (req.files) {
+      if (req.files.image1) data.image1 = req.files.image1[0].filename;
+      if (req.files.image2) data.image2 = req.files.image2[0].filename;
+    }
+    const curatedService = await CuratedService.findOneAndUpdate(
+      { _id: curatedServiceId, beautician: req.user._id },
+      data,
+      { new: true }
+    )
+      .populate("category", "name")
+      .populate("subCategory", "name")
+      .populate("beautician", "fullName phoneNumber profileImage rating tier");
+    if (!curatedService) return res.status(404).json({ success: false, message: "Not found or unauthorized" });
+    res.json({ success: true, curatedService });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+// Delete curated service (beautician)
+const deleteBeauticianCuratedService = async (req, res) => {
+  try {
+    const { curatedServiceId } = req.params;
+    const curatedService = await CuratedService.findOneAndDelete({ _id: curatedServiceId, beautician: req.user._id });
+    if (!curatedService) return res.status(404).json({ success: false, message: "Not found or unauthorized" });
+    res.json({ success: true, message: "Deleted" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// List all curated services for beautician
+const listBeauticianCuratedServices = async (req, res) => {
+  try {
+    const curatedServices = await CuratedService.find({ beautician: req.user._id })
+      .populate("category", "name")
+      .populate("subCategory", "name")
+      .populate("beautician", "fullName phoneNumber profileImage rating tier");
+    res.json({ success: true, curatedServices });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+// ─── GET ALL SERVICES & CURATED SERVICES FOR BEAUTICIAN (PUBLIC) ─────────────
+
+// GET /api/mobileapp/beautician/:beauticianId/services
+const getBeauticianServicesAndCurated = async (req, res) => {
+  try {
+    const { beauticianId } = req.params;
+    // Fetch regular services
+    const services = await Service.find({ beautician: beauticianId, isActive: true })
+      .populate("category", "name")
+      .populate("subCategory", "name")
+      .populate("beautician", "fullName phoneNumber profileImage rating tier");
+    // Fetch curated services
+    const curatedServices = await CuratedService.find({ beautician: beauticianId, isActive: true })
+      .populate("category", "name")
+      .populate("subCategory", "name")
+      .populate("beautician", "fullName phoneNumber profileImage rating tier");
+    res.json({
+      success: true,
+      beauticianId,
+      services,
+      curatedServices,
+    });
+  } catch (error) {
+    console.error("Get beautician's services/curated error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
 // ─── GET ALL BEAUTICIANS (PUBLIC) ───────────────────────────────────────────
 const getAllBeauticians = async (req, res) => {
   try {
@@ -15,10 +115,28 @@ const getAllBeauticians = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
+
+    // Fetch services and curated services for each beautician
+    const beauticiansWithServices = await Promise.all(
+      beauticians.map(async (beautician) => {
+        const services = await Service.find({ beautician: beautician._id, isActive: true })
+          .populate("category", "name")
+          .populate("subCategory", "name");
+        const curatedServices = await CuratedService.find({ beautician: beautician._id, isActive: true })
+          .populate("category", "name")
+          .populate("subCategory", "name");
+        return {
+          ...beautician.toObject(),
+          services,
+          curatedServices,
+        };
+      })
+    );
+
     const total = await Beautician.countDocuments(query);
     res.json({
       success: true,
-      beauticians,
+      beauticians: beauticiansWithServices,
       total,
       currentPage: parseInt(page),
       totalPages: Math.ceil(total / parseInt(limit)),
@@ -31,7 +149,6 @@ const getAllBeauticians = async (req, res) => {
 const Beautician = require("../models/Beautician");
 const Availability = require("../models/Availability");
 const Booking = require("../models/Booking");
-const Service = require("../models/Service");
 const User = require("../models/User");
 const Wallet = require("../models/Wallet");
 
@@ -49,6 +166,13 @@ const getProfile = async (req, res) => {
       return res.status(404).json({ success: false, message: "Beautician profile not found" });
     }
 
+    // Fetch services and curated services for this beautician
+    const services = await Service.find({ beautician: beautician._id, isActive: true })
+      .populate("category", "name")
+      .populate("subCategory", "name");
+    const curatedServices = await CuratedService.find({ beautician: beautician._id, isActive: true })
+      .populate("category", "name")
+      .populate("subCategory", "name");
     res.json({
       success: true,
       beautician: {
@@ -70,6 +194,8 @@ const getProfile = async (req, res) => {
         profileImage: beautician.profileImage,
         tier: beautician.tier,
         paymentMethods: beautician.paymentMethods,
+        services,
+        curatedServices,
       },
     });
   } catch (error) {
@@ -983,5 +1109,11 @@ module.exports = {
   getClients,
   getScheduleByDate,
   getBeauticianHomeDashboard,
+  // ...other exports...
+  createBeauticianCuratedService,
+  updateBeauticianCuratedService,
+  deleteBeauticianCuratedService,
+  listBeauticianCuratedServices,
+  getBeauticianServicesAndCurated,
   getAllBeauticians,
 };

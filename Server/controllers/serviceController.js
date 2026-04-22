@@ -23,6 +23,7 @@ const getAllServices = async (req, res) => {
 
     const services = await Service.find(query)
       .populate("category", "name")
+      .populate("beautician", "fullName phoneNumber profileImage rating tier")
       .sort({ createdAt: -1 });
 
     // Map image fields to full URLs
@@ -44,7 +45,9 @@ const getServicesByCategory = async (req, res) => {
     const services = await Service.find({
       category: req.params.categoryId,
       isActive: true,
-    }).populate("category", "name");
+    })
+      .populate("category", "name")
+      .populate("beautician", "fullName phoneNumber profileImage rating tier");
 
     res.json(services);
   } catch (error) {
@@ -54,11 +57,14 @@ const getServicesByCategory = async (req, res) => {
 
 const createService = async (req, res) => {
   try {
-    const { name, description, category, price, pricingType, duration, discount, tags } = req.body;
+    const { name, description, category, price, pricingType, duration, discount, tags, beautician } = req.body;
 
     const categoryExists = await Category.findById(category);
     if (!categoryExists) {
       return res.status(400).json({ message: "Invalid category" });
+    }
+    if (!beautician) {
+      return res.status(400).json({ message: "Beautician is required" });
     }
 
     const serviceData = {
@@ -70,6 +76,7 @@ const createService = async (req, res) => {
       duration,
       discount,
       tags,
+      beautician,
     };
 
     if (req.files && req.files.length > 0) {
@@ -80,8 +87,14 @@ const createService = async (req, res) => {
     }
 
     const service = await Service.create(serviceData);
-    const populated = await Service.findById(service._id).populate("category", "name");
-    res.status(201).json(populated);
+    const populated = await Service.findById(service._id)
+      .populate("category", "name")
+      .populate("beautician", "fullName phoneNumber profileImage rating tier");
+    // Map image fields to full URLs and include beautician details
+    const obj = populated.toObject();
+    obj.image1 = getFullUrl(req, obj.image1);
+    obj.image2 = getFullUrl(req, obj.image2);
+    res.status(201).json(obj);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -90,21 +103,24 @@ const createService = async (req, res) => {
 const updateService = async (req, res) => {
   try {
     const updateData = { ...req.body };
-    
     if (req.files && req.files.length > 0) {
       updateData.image1 = `/uploads/${req.files[0].filename}`;
       if (req.files.length > 1) {
         updateData.image2 = `/uploads/${req.files[1].filename}`;
       }
     }
-    
-    const service = await Service.findByIdAndUpdate(req.params.id, updateData, {
-      new: true,
-      runValidators: true,
-    }).populate("category", "name");
-
+    const service = await Service.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).populate("category", "name").populate("beautician", "fullName phoneNumber profileImage rating tier");
     if (!service) return res.status(404).json({ message: "Service not found" });
-    res.json(service);
+    // Map image fields to full URLs and include beautician details
+    if (!service) return res.status(404).json({ message: "Service not found" });
+    const obj = service.toObject();
+    obj.image1 = getFullUrl(req, obj.image1);
+    obj.image2 = getFullUrl(req, obj.image2);
+    res.json(obj);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }

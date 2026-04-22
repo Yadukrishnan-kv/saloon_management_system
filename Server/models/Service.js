@@ -50,6 +50,11 @@ const serviceSchema = new Schema(
       max: 100,
     },
     tags: [{ type: String }],
+    beautician: {
+      type: Schema.Types.ObjectId,
+      ref: "Beautician",
+      required: true,
+    },
   },
   { timestamps: true }
 );
