@@ -1,9 +1,15 @@
 // ─── GET ALL FAVORITES (BEAUTICIANS & SERVICES) ─────────────────────────────
 const getAllFavorites = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: "Not authenticated" });
+    }
     const user = await User.findById(req.user._id)
       .populate({ path: "favoriteBeauticians", select: "fullName profileImage rating tier skills experience status isVerified" })
       .populate({ path: "favoriteServices", select: "name price duration image1 image2 category" });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
     res.json({
       success: true,
       favoriteBeauticians: user.favoriteBeauticians || [],
