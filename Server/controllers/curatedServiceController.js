@@ -72,7 +72,12 @@ exports.updateCuratedService = async (req, res) => {
       .populate('subCategory', 'name')
       .populate('beautician', 'fullName phoneNumber profileImage rating tier');
     if (!curatedService) return res.status(404).json({ success: false, message: 'Not found' });
-    res.json({ success: true, curatedService });
+    // Map image fields to full URLs and include beautician details
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
+    const obj = curatedService.toObject();
+    obj.image1 = obj.image1 ? (obj.image1.startsWith("/uploads") ? `${baseUrl}${obj.image1}` : obj.image1) : obj.image1;
+    obj.image2 = obj.image2 ? (obj.image2.startsWith("/uploads") ? `${baseUrl}${obj.image2}` : obj.image2) : obj.image2;
+    res.json({ success: true, curatedService: obj });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
   }

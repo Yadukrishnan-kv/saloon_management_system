@@ -28,15 +28,34 @@ const getAllBeauticians = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit));
 
+    // Fetch services and curated services for each beautician
+    const Service = require("../models/Service");
+    const CuratedService = require("../models/CuratedService");
+    const beauticiansWithServices = await Promise.all(
+      beauticians.map(async (beautician) => {
+        const services = await Service.find({ beautician: beautician._id, isActive: true })
+          .populate("category", "name");
+        const curatedServices = await CuratedService.find({ beautician: beautician._id, isActive: true })
+          .populate("category", "name")
+          .populate("subCategory", "name");
+        return {
+          ...beautician.toObject(),
+          services,
+          curatedServices,
+        };
+      })
+    );
+
     const total = await Beautician.countDocuments(query);
 
     res.json({
-      beauticians,
+      beauticians: beauticiansWithServices,
       total,
       page: parseInt(page),
       totalPages: Math.ceil(total / parseInt(limit)),
     });
   } catch (error) {
+    console.error("getAllBeauticians error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };

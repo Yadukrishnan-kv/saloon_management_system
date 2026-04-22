@@ -96,7 +96,11 @@ const CuratedServices = () => {
           }
         }
       });
-    await axios.post(`${backendUrl}/api/curated-services`, data);
+    if (editService) {
+      await axios.put(`${backendUrl}/api/curated-services/${editService._id}`, data);
+    } else {
+      await axios.post(`${backendUrl}/api/curated-services`, data);
+    }
     setLoading(false);
     setShowForm(false);
     setModalOpen(false);
