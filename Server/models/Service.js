@@ -16,6 +16,12 @@ const serviceSchema = new Schema(
       ref: "Category",
       required: [true, "Category is required"],
     },
+    subCategory: {
+      type: Schema.Types.ObjectId,
+      ref: "SubCategory",
+      required: false,
+      default: null,
+    },
     price: {
       type: Number,
       required: [true, "Price is required"],

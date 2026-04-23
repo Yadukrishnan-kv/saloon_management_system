@@ -24,6 +24,7 @@ const getAllServices = async (req, res) => {
     const CuratedService = require("../models/CuratedService");
     const services = await Service.find(query)
       .populate("category", "name")
+      .populate("subCategory", "name")
       .populate("beautician");
     // For each service, fetch curated services for the beautician and ratings for the service
     const servicesWithCurated = await Promise.all(services.map(async (svc) => {
