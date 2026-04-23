@@ -1,4 +1,90 @@
----
+
+
+## Unified Search API (New)
+
+### 1) Search by Name (Service, Curated Service, or Beautician)
+- **Endpoint URL:** https://sidi.mobilegear.co.in/api/mobileapp/search/all
+- **Method:** GET
+- **Query:** query (required, must be the exact name)
+- **Description:**
+  - Enter a name in the search bar. The API will search for an exact match (case-insensitive) in this order:
+    1. Service name
+    2. Curated Service name
+    3. Beautician full name
+  - Only the first matching type is returned. If you search a service name, only that service is returned. If not found, it tries curated service, then beautician.
+  - Only one result is returned per search.
+- **Headers:** N/A
+- **Request Example:**
+  - `GET /api/mobileapp/search/all?query=Facial`
+- **Response Examples:**
+
+**If a Service is found:**
+~~~json
+{
+  "success": true,
+  "type": "service",
+  "service": {
+    "_id": "...",
+    "name": "Facial",
+    "description": "Professional facial treatment",
+    "price": 999,
+    "duration": 60,
+    "image1": "/uploads/facial1.jpg",
+    "image2": "/uploads/facial2.jpg",
+    "category": { "_id": "...", "name": "Skin" },
+    "subCategory": { "_id": "...", "name": "Brightening" },
+    "beautician": { "_id": "...", "fullName": "Riya" }
+  }
+}
+~~~
+
+**If a Curated Service is found:**
+~~~json
+{
+  "success": true,
+  "type": "curatedService",
+  "curatedService": {
+    "_id": "...",
+    "curatedServiceName": "Bridal Glow Package",
+    "curatedServiceTitle": "Bridal Glow",
+    "description": "Special package for brides",
+    "price": 2999,
+    "duration": 180,
+    "category": { "_id": "...", "name": "Bridal" },
+    "subCategory": { "_id": "...", "name": "Glow" },
+    "beautician": { "_id": "...", "fullName": "Riya", "phoneNumber": "9123456789", "profileImage": "/uploads/riya.jpg", "rating": 4.7, "tier": "Premium" }
+  }
+}
+~~~
+
+**If a Beautician is found:**
+~~~json
+{
+  "success": true,
+  "type": "beautician",
+  "beautician": {
+    "_id": "...",
+    "fullName": "Riya",
+    "phoneNumber": "9123456789",
+    "profileImage": "/uploads/riya.jpg",
+    "bio": "Certified beautician with 3 years experience",
+    "professionalTitle": "Senior Beautician",
+    "skills": ["Facial", "Hair"],
+    "experience": 3,
+    "tier": "Premium",
+    "user": { "_id": "...", "username": "riya", "email": "riya@example.com" }
+  }
+}
+~~~
+
+**If nothing is found:**
+~~~json
+{
+  "success": false,
+  "message": "No result found for the given name"
+}
+~~~
+
 ## NEW & UPDATED REVIEW/RATING APIs (2026-04-23)
 
 ### 1) Create Beautician Review (No Booking Required)

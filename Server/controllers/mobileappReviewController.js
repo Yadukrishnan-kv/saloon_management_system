@@ -28,12 +28,12 @@ const createBeauticianReview = async (req, res) => {
       return res.status(400).json({ success: false, message: "BeauticianId and rating are required" });
     }
     // Only one review per customer per beautician
-    const exists = await Review.findOne({ beautician: beauticianId, customer: req.user._id });
+    const exists = await Review.findOne({ beautician: beauticianId, customer: req.user?._id });
     if (exists) {
       return res.status(400).json({ success: false, message: "You have already reviewed this beautician" });
     }
     const review = await Review.create({
-      customer: req.user._id,
+      customer: req.user?._id,
       beautician: beauticianId,
       rating,
       comment: reviewText || ""
@@ -41,8 +41,14 @@ const createBeauticianReview = async (req, res) => {
     await recalculateAverageRating('beautician', beauticianId);
     res.status(201).json({ success: true, message: "Review submitted successfully.", review });
   } catch (error) {
-    console.error("Create beautician review error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Create beautician review error:", error, {
+      beauticianId: req.body?.beauticianId,
+      rating: req.body?.rating,
+      reviewText: req.body?.reviewText,
+      user: req.user,
+      body: req.body
+    });
+    res.status(500).json({ success: false, message: error.message || "Server error" });
   }
 };
 
@@ -54,20 +60,25 @@ const rateService = async (req, res) => {
       return res.status(400).json({ success: false, message: "ServiceId and rating are required" });
     }
     // Only one rating per customer per service
-    const exists = await Review.findOne({ service: serviceId, customer: req.user._id });
+    const exists = await Review.findOne({ service: serviceId, customer: req.user?._id });
     if (exists) {
       return res.status(400).json({ success: false, message: "You have already rated this service" });
     }
     const review = await Review.create({
-      customer: req.user._id,
+      customer: req.user?._id,
       service: serviceId,
       rating
     });
     await recalculateAverageRating('service', serviceId);
     res.status(201).json({ success: true, message: "Service rated successfully.", review });
   } catch (error) {
-    console.error("Rate service error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Rate service error:", error, {
+      serviceId: req.body?.serviceId,
+      rating: req.body?.rating,
+      user: req.user,
+      body: req.body
+    });
+    res.status(500).json({ success: false, message: error.message || "Server error" });
   }
 };
 

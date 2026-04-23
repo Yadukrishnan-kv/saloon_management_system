@@ -60,6 +60,9 @@ app.use('/api/mobileapp/location', require('./routes/mobileappLocationRoutes'));
 app.use('/api/mobileapp/cosmetics', require('./routes/mobileappCosmeticRoutes'));
 app.use('/api/mobileapp/complaints', require('./routes/mobileappComplaintRoutes'));
 
+// Unified search route
+app.use('/api/mobileapp/search', require('./routes/unifiedSearchRoutes'));
+
 // Curated Service API
 app.use('/api/curated-services', require('./routes/curatedServiceRoutes'));
 
