@@ -1,10 +1,4 @@
-// Auto-delete linked User when Beautician is deleted
-beauticianSchema.post('findOneAndDelete', async function(doc) {
-  if (doc && doc.user) {
-    const User = require('./User');
-    await User.findByIdAndDelete(doc.user);
-  }
-});
+
 const { Schema, model } = require("mongoose");
 
 const beauticianSchema = new Schema(
@@ -176,4 +170,12 @@ beauticianSchema.index({ skills: 1 });
 beauticianSchema.index({ status: 1, isVerified: 1 });
 
 const Beautician = model("Beautician", beauticianSchema);
+
+// Auto-delete linked User when Beautician is deleted
+beauticianSchema.post('findOneAndDelete', async function(doc) {
+  if (doc && doc.user) {
+    const User = require('./User');
+    await User.findByIdAndDelete(doc.user);
+  }
+});
 module.exports = Beautician;
