@@ -1,15 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const {
-  register,
-  login,
-  logout,
-  getMe,
-  refreshToken,
-  forgotPassword,
-  resetPassword,
-} = require("../controllers/authController");
+
 const { protect } = require("../middleware/authMiddleware");
+const { changePassword, register, login, logout, getMe, refreshToken, forgotPassword, resetPassword } = require("../controllers/authController");
+// Change password (auth required)
+router.post("/change-password", protect, changePassword);
 
 router.post("/register", register);
 router.post("/login", login);

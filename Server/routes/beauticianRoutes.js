@@ -14,7 +14,10 @@ const {
   updateBeauticianSkills,
   getAvailableBeauticians,
   getNearbyBeauticians,
+  getTopBeauticians,
 } = require("../controllers/beauticianController");
+// Top-rated beauticians (public)
+router.get("/top-rated", getTopBeauticians);
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 const upload = require("../middleware/uploadMiddleware");
 

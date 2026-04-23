@@ -1,3 +1,16 @@
+// Get top-rated beauticians (rating >= 4)
+const getTopBeauticians = async (req, res) => {
+  try {
+    const minRating = Number(req.query.minRating) || 4;
+    const limit = Number(req.query.limit) || 10;
+    const beauticians = await Beautician.find({ rating: { $gte: minRating } })
+      .sort({ rating: -1, totalReviews: -1 })
+      .limit(limit);
+    res.json(beauticians);
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
 const Beautician = require("../models/Beautician");
 const User = require("../models/User");
 const { calculateDistance } = require("../utils/geolocation");
@@ -383,4 +396,5 @@ module.exports = {
   updateBeauticianSkills,
   getAvailableBeauticians,
   getNearbyBeauticians,
+  getTopBeauticians,
 };

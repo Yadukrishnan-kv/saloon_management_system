@@ -21,20 +21,23 @@ const getAllServices = async (req, res) => {
       query.name = { $regex: search, $options: "i" };
     }
 
+    const CuratedService = require("../models/CuratedService");
     const services = await Service.find(query)
       .populate("category", "name")
-      .populate("beautician", "fullName phoneNumber profileImage rating tier")
-      .sort({ createdAt: -1 });
-
-    // Map image fields to full URLs
-    const servicesWithFullImages = services.map((svc) => {
+      .populate("beautician");
+    // For each service, fetch curated services for the beautician
+    const servicesWithCurated = await Promise.all(services.map(async (svc) => {
       const obj = svc.toObject();
       obj.image1 = getFullUrl(req, obj.image1);
       obj.image2 = getFullUrl(req, obj.image2);
+      if (obj.beautician && obj.beautician._id) {
+        obj.beauticianCuratedServices = await CuratedService.find({ beautician: obj.beautician._id, isActive: true });
+      } else {
+        obj.beauticianCuratedServices = [];
+      }
       return obj;
-    });
-
-    res.json(servicesWithFullImages);
+    }));
+    res.json(servicesWithCurated);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
