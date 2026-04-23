@@ -26,20 +26,29 @@ exports.createCuratedService = async (req, res) => {
   }
 };
 
-// Get All Curated Services
+
+const Review = require('../models/Review');
 exports.getAllCuratedServices = async (req, res) => {
   try {
     const curatedServices = await CuratedService.find()
       .populate('category', 'name')
       .populate('subCategory', 'name')
       .populate('beautician', 'fullName phoneNumber profileImage rating tier');
-    res.json({ success: true, curatedServices });
+    // Add ratings for each curated service
+    const withRatings = await Promise.all(curatedServices.map(async (svc) => {
+      const obj = svc.toObject();
+      const ratings = await Review.find({ curatedService: obj._id }).select('rating customer createdAt');
+      obj.ratings = ratings;
+      obj.averageRating = ratings.length > 0 ? Math.round((ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length) * 10) / 10 : 0;
+      return obj;
+    }));
+    res.json({ success: true, curatedServices: withRatings });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// Get One Curated Service
+
 exports.getCuratedServiceById = async (req, res) => {
   try {
     const curatedService = await CuratedService.findById(req.params.id)
@@ -47,12 +56,14 @@ exports.getCuratedServiceById = async (req, res) => {
       .populate('subCategory', 'name')
       .populate('beautician', 'fullName phoneNumber profileImage rating tier');
     if (!curatedService) return res.status(404).json({ success: false, message: 'Not found' });
-    // Map image fields to full URLs and include beautician details
-    if (!curatedService) return res.status(404).json({ success: false, message: 'Not found' });
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
     const obj = curatedService.toObject();
     obj.image1 = obj.image1 ? (obj.image1.startsWith("/uploads") ? `${baseUrl}${obj.image1}` : obj.image1) : obj.image1;
     obj.image2 = obj.image2 ? (obj.image2.startsWith("/uploads") ? `${baseUrl}${obj.image2}` : obj.image2) : obj.image2;
+    // Add ratings for this curated service
+    const ratings = await Review.find({ curatedService: obj._id }).select('rating customer createdAt');
+    obj.ratings = ratings;
+    obj.averageRating = ratings.length > 0 ? Math.round((ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length) * 10) / 10 : 0;
     res.json({ success: true, curatedService: obj });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

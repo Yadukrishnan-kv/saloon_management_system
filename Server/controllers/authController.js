@@ -1,3 +1,49 @@
+const Beautician = require("../models/Beautician");
+// ─── REGISTER BEAUTICIAN ─────────────────────────────────────────────────────
+const registerBeautician = async (req, res) => {
+  try {
+    const { username, email, password, phoneNumber, fullName, bio, professionalTitle, skills, experience, tier, qualifications, ...rest } = req.body;
+
+    // Check for existing user
+    const existing = await User.findOne({ $or: [{ email }, { username }, { phoneNumber }] });
+    if (existing) {
+      return res.status(400).json({ message: "Username, email, or phone number already in use" });
+    }
+
+    // Create User
+    const user = await User.create({
+      username,
+      email,
+      password,
+      phoneNumber,
+      role: "Beautician",
+      isActive: true,
+    });
+
+    // Create Beautician and link user
+    const beautician = await Beautician.create({
+      user: user._id,
+      fullName,
+      phoneNumber,
+      bio,
+      professionalTitle,
+      skills,
+      experience,
+      tier,
+      qualifications,
+      ...rest
+    });
+
+    res.status(201).json({
+      message: "Beautician registration successful",
+      beautician,
+      user: { ...user.toObject(), password: undefined },
+    });
+  } catch (error) {
+    console.error("Beautician register error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 // Change password for logged-in user
 const changePassword = async (req, res) => {
   try {
@@ -232,4 +278,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   changePassword,
+  registerBeautician,
 };

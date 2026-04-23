@@ -5,8 +5,31 @@ const getTopBeauticians = async (req, res) => {
     const limit = Number(req.query.limit) || 10;
     const beauticians = await Beautician.find({ rating: { $gte: minRating } })
       .sort({ rating: -1, totalReviews: -1 })
-      .limit(limit);
-    res.json(beauticians);
+      .limit(limit)
+      .populate("user", "username email");
+    // Enrich with reviews and averageRating
+    const Review = require("../models/Review");
+    const Service = require("../models/Service");
+    const CuratedService = require("../models/CuratedService");
+    const beauticiansWithDetails = await Promise.all(
+      beauticians.map(async (beautician) => {
+        const services = await Service.find({ beautician: beautician._id, isActive: true })
+          .populate("category", "name");
+        const curatedServices = await CuratedService.find({ beautician: beautician._id, isActive: true })
+          .populate("category", "name")
+          .populate("subCategory", "name");
+        const reviews = await Review.find({ beautician: beautician._id }).select("rating comment customer createdAt");
+        const averageRating = reviews.length > 0 ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10 : 0;
+        return {
+          ...beautician.toObject(),
+          services,
+          curatedServices,
+          reviews,
+          averageRating
+        };
+      })
+    );
+    res.json(beauticiansWithDetails);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -15,54 +38,52 @@ const Beautician = require("../models/Beautician");
 const User = require("../models/User");
 const { calculateDistance } = require("../utils/geolocation");
 
+
+const Review = require("../models/Review");
 const getAllBeauticians = async (req, res) => {
   try {
     const { page = 1, limit = 10, search, status, skill, verified, verificationStatus } = req.query;
-
     const query = {};
-
     if (search) {
       query.$or = [
         { fullName: { $regex: search, $options: "i" } },
         { "location.city": { $regex: search, $options: "i" } },
       ];
     }
-
     if (status) query.status = status;
     if (skill) query.skills = skill;
     if (verified !== undefined) query.isVerified = verified === "true";
     if (verificationStatus) query.verificationStatus = verificationStatus;
-
     const skip = (parseInt(page) - 1) * parseInt(limit);
-
     const beauticians = await Beautician.find(query)
       .populate("user", "username email")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
-
-    // Fetch services and curated services for each beautician
+    // Fetch services, curated services, and reviews for each beautician
     const Service = require("../models/Service");
     const CuratedService = require("../models/CuratedService");
-    const beauticiansWithServices = await Promise.all(
+    const beauticiansWithDetails = await Promise.all(
       beauticians.map(async (beautician) => {
         const services = await Service.find({ beautician: beautician._id, isActive: true })
           .populate("category", "name");
         const curatedServices = await CuratedService.find({ beautician: beautician._id, isActive: true })
           .populate("category", "name")
           .populate("subCategory", "name");
+        const reviews = await Review.find({ beautician: beautician._id }).select("rating comment customer createdAt");
+        const averageRating = reviews.length > 0 ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10 : 0;
         return {
           ...beautician.toObject(),
           services,
           curatedServices,
+          reviews,
+          averageRating
         };
       })
     );
-
     const total = await Beautician.countDocuments(query);
-
     res.json({
-      beauticians: beauticiansWithServices,
+      beauticians: beauticiansWithDetails,
       total,
       page: parseInt(page),
       totalPages: Math.ceil(total / parseInt(limit)),
@@ -73,11 +94,24 @@ const getAllBeauticians = async (req, res) => {
   }
 };
 
+
 const getBeauticianById = async (req, res) => {
   try {
     const beautician = await Beautician.findById(req.params.id).populate("user", "username email");
     if (!beautician) return res.status(404).json({ message: "Beautician not found" });
-    res.json(beautician);
+    const Service = require("../models/Service");
+    const CuratedService = require("../models/CuratedService");
+    const services = await Service.find({ beautician: beautician._id, isActive: true }).populate("category", "name");
+    const curatedServices = await CuratedService.find({ beautician: beautician._id, isActive: true }).populate("category", "name").populate("subCategory", "name");
+    const reviews = await Review.find({ beautician: beautician._id }).select("rating comment customer createdAt");
+    const averageRating = reviews.length > 0 ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10 : 0;
+    res.json({
+      ...beautician.toObject(),
+      services,
+      curatedServices,
+      reviews,
+      averageRating
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }

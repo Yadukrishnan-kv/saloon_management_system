@@ -10,12 +10,17 @@ const reviewSchema = new Schema(
     beautician: {
       type: Schema.Types.ObjectId,
       ref: "Beautician",
-      required: [true, "Beautician is required"],
+      required: false,
     },
-    booking: {
+    service: {
       type: Schema.Types.ObjectId,
-      ref: "Booking",
-      required: [true, "Booking is required"],
+      ref: "Service",
+      required: false,
+    },
+    curatedService: {
+      type: Schema.Types.ObjectId,
+      ref: "CuratedService",
+      required: false,
     },
     rating: {
       type: Number,
@@ -33,24 +38,16 @@ const reviewSchema = new Schema(
       type: Boolean,
       default: true,
     },
-    // Admin approval: reviews only show after admin accepts
-    adminApproval: {
-      type: String,
-      enum: ["Pending", "Approved", "Rejected"],
-      default: "Pending",
-    },
-    adminApprovedBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-    },
-    adminApprovedAt: { type: Date },
-    adminRejectionReason: { type: String, default: "" },
+    // No admin approval or booking required
   },
   { timestamps: true }
 );
 
+
 reviewSchema.index({ beautician: 1 });
-reviewSchema.index({ booking: 1 }, { unique: true });
+reviewSchema.index({ service: 1 });
+reviewSchema.index({ curatedService: 1 });
+reviewSchema.index({ customer: 1 });
 
 const Review = model("Review", reviewSchema);
 module.exports = Review;

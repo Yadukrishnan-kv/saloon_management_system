@@ -10,22 +10,22 @@ const getFullUrl = (req, imagePath) => {
 
 // ===== SERVICES =====
 
+
+const Review = require("../models/Review");
 const getAllServices = async (req, res) => {
   try {
     const { category, active, search } = req.query;
-
     const query = {};
     if (category) query.category = category;
     if (active !== undefined) query.isActive = active === "true";
     if (search) {
       query.name = { $regex: search, $options: "i" };
     }
-
     const CuratedService = require("../models/CuratedService");
     const services = await Service.find(query)
       .populate("category", "name")
       .populate("beautician");
-    // For each service, fetch curated services for the beautician
+    // For each service, fetch curated services for the beautician and ratings for the service
     const servicesWithCurated = await Promise.all(services.map(async (svc) => {
       const obj = svc.toObject();
       obj.image1 = getFullUrl(req, obj.image1);
@@ -35,6 +35,10 @@ const getAllServices = async (req, res) => {
       } else {
         obj.beauticianCuratedServices = [];
       }
+      // Add ratings for this service
+      const ratings = await Review.find({ service: obj._id }).select("rating customer createdAt");
+      obj.ratings = ratings;
+      obj.averageRating = ratings.length > 0 ? Math.round((ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length) * 10) / 10 : 0;
       return obj;
     }));
     res.json(servicesWithCurated);
@@ -42,6 +46,7 @@ const getAllServices = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 const getServicesByCategory = async (req, res) => {
   try {
@@ -51,8 +56,16 @@ const getServicesByCategory = async (req, res) => {
     })
       .populate("category", "name")
       .populate("beautician", "fullName phoneNumber profileImage rating tier");
-
-    res.json(services);
+    // Add ratings for each service
+    const Review = require("../models/Review");
+    const servicesWithRatings = await Promise.all(services.map(async (svc) => {
+      const obj = svc.toObject();
+      const ratings = await Review.find({ service: obj._id }).select("rating customer createdAt");
+      obj.ratings = ratings;
+      obj.averageRating = ratings.length > 0 ? Math.round((ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length) * 10) / 10 : 0;
+      return obj;
+    }));
+    res.json(servicesWithRatings);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }

@@ -1,107 +1,101 @@
 const Review = require("../models/Review");
-const Booking = require("../models/Booking");
 const Beautician = require("../models/Beautician");
-const Notification = require("../models/Notification");
-const User = require("../models/User");
-const { validateReview } = require("../utils/validators");
+const Service = require("../models/Service");
+const CuratedService = require("../models/CuratedService");
 
-// ─── HELPER: Create admin notification ────────────────────────────────────────
-const createAdminNotification = async (title, message, type, data) => {
-  const admins = await User.find({ role: { $in: ["Admin", "SuperAdmin"] }, isActive: true });
-  for (const admin of admins) {
-    await Notification.create({
-      user: admin._id,
-      title,
-      message,
-      type,
-      forAdmin: true,
-      data,
-    });
-  }
+
+
+// ─── HELPER: Recalculate average rating for beautician/service/curatedService ─
+const recalculateAverageRating = async (type, id) => {
+  let filter = {};
+  if (type === 'beautician') filter = { beautician: id };
+  if (type === 'service') filter = { service: id };
+  if (type === 'curatedService') filter = { curatedService: id };
+  const reviews = await Review.find(filter);
+  const avg = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) : 0;
+  const rounded = Math.round(avg * 10) / 10;
+  if (type === 'beautician') await Beautician.findByIdAndUpdate(id, { rating: rounded });
+  if (type === 'service') await Service.findByIdAndUpdate(id, { rating: rounded });
+  if (type === 'curatedService') await CuratedService.findByIdAndUpdate(id, { rating: rounded });
 };
 
-// ─── HELPER: Recalculate beautician rating (only approved reviews) ────────────
-const recalculateBeauticianRating = async (beauticianId) => {
-  const beautician = await Beautician.findById(beauticianId);
-  if (!beautician) return;
 
-  const approvedReviews = await Review.find({
-    beautician: beauticianId,
-    isVisible: true,
-    adminApproval: "Approved",
-  });
-
-  if (approvedReviews.length > 0) {
-    const avgRating = approvedReviews.reduce((sum, r) => sum + r.rating, 0) / approvedReviews.length;
-    beautician.rating = Math.round(avgRating * 10) / 10;
-    beautician.totalReviews = approvedReviews.length;
-  } else {
-    beautician.rating = 0;
-    beautician.totalReviews = 0;
-  }
-  await beautician.save();
-};
-
-// ─── CREATE REVIEW ────────────────────────────────────────────────────────────
-const createReview = async (req, res) => {
+// ─── CREATE BEAUTICIAN REVIEW ────────────────────────────────────────────────
+const createBeauticianReview = async (req, res) => {
   try {
-    const { isValid, errors } = validateReview(req.body);
-    if (!isValid) {
-      return res.status(400).json({ success: false, message: "Validation failed", errors });
+    const { beauticianId, rating, reviewText } = req.body;
+    if (!beauticianId || !rating) {
+      return res.status(400).json({ success: false, message: "BeauticianId and rating are required" });
     }
-
-    const { bookingId, rating, reviewText, serviceRating, beauticianRating } = req.body;
-
-    // Verify booking belongs to customer and is completed
-    const booking = await Booking.findOne({
-      _id: bookingId,
-      customer: req.user._id,
-      status: "Completed",
-    });
-
-    if (!booking) {
-      return res.status(404).json({ success: false, message: "Booking not found or not completed" });
+    // Only one review per customer per beautician
+    const exists = await Review.findOne({ beautician: beauticianId, customer: req.user._id });
+    if (exists) {
+      return res.status(400).json({ success: false, message: "You have already reviewed this beautician" });
     }
-
-    if (!booking.beautician) {
-      return res.status(400).json({ success: false, message: "No beautician assigned to this booking" });
-    }
-
-    // Check if review already exists
-    const existingReview = await Review.findOne({ booking: bookingId });
-    if (existingReview) {
-      return res.status(400).json({ success: false, message: "Review already submitted for this booking" });
-    }
-
     const review = await Review.create({
       customer: req.user._id,
-      beautician: booking.beautician,
-      booking: bookingId,
-      rating: beauticianRating || rating,
-      comment: reviewText || "",
-      adminApproval: "Pending", // Reviews need admin approval
+      beautician: beauticianId,
+      rating,
+      comment: reviewText || ""
     });
-
-    // ── Notify admin about new review for approval ──
-    await createAdminNotification(
-      "New Review Pending Approval",
-      `A new ${review.rating}-star review has been submitted and needs your approval.`,
-      "review",
-      { reviewId: review._id, bookingId, beauticianId: booking.beautician }
-    );
-
-    // NOTE: Rating is NOT updated here - only after admin approval
-
-    res.status(201).json({
-      success: true,
-      message: "Review submitted successfully. It will be visible after admin approval.",
-      review,
-    });
+    await recalculateAverageRating('beautician', beauticianId);
+    res.status(201).json({ success: true, message: "Review submitted successfully.", review });
   } catch (error) {
-    console.error("Create review error:", error);
+    console.error("Create beautician review error:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
+// ─── RATE SERVICE ────────────────────────────────────────────────────────────
+const rateService = async (req, res) => {
+  try {
+    const { serviceId, rating } = req.body;
+    if (!serviceId || !rating) {
+      return res.status(400).json({ success: false, message: "ServiceId and rating are required" });
+    }
+    // Only one rating per customer per service
+    const exists = await Review.findOne({ service: serviceId, customer: req.user._id });
+    if (exists) {
+      return res.status(400).json({ success: false, message: "You have already rated this service" });
+    }
+    const review = await Review.create({
+      customer: req.user._id,
+      service: serviceId,
+      rating
+    });
+    await recalculateAverageRating('service', serviceId);
+    res.status(201).json({ success: true, message: "Service rated successfully.", review });
+  } catch (error) {
+    console.error("Rate service error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── RATE CURATED SERVICE ────────────────────────────────────────────────────
+const rateCuratedService = async (req, res) => {
+  try {
+    const { curatedServiceId, rating } = req.body;
+    if (!curatedServiceId || !rating) {
+      return res.status(400).json({ success: false, message: "CuratedServiceId and rating are required" });
+    }
+    // Only one rating per customer per curated service
+    const exists = await Review.findOne({ curatedService: curatedServiceId, customer: req.user._id });
+    if (exists) {
+      return res.status(400).json({ success: false, message: "You have already rated this curated service" });
+    }
+    const review = await Review.create({
+      customer: req.user._id,
+      curatedService: curatedServiceId,
+      rating
+    });
+    await recalculateAverageRating('curatedService', curatedServiceId);
+    res.status(201).json({ success: true, message: "Curated service rated successfully.", review });
+  } catch (error) {
+    console.error("Rate curated service error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 
 // ─── GET BEAUTICIAN REVIEWS ──────────────────────────────────────────────────
 const getBeauticianReviews = async (req, res) => {
@@ -109,45 +103,27 @@ const getBeauticianReviews = async (req, res) => {
     const { beauticianId } = req.params;
     const { page = 1, limit = 10, sortBy } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
-
     let sortOption = { createdAt: -1 };
     if (sortBy === "rating_high") sortOption = { rating: -1 };
     else if (sortBy === "rating_low") sortOption = { rating: 1 };
     else if (sortBy === "oldest") sortOption = { createdAt: 1 };
-
-    const reviews = await Review.find({ beautician: beauticianId, isVisible: true, adminApproval: "Approved" })
+    const reviews = await Review.find({ beautician: beauticianId })
       .populate("customer", "username profileImage")
-      .populate("booking", "services bookingDate")
       .sort(sortOption)
       .skip(skip)
       .limit(parseInt(limit));
-
-    const totalReviews = await Review.countDocuments({ beautician: beauticianId, isVisible: true, adminApproval: "Approved" });
-
-    // Calculate rating distribution (only approved)
-    const ratingDistribution = {};
-    for (let i = 1; i <= 5; i++) {
-      ratingDistribution[i] = await Review.countDocuments({
-        beautician: beauticianId,
-        isVisible: true,
-        adminApproval: "Approved",
-        rating: i,
-      });
-    }
-
-    // Calculate average (only approved)
-    const allRatings = await Review.find({ beautician: beauticianId, isVisible: true, adminApproval: "Approved" }).select("rating");
+    const totalReviews = await Review.countDocuments({ beautician: beauticianId });
+    // Calculate average
+    const allRatings = await Review.find({ beautician: beauticianId }).select("rating");
     const averageRating =
       allRatings.length > 0
         ? Math.round((allRatings.reduce((sum, r) => sum + r.rating, 0) / allRatings.length) * 10) / 10
         : 0;
-
     res.json({
       success: true,
       reviews,
       averageRating,
-      totalReviews,
-      ratingDistribution,
+      totalReviews
     });
   } catch (error) {
     console.error("Get beautician reviews error:", error);
@@ -155,57 +131,63 @@ const getBeauticianReviews = async (req, res) => {
   }
 };
 
-// ─── GET SERVICE REVIEWS ──────────────────────────────────────────────────────
-const getServiceReviews = async (req, res) => {
+
+// ─── GET SERVICE RATINGS ─────────────────────────────────────────────────────
+const getServiceRatings = async (req, res) => {
   try {
     const { serviceId } = req.params;
     const { page = 1, limit = 10 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    // Find bookings with this service, then get reviews
-    const bookingsWithService = await Booking.find({
-      "services.service": serviceId,
-      status: "Completed",
-    }).select("_id");
-
-    const bookingIds = bookingsWithService.map((b) => b._id);
-
-    const reviews = await Review.find({ booking: { $in: bookingIds }, isVisible: true, adminApproval: "Approved" })
+    const ratings = await Review.find({ service: serviceId })
       .populate("customer", "username profileImage")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
-
-    const totalReviews = await Review.countDocuments({
-      booking: { $in: bookingIds },
-      isVisible: true,
-      adminApproval: "Approved",
-    });
-
-    const allRatings = await Review.find({
-      booking: { $in: bookingIds },
-      isVisible: true,
-      adminApproval: "Approved",
-    }).select("rating");
-
+    const totalRatings = await Review.countDocuments({ service: serviceId });
+    const allRatings = await Review.find({ service: serviceId }).select("rating");
     const averageRating =
       allRatings.length > 0
         ? Math.round((allRatings.reduce((sum, r) => sum + r.rating, 0) / allRatings.length) * 10) / 10
         : 0;
-
-    res.json({ success: true, reviews, averageRating, totalReviews });
+    res.json({ success: true, ratings, averageRating, totalRatings });
   } catch (error) {
-    console.error("Get service reviews error:", error);
+    console.error("Get service ratings error:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
+// ─── GET CURATED SERVICE RATINGS ─────────────────────────────────────────────
+const getCuratedServiceRatings = async (req, res) => {
+  try {
+    const { curatedServiceId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const ratings = await Review.find({ curatedService: curatedServiceId })
+      .populate("customer", "username profileImage")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    const totalRatings = await Review.countDocuments({ curatedService: curatedServiceId });
+    const allRatings = await Review.find({ curatedService: curatedServiceId }).select("rating");
+    const averageRating =
+      allRatings.length > 0
+        ? Math.round((allRatings.reduce((sum, r) => sum + r.rating, 0) / allRatings.length) * 10) / 10
+        : 0;
+    res.json({ success: true, ratings, averageRating, totalRatings });
+  } catch (error) {
+    console.error("Get curated service ratings error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 
 // ─── GET MY REVIEWS ───────────────────────────────────────────────────────────
 const getMyReviews = async (req, res) => {
   try {
     const reviews = await Review.find({ customer: req.user._id })
       .populate("beautician", "fullName profileImage")
-      .populate("booking", "services bookingDate")
+      .populate("service", "name")
+      .populate("curatedService", "name")
       .sort({ createdAt: -1 });
 
     res.json({ success: true, reviews });
@@ -214,6 +196,7 @@ const getMyReviews = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
 
 // ─── UPDATE REVIEW ────────────────────────────────────────────────────────────
 const updateReview = async (req, res) => {
@@ -228,14 +211,13 @@ const updateReview = async (req, res) => {
 
     if (rating) review.rating = rating;
     if (reviewText !== undefined) review.comment = reviewText;
-    // Reset approval status when review is updated
-    review.adminApproval = "Pending";
-    review.adminApprovedBy = undefined;
-    review.adminApprovedAt = undefined;
+
     await review.save();
 
-    // Recalculate beautician rating (only approved reviews)
-    await recalculateBeauticianRating(review.beautician);
+    // Recalculate average rating for the correct type
+    if (review.beautician) await recalculateAverageRating('beautician', review.beautician);
+    if (review.service) await recalculateAverageRating('service', review.service);
+    if (review.curatedService) await recalculateAverageRating('curatedService', review.curatedService);
 
     res.json({ success: true, message: "Review updated successfully", review });
   } catch (error) {
@@ -243,6 +225,7 @@ const updateReview = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
 
 // ─── DELETE REVIEW ────────────────────────────────────────────────────────────
 const deleteReview = async (req, res) => {
@@ -254,11 +237,17 @@ const deleteReview = async (req, res) => {
       return res.status(404).json({ success: false, message: "Review not found" });
     }
 
+    // Save reference for recalculation before deleting
     const beauticianId = review.beautician;
+    const serviceId = review.service;
+    const curatedServiceId = review.curatedService;
+
     await Review.findByIdAndDelete(reviewId);
 
-    // Recalculate beautician rating (only approved reviews)
-    await recalculateBeauticianRating(beauticianId);
+    // Recalculate average rating for the correct type
+    if (beauticianId) await recalculateAverageRating('beautician', beauticianId);
+    if (serviceId) await recalculateAverageRating('service', serviceId);
+    if (curatedServiceId) await recalculateAverageRating('curatedService', curatedServiceId);
 
     res.json({ success: true, message: "Review deleted successfully" });
   } catch (error) {
@@ -268,9 +257,12 @@ const deleteReview = async (req, res) => {
 };
 
 module.exports = {
-  createReview,
+  createBeauticianReview,
+  rateService,
+  rateCuratedService,
   getBeauticianReviews,
-  getServiceReviews,
+  getServiceRatings,
+  getCuratedServiceRatings,
   getMyReviews,
   updateReview,
   deleteReview,

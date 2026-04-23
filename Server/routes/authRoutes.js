@@ -2,7 +2,9 @@ const express = require("express");
 const router = express.Router();
 
 const { protect } = require("../middleware/authMiddleware");
-const { changePassword, register, login, logout, getMe, refreshToken, forgotPassword, resetPassword } = require("../controllers/authController");
+const { changePassword, register, login, logout, getMe, refreshToken, forgotPassword, resetPassword, registerBeautician } = require("../controllers/authController");
+// Beautician registration (mobile app path)
+router.post("/mobileapp/auth/beautician/register", registerBeautician);
 // Change password (auth required)
 router.post("/change-password", protect, changePassword);
 

@@ -1,55 +1,146 @@
 ---
+## NEW & UPDATED REVIEW/RATING APIs (2026-04-23)
 
-## NEW & UPDATED APIs (2026-04-23)
-
-### 1) Get All Services (Updated)
-- Endpoint URL: https://sidi.mobilegear.co.in/api/services
-- Method: GET
-- Description: List all services. Each service now includes all beautician fields and a new field `beauticianCuratedServices` (array of curated services for the beautician).
-- Response (example):
+### 1) Create Beautician Review (No Booking Required)
+- Endpoint: POST /api/mobileapp/reviews/beautician
+- Headers: Authorization: Bearer <token>
+- Body:
 ~~~json
-[
-  {
-    "_id": "...",
-    "name": "Service Name",
-    "description": "...",
-    "category": { "_id": "...", "name": "Facial" },
-    "price": 12,
-    "pricingType": "Fixed",
-    "duration": 60,
-    "image1": "https://sidi.mobilegear.co.in/uploads/1.png",
-    "image2": "https://sidi.mobilegear.co.in/uploads/2.png",
-    "isActive": true,
-    "discount": 0,
-    "tags": [],
-    "beautician": {
-      "_id": "...",
-      "fullName": "Riyaaaah123",
-      "phoneNumber": "9173456789",
-      "profileImage": "",
-      "tier": "Classic",
-      "rating": 0,
-      ... // all beautician fields
-    },
-    "beauticianCuratedServices": [
-      {
-        "_id": "...",
-        "curatedServiceName": "Bridal Package",
-        "category": { "_id": "...", "name": "Makeup" },
-        ...
-      }
-    ],
-    "createdAt": "2026-04-22T11:43:10.883Z",
-    "updatedAt": "2026-04-22T11:43:10.883Z"
-  }
-]
+{
+  "beauticianId": "6653...",
+  "rating": 5,
+  "reviewText": "Great service"
+}
 ~~~
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Review submitted successfully.",
+  "review": {
+    "_id": "...",
+    "beauticianId": "...",
+    "customerId": "...",
+    "rating": 5,
+    "reviewText": "Great service"
+  }
+}
+~~~
+
+### 2) Rate a Service
+- Endpoint: POST /api/mobileapp/reviews/service
+- Headers: Authorization: Bearer <token>
+- Body:
+~~~json
+{
+  "serviceId": "6653...",
+  "rating": 4
+}
+~~~
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Service rated successfully."
+}
+~~~
+
+### 3) Rate a Curated Service
+- Endpoint: POST /api/mobileapp/reviews/curated-service
+- Headers: Authorization: Bearer <token>
+- Body:
+~~~json
+{
+  "curatedServiceId": "6653...",
+  "rating": 5
+}
+~~~
+- Response:
+~~~json
+{
+  "success": true,
+  "message": "Curated service rated successfully."
+}
+~~~
+
+### 4) Get Beautician Reviews
+- Endpoint: GET /api/mobileapp/reviews/beautician/:beauticianId
+- Response:
+~~~json
+{
+  "success": true,
+  "reviews": [
+    { "_id": "...", "customerId": "...", "rating": 5, "reviewText": "Great service" }
+  ],
+  "averageRating": 4.6,
+  "totalReviews": 40
+}
+~~~
+
+### 5) Get Service Ratings
+- Endpoint: GET /api/mobileapp/reviews/service/:serviceId
+- Response:
+~~~json
+{
+  "success": true,
+  "ratings": [
+    { "_id": "...", "customerId": "...", "rating": 4 }
+  ],
+  "averageRating": 4.3,
+  "totalRatings": 18
+}
+~~~
+
+### 6) Get Curated Service Ratings
+- Endpoint: GET /api/mobileapp/reviews/curated-service/:curatedServiceId
+- Response:
+~~~json
+{
+  "success": true,
+  "ratings": [
+    { "_id": "...", "customerId": "...", "rating": 5 }
+  ],
+  "averageRating": 4.8,
+  "totalRatings": 12
+}
+~~~
+
+### 7) GET API Response Updates
+- Beautician GET API now includes:
+~~~json
+{
+  ...,
+  "reviews": [ { "reviewText": "...", "rating": 5 } ],
+  "averageRating": 4.6
+}
+~~~
+- Service GET API now includes:
+~~~json
+{
+  ...,
+  "ratings": [ { "rating": 4 } ],
+  "averageRating": 4.3
+}
+~~~
+- CuratedService GET API now includes:
+~~~json
+{
+  ...,
+  "ratings": [ { "rating": 5 } ],
+  "averageRating": 4.8
+}
+~~~
+
+---
+
+
+
 
 ### 2) Get Top Beauticians (New)
 - Endpoint URL: https://sidi.mobilegear.co.in/api/beauticians/top-rated
 - Method: GET
 - Query: minRating (default 4), limit (default 10)
-- Description: Get beauticians with rating >= minRating, sorted by rating and reviews.
+- Description: Get beauticians with rating >= minRating, sorted by rating and reviews. Returns enriched beautician objects.
 - Response:
 ~~~json
 [
@@ -57,6 +148,12 @@
     "_id": "...",
     "fullName": "Riya",
     "rating": 4.7,
+    "services": [ /* ... */ ],
+    "curatedServices": [ /* ... */ ],
+    "reviews": [
+      { "rating": 5, "comment": "Great!", "customer": "...", "createdAt": "..." }
+    ],
+    "averageRating": 4.7,
     ...
   }
 ]
@@ -291,10 +388,10 @@ Notes:
 ~~~
 
 
-### 5) Beautician Register (Updated)
+### 5) Beautician Register (Automated User+Beautician Creation)
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/auth/beautician/register
 - Method: POST
-- Description: Register beautician account (pending admin verification). OTP will be sent to email. All fields required by admin are supported. **Profile image is NOT required at registration and can be updated later from the profile page.**
+- Description: Register beautician account (creates both User and Beautician, links them automatically; pending admin verification). OTP will be sent to email. All fields required by admin are supported. **Profile image is NOT required at registration and can be updated later from the profile page.**
 - Headers:
   - Content-Type: multipart/form-data
 - Request Body (all fields except profileImage and tier):
@@ -2571,39 +2668,6 @@ profileImage: <file object> (optional - only include if uploading a new image)
 
 ## Reviews APIs (/api/mobileapp/reviews)
 
-### 1) Create Review
-- Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/reviews/create
-- Method: POST
-- Description: Submit review for completed booking (admin approval required).
-- Headers: Authorization: Bearer <token>
-- Request Body:
-~~~json
-{
-  "bookingId": "6653...",
-  "rating": 5,
-  "reviewText": "Great service",
-  "beauticianRating": 5,
-  "serviceRating": 5
-}
-~~~
-- Response:
-~~~json
-{
-  "success": true,
-  "message": "Review submitted successfully. It will be visible after admin approval.",
-  "review": {
-    "_id": "...",
-    "adminApproval": "Pending"
-  }
-}
-~~~
-- Error Response:
-~~~json
-{
-  "success": false,
-  "message": "Review already submitted for this booking"
-}
-~~~
 
 ### 2) Beautician Reviews (Public)
 - Endpoint URL: https://sidi.mobilegear.co.in/api/mobileapp/reviews/beautician/:beauticianId
