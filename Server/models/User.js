@@ -1,3 +1,11 @@
+// Auto-delete linked User when Customer is deleted (if you have a Customer model)
+// Example for Customer model:
+// customerSchema.post('findOneAndDelete', async function(doc) {
+//   if (doc && doc.user) {
+//     const User = require('./User');
+//     await User.findByIdAndDelete(doc.user);
+//   }
+// });
 const { Schema, model } = require("mongoose");
 const validator = require("validator");
 const bcrypt = require("bcryptjs");

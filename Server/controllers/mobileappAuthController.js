@@ -383,6 +383,7 @@ const beauticianRegister = async (req, res) => {
 // ─── BEAUTICIAN LOGIN ─────────────────────────────────────────────────────────
 const beauticianLogin = async (req, res) => {
   try {
+
     const { email, phoneNumber, password } = req.body;
     const loginField = email || phoneNumber;
 
@@ -390,7 +391,8 @@ const beauticianLogin = async (req, res) => {
       return res.status(400).json({ success: false, message: "Email/phoneNumber and password are required" });
     }
 
-    const query = email ? { email } : { phoneNumber };
+    // Always lowercase email for login
+    const query = email ? { email: email.toLowerCase() } : { phoneNumber };
     const user = await User.findOne({ ...query, role: "Beautician" }).select("+password");
 
     if (!user) {

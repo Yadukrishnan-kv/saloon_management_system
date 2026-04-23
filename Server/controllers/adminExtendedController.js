@@ -1,3 +1,66 @@
+// ─── ADMIN CREATE BEAUTICIAN (with linked User) ─────────────────────────────
+const bcrypt = require("bcryptjs");
+
+const adminCreateBeautician = async (req, res) => {
+  try {
+    const {
+      username,
+      email,
+      password,
+      phoneNumber,
+      fullName,
+      bio,
+      professionalTitle,
+      skills,
+      experience,
+      tier,
+      qualifications,
+      ...rest
+    } = req.body;
+
+    // Check for existing user
+    const existing = await User.findOne({ $or: [ { email }, { username }, { phoneNumber } ] });
+    if (existing) {
+      return res.status(400).json({ success: false, message: "Username, email, or phone number already in use" });
+    }
+
+    // Create User (let pre-save hook hash password)
+    const user = await User.create({
+      username,
+      email,
+      password,
+      phoneNumber,
+      role: "Beautician",
+      isActive: true,
+    });
+
+    // Create Beautician and link user
+    const beautician = await Beautician.create({
+      user: user._id,
+      fullName,
+      phoneNumber,
+      bio,
+      professionalTitle,
+      skills,
+      experience,
+      tier,
+      qualifications,
+      isVerified: true,
+      verificationStatus: "Approved",
+      ...rest
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Beautician created successfully",
+      beautician,
+      user: { ...user.toObject(), password: undefined },
+    });
+  } catch (error) {
+    console.error("Admin create beautician error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
 const Review = require("../models/Review");
 const Beautician = require("../models/Beautician");
 const Notification = require("../models/Notification");
@@ -507,6 +570,7 @@ const markAllAdminNotificationsRead = async (req, res) => {
 };
 
 module.exports = {
+  adminCreateBeautician,
   // Review management
   getPendingReviews,
   getAllReviews,

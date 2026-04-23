@@ -80,8 +80,9 @@ const AddBeautician = () => {
           location: formData.location,
         });
       } else {
-        const { data } = await axios.post(`${backendUrl}/api/beauticians`, formData);
-        targetBeauticianId = data?._id;
+        // Use the new admin endpoint to ensure user linkage
+        const { data } = await axios.post(`${backendUrl}/api/admin/beauticians`, formData);
+        targetBeauticianId = data?.beautician?._id || data?._id;
       }
 
       if (targetBeauticianId && documents.length > 0) {

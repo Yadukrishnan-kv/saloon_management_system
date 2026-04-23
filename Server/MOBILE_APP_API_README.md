@@ -183,6 +183,55 @@
 }
 ~~~
 
+### 4) Admin Create Beautician (New)
+- Endpoint: POST /api/admin/beauticians
+- Headers: Authorization: Bearer <Admin|SuperAdmin token>
+- Body:
+~~~json
+{
+  "username": "testbeauty1",
+  "email": "testbeauty1@example.com",
+  "password": "securePass123",
+  "phoneNumber": "9745706289",
+  "fullName": "Test Beautician",
+  "bio": "Beautician",
+  "skills": ["Hair", "Makeup"],
+  "experience": 12,
+  "tier": "Classic",
+  "qualifications": "Diploma",
+  "isVerified": true,
+  "verificationStatus": "Approved",
+  "status": "Active"
+}
+~~~
+- Description: Admins can create a beautician and linked user in one step. All fields from the Beautician model are supported. The returned beautician will have a valid `user` field for login.
+- Success Response:
+~~~json
+{
+  "success": true,
+  "message": "Beautician created successfully",
+  "beautician": {
+    "_id": "...",
+    "user": "...",
+    "fullName": "Test Beautician",
+    ...
+  },
+  "user": {
+    "_id": "...",
+    "username": "testbeauty1",
+    "email": "testbeauty1@example.com",
+    ...
+  }
+}
+~~~
+- Error Response:
+~~~json
+{
+  "success": false,
+  "message": "Username, email, or phone number already in use"
+}
+~~~
+
 ---
 # Mobile App API README
 

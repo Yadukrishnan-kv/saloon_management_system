@@ -23,7 +23,15 @@ const {
   getAdminNotifications,
   markAdminNotificationRead,
   markAllAdminNotificationsRead,
+  adminCreateBeautician,
 } = require("../controllers/adminExtendedController");
+// ── Beautician Management ──
+router.post(
+  "/beauticians",
+  protect,
+  authorizeRoles("Admin", "SuperAdmin"),
+  adminCreateBeautician
+);
 
 // ── Review Management ──
 router.get("/reviews/pending", protect, authorizeRoles("Admin", "SuperAdmin"), getPendingReviews);
