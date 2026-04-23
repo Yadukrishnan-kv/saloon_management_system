@@ -1,3 +1,92 @@
+---
+
+## NEW & UPDATED APIs (2026-04-23)
+
+### 1) Get All Services (Updated)
+- Endpoint URL: https://sidi.mobilegear.co.in/api/services
+- Method: GET
+- Description: List all services. Each service now includes all beautician fields and a new field `beauticianCuratedServices` (array of curated services for the beautician).
+- Response (example):
+~~~json
+[
+  {
+    "_id": "...",
+    "name": "Service Name",
+    "description": "...",
+    "category": { "_id": "...", "name": "Facial" },
+    "price": 12,
+    "pricingType": "Fixed",
+    "duration": 60,
+    "image1": "https://sidi.mobilegear.co.in/uploads/1.png",
+    "image2": "https://sidi.mobilegear.co.in/uploads/2.png",
+    "isActive": true,
+    "discount": 0,
+    "tags": [],
+    "beautician": {
+      "_id": "...",
+      "fullName": "Riyaaaah123",
+      "phoneNumber": "9173456789",
+      "profileImage": "",
+      "tier": "Classic",
+      "rating": 0,
+      ... // all beautician fields
+    },
+    "beauticianCuratedServices": [
+      {
+        "_id": "...",
+        "curatedServiceName": "Bridal Package",
+        "category": { "_id": "...", "name": "Makeup" },
+        ...
+      }
+    ],
+    "createdAt": "2026-04-22T11:43:10.883Z",
+    "updatedAt": "2026-04-22T11:43:10.883Z"
+  }
+]
+~~~
+
+### 2) Get Top Beauticians (New)
+- Endpoint URL: https://sidi.mobilegear.co.in/api/beauticians/top-rated
+- Method: GET
+- Query: minRating (default 4), limit (default 10)
+- Description: Get beauticians with rating >= minRating, sorted by rating and reviews.
+- Response:
+~~~json
+[
+  {
+    "_id": "...",
+    "fullName": "Riya",
+    "rating": 4.7,
+    ...
+  }
+]
+~~~
+
+### 3) Change Password (New, for Customer & Beautician)
+- Endpoint URL: https://sidi.mobilegear.co.in/api/auth/change-password
+- Method: POST
+- Headers: Authorization: Bearer <token>
+- Request Body:
+~~~json
+{
+  "currentPassword": "Old@123",
+  "newPassword": "New@123"
+}
+~~~
+- Response:
+~~~json
+{
+  "message": "Password changed successfully"
+}
+~~~
+- Error Response:
+~~~json
+{
+  "message": "Current password is incorrect"
+}
+~~~
+
+---
 # Mobile App API README
 
 ## 1. Base URL
