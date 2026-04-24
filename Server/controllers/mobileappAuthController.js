@@ -19,7 +19,7 @@ const customerRegister = async (req, res) => {
       return res.status(400).json({ success: false, message: "Validation failed", errors });
     }
 
-    const { name, email, password } = req.body;
+    const { name, email, password, phone } = req.body;
 
     // Only check for duplicate email
     const existing = await User.findOne({ email });
@@ -32,6 +32,7 @@ const customerRegister = async (req, res) => {
       email,
       password,
       role: "Customer",
+      phoneNumber: phone,
     });
 
     // TODO: Enable OTP email verification before production
