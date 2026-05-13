@@ -569,8 +569,132 @@ const markAllAdminNotificationsRead = async (req, res) => {
   }
 };
 
+// ─── GET PENDING BOOKING REQUESTS (Admin) ─────────────────────────────────────
+const getPendingBookingRequests = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status = "Requested" } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const bookings = await Booking.find({ status })
+      .populate("customer", "fullName phoneNumber profileImage email")
+      .populate("services.service", "name price duration")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Booking.countDocuments({ status });
+
+    res.json({
+      success: true,
+      bookings,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+    });
+  } catch (error) {
+    console.error("Get pending booking requests error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── ASSIGN BEAUTICIAN AND APPROVE BOOKING (Admin) ──────────────────────────
+const assignBeauticianToBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { beauticianId } = req.body;
+
+    if (!beauticianId) {
+      return res.status(400).json({ success: false, message: "Beautician ID is required" });
+    }
+
+    const booking = await Booking.findById(bookingId).populate("customer");
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    if (booking.status !== "Requested") {
+      return res.status(400).json({ success: false, message: "Only pending requests can be assigned" });
+    }
+
+    const beautician = await Beautician.findById(beauticianId).populate("user");
+    if (!beautician) {
+      return res.status(404).json({ success: false, message: "Beautician not found" });
+    }
+
+    // Assign beautician and change status to "Assigned"
+    booking.beautician = beauticianId;
+    booking.status = "Assigned";
+    await booking.save();
+
+    // Notify beautician about the booking assignment
+    await Notification.create({
+      user: beautician.user._id,
+      title: "New Booking Assigned",
+      message: `You have been assigned a booking from ${booking.customer.fullName}. Review and accept/reject it.`,
+      type: "booking",
+      reference: { bookingId: booking._id },
+    });
+
+    // Notify customer about assignment
+    await Notification.create({
+      user: booking.customer._id,
+      title: "Beautician Assigned",
+      message: `A beautician has been assigned to your booking. They will accept or decline shortly.`,
+      type: "booking",
+      reference: { bookingId: booking._id },
+    });
+
+    res.json({
+      success: true,
+      message: "Beautician assigned and booking approved",
+      booking: await Booking.findById(bookingId).populate("beautician", "fullName phoneNumber profileImage"),
+    });
+  } catch (error) {
+    console.error("Assign beautician error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── GET ASSIGNED BOOKINGS WITH BEAUTICIAN RESPONSES (Admin) ────────────────
+const getAssignedBookings = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, beauticianResponse } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    let query = { status: { $in: ["Assigned", "Accepted", "Rejected"] } };
+    if (beauticianResponse) {
+      query.status = beauticianResponse === "accepted" ? "Accepted" : "Rejected";
+    }
+
+    const bookings = await Booking.find(query)
+      .populate("customer", "fullName phoneNumber profileImage email")
+      .populate("beautician", "fullName phoneNumber profileImage rating")
+      .populate("services.service", "name price duration")
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Booking.countDocuments(query);
+
+    res.json({
+      success: true,
+      bookings,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+    });
+  } catch (error) {
+    console.error("Get assigned bookings error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 module.exports = {
   adminCreateBeautician,
+  // Booking management
+  getPendingBookingRequests,
+  assignBeauticianToBooking,
+  getAssignedBookings,
   // Review management
   getPendingReviews,
   getAllReviews,

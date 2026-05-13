@@ -74,14 +74,11 @@ const getServicesByCategory = async (req, res) => {
 
 const createService = async (req, res) => {
   try {
-    const { name, description, category, price, pricingType, duration, discount, tags, beautician } = req.body;
+    const { name, description, category, price, pricingType, duration, discount, tags } = req.body;
 
     const categoryExists = await Category.findById(category);
     if (!categoryExists) {
       return res.status(400).json({ message: "Invalid category" });
-    }
-    if (!beautician) {
-      return res.status(400).json({ message: "Beautician is required" });
     }
 
     const serviceData = {
@@ -93,7 +90,7 @@ const createService = async (req, res) => {
       duration,
       discount,
       tags,
-      beautician,
+      beautician: null,
     };
 
     if (req.files && req.files.length > 0) {

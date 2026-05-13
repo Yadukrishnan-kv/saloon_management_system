@@ -64,7 +64,12 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Validation failed", errors });
     }
 
-    const { serviceId, beauticianId, bookingDate, bookingTime, locationType, address, notes, preferredGender, addonIds } = req.body;
+    const { serviceIds, bookingDate, bookingTime, locationType, address, notes, addonIds } = req.body;
+
+    // Validate serviceIds is an array with at least one service
+    if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
+      return res.status(400).json({ success: false, message: "At least one service is required" });
+    }
 
     // ── 11 PM restriction: No bookings after 11 PM ──
     const bookingHour = parseInt(bookingTime.split(":")[0], 10);
@@ -84,15 +89,33 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Bookings must be made for the next day or later. Same-day bookings are not allowed." });
     }
 
-    // Get service details
-    const service = await Service.findById(serviceId);
-    if (!service || !service.isActive) {
-      return res.status(404).json({ success: false, message: "Service not found or inactive" });
+    // ── Fetch all services ──
+    const services = await Service.find({ _id: { $in: serviceIds }, isActive: true });
+    if (services.length !== serviceIds.length) {
+      return res.status(404).json({ success: false, message: "One or more services not found or inactive" });
     }
 
-    // Calculate price
-    const discountedPrice = service.price - (service.price * service.discount) / 100;
-    const endTimeMinutes = parseTime(bookingTime) + service.duration;
+    // ── Build services array with prices and calculate totals ──
+    let bookingServices = [];
+    let totalServicePrice = 0;
+    let totalDiscountAmount = 0;
+    let totalDuration = 0;
+
+    services.forEach((service) => {
+      const discountedPrice = service.price - (service.price * service.discount) / 100;
+      bookingServices.push({
+        service: service._id,
+        serviceName: service.name,
+        price: discountedPrice,
+        duration: service.duration,
+      });
+      totalServicePrice += discountedPrice;
+      totalDiscountAmount += service.price - discountedPrice;
+      totalDuration += service.duration;
+    });
+
+    // ── Calculate end time based on total duration ──
+    const endTimeMinutes = parseTime(bookingTime) + totalDuration;
     const endTime = formatTime(endTimeMinutes);
 
     // ── Resolve add-ons ──
@@ -108,76 +131,48 @@ const createBooking = async (req, res) => {
       addonsTotal = addons.reduce((sum, a) => sum + a.price, 0);
     }
 
-    // ── Calculate travel/concierge fee based on distance ──
-    let travelFee = 0;
-
-    // ── Multi-beautician broadcast: Find nearby beauticians and broadcast ──
-    let broadcastedBeauticians = [];
-    let assignedBeautician = null;
-
-    // Get customer tier for matching
-    const customerTier = req.user.tier || "Classic";
-
-    if (beauticianId) {
-      // Customer selected a specific beautician
-      assignedBeautician = await Beautician.findOne({
-        _id: beauticianId,
-        isVerified: true,
-        status: "Active",
-      });
-      if (!assignedBeautician) {
-        return res.status(404).json({ success: false, message: "Selected beautician not available" });
-      }
-
-      // ── Tier check: Classic customers can only book Classic beauticians ──
-      if (customerTier === "Classic" && assignedBeautician.tier === "Premium") {
-        return res.status(403).json({ success: false, message: "Upgrade to Premium to book Premium beauticians" });
-      }
-
-      // ── 5 km radius check ──
-      if (address && address.latitude && address.longitude && assignedBeautician.location?.coordinates) {
-        const distance = calculateDistance(
-          address.latitude,
-          address.longitude,
-          assignedBeautician.location.coordinates.lat,
-          assignedBeautician.location.coordinates.lng
-        );
-        if (distance > RADIUS_KM) {
-          return res.status(400).json({ success: false, message: `Beautician is outside the ${RADIUS_KM} km service area` });
-        }
-        // ── Travel / concierge fee: ₹10 per km ──
-        travelFee = Math.round(distance * TRAVEL_RATE_PER_KM);
-      }
-
-      // ── 30-min buffer check ──
-      const hasConflict = await checkBeauticianBuffer(assignedBeautician._id, bookDate, bookingTime, endTime);
-      if (hasConflict) {
-        return res.status(400).json({ success: false, message: "Beautician is not available at this time. A 30-minute buffer is required between tasks." });
-      }
-    } else {
-      // No specific beautician - broadcast to nearby available beauticians
-      const nearbyBeauticians = await findNearbyAvailableBeauticians(
-        address,
-        bookDate,
-        bookingTime,
-        endTime,
-        service,
-        preferredGender,
-        customerTier
-      );
-
-      broadcastedBeauticians = nearbyBeauticians.slice(0, BROADCAST_COUNT).map((b) => ({
-        beautician: b._id,
-        sentAt: new Date(),
-        response: "pending",
-      }));
-    }
+    // ── NEW WORKFLOW: No beautician selection by customer, admin will assign ──
+    // Booking goes to "Requested" status, beautician is null
+    // Admin will review and assign beautician, then it goes to "Assigned" status
 
     const booking = await Booking.create({
       customer: req.user._id,
-      beautician: assignedBeautician?._id || null,
-      services: [
-        {
+      beautician: null,  // No beautician assigned yet - admin will assign
+      services: bookingServices,
+      addons: bookingAddons,
+      bookingDate: new Date(bookingDate),
+      timeSlot: {
+        startTime: bookingTime,
+        endTime,
+      },
+      status: "Requested",  // Waiting for admin to assign beautician
+      totalAmount: totalServicePrice + addonsTotal,
+      discountAmount: totalDiscountAmount,
+      addonsAmount: addonsTotal,
+      travelFee: 0,  // Will be calculated when beautician is assigned
+      finalAmount: totalServicePrice + addonsTotal,
+      address: address
+        ? {
+            street: address.address,
+            unit: address.unit || "",
+            gateCode: address.gateCode || "",
+            city: address.city,
+            pincode: address.pincode,
+            coordinates: {
+              lat: address.latitude,
+              lng: address.longitude,
+            },
+          }
+        : undefined,
+      notes: notes || "",
+      broadcastedTo: [],  // No broadcasting in new workflow
+      platformPayment: {
+        collectedByPlatform: false,
+        platformCommission: PLATFORM_COMMISSION,
+      },
+    });
+
+    // ── Notify admin about new booking request ──
           service: service._id,
           serviceName: service.name,
           price: discountedPrice,
@@ -210,48 +205,29 @@ const createBooking = async (req, res) => {
           }
         : undefined,
       notes: notes || "",
-      assignedAt: assignedBeautician ? new Date() : undefined,
-      broadcastedTo: broadcastedBeauticians,
+      broadcastedTo: [],  // No broadcasting in new workflow
       platformPayment: {
         collectedByPlatform: false,
         platformCommission: PLATFORM_COMMISSION,
       },
     });
 
-    // Create notification for assigned beautician
-    if (assignedBeautician) {
-      await Notification.create({
-        user: assignedBeautician.user,
-        title: "New Booking Assigned",
-        message: `You have a new booking for ${service.name} on ${bookingDate} at ${bookingTime}.`,
-        type: "booking",
-        data: { bookingId: booking._id, serviceId: service._id },
-      });
-    }
-
-    // Notify all broadcasted beauticians
-    if (broadcastedBeauticians.length > 0) {
-      for (const bc of broadcastedBeauticians) {
-        const beautician = await Beautician.findById(bc.beautician);
-        if (beautician) {
-          await Notification.create({
-            user: beautician.user,
-            title: "New Booking Request",
-            message: `A new booking for ${service.name} on ${bookingDate} at ${bookingTime} is available. Accept now!`,
-            type: "booking",
-            data: { bookingId: booking._id, serviceId: service._id },
-          });
-        }
-      }
-    }
-
-    // ── Notify admin about new booking ──
+    // ── Notify admin about new booking request ──
     await createAdminNotification(
-      "New Booking Created",
-      `New booking #${booking._id} for ${service.name} on ${bookingDate}.`,
+      "New Booking Request",
+      `New booking request from customer for ${services.length} service(s) on ${bookingDate} at ${bookingTime}. Total: ₹${totalServicePrice}. Please assign a beautician.`,
       "booking",
       { bookingId: booking._id }
     );
+
+    // ── Notify customer about booking confirmation ──
+    await Notification.create({
+      user: req.user._id,
+      title: "Booking Confirmed",
+      message: `Your booking request for ${services.length} service(s) has been received. Admin will assign a beautician shortly.`,
+      type: "booking",
+      data: { bookingId: booking._id },
+    });
 
     const populatedBooking = await Booking.findById(booking._id)
       .populate("beautician", "fullName phoneNumber rating profileImage")
@@ -259,15 +235,14 @@ const createBooking = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: broadcastedBeauticians.length > 0
-        ? "Booking created. Waiting for beautician to accept."
-        : "Booking created successfully",
+      message: "Booking request created. Admin will assign a beautician shortly.",
       booking: populatedBooking,
-      estimatedPrice: discountedPrice,
-      assignedBeautician: assignedBeautician
-        ? { _id: assignedBeautician._id, name: assignedBeautician.fullName }
-        : null,
-      broadcastedCount: broadcastedBeauticians.length,
+      totalServices: services.length,
+      totalServicePrice,
+      totalDiscount: totalDiscountAmount,
+      addonsAmount: addonsTotal,
+      estimatedTotalAmount: totalServicePrice + addonsTotal,
+      estimatedDuration: totalDuration,
     });
   } catch (error) {
     console.error("Create booking error:", error);

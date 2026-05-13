@@ -59,7 +59,7 @@ const serviceSchema = new Schema(
     beautician: {
       type: Schema.Types.ObjectId,
       ref: "Beautician",
-      required: true,
+      default: null,
     },
   },
   { timestamps: true }

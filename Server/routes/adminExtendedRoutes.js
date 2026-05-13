@@ -3,6 +3,10 @@ const router = express.Router();
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 const upload = require("../middleware/uploadMiddleware");
 const {
+  // Booking management
+  getPendingBookingRequests,
+  assignBeauticianToBooking,
+  getAssignedBookings,
   // Review management
   getPendingReviews,
   getAllReviews,
@@ -32,6 +36,11 @@ router.post(
   authorizeRoles("Admin", "SuperAdmin"),
   adminCreateBeautician
 );
+
+// ── Booking Management ──
+router.get("/bookings/pending", protect, authorizeRoles("Admin", "SuperAdmin"), getPendingBookingRequests);
+router.get("/bookings/assigned", protect, authorizeRoles("Admin", "SuperAdmin"), getAssignedBookings);
+router.post("/bookings/:bookingId/assign", protect, authorizeRoles("Admin", "SuperAdmin"), assignBeauticianToBooking);
 
 // ── Review Management ──
 router.get("/reviews/pending", protect, authorizeRoles("Admin", "SuperAdmin"), getPendingReviews);
