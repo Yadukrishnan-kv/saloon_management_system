@@ -5,6 +5,7 @@ const upload = require("../middleware/uploadMiddleware");
 const {
   // Booking management
   getPendingBookingRequests,
+  approveBooking,
   assignBeauticianToBooking,
   getAssignedBookings,
   // Review management
@@ -40,6 +41,7 @@ router.post(
 // ── Booking Management ──
 router.get("/bookings/pending", protect, authorizeRoles("Admin", "SuperAdmin"), getPendingBookingRequests);
 router.get("/bookings/assigned", protect, authorizeRoles("Admin", "SuperAdmin"), getAssignedBookings);
+router.post("/bookings/:bookingId/approve", protect, authorizeRoles("Admin", "SuperAdmin"), approveBooking);
 router.post("/bookings/:bookingId/assign", protect, authorizeRoles("Admin", "SuperAdmin"), assignBeauticianToBooking);
 
 // ── Review Management ──

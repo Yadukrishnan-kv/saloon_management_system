@@ -61,6 +61,7 @@ const bookingSchema = new Schema(
       type: String,
       enum: [
         "Requested",
+        "Approved",
         "Assigned",
         "Accepted",
         "OnTheWay",

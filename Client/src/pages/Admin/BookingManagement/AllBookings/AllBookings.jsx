@@ -11,7 +11,7 @@ import axios from "axios";
 import { formatDateTime, formatCurrency, getStatusColor } from "../../../../utils/helpers";
 import "../../UserManagement/UserList/UserList.css";
 
-const lifecycleSteps = ["Requested", "Assigned", "Accepted", "InProgress", "Completed", "Cancelled"];
+const lifecycleSteps = ["Requested", "Approved", "Assigned", "Accepted", "InProgress", "Completed", "Cancelled"];
 
 const AllBookings = () => {
   const backendUrl = process.env.REACT_APP_BACKEND_IP;
@@ -55,35 +55,28 @@ const AllBookings = () => {
   };
 
   const openAssignModal = async (booking, mode = "assign") => {
+    // Only allow assign for Approved status
+    if (booking.status !== "Approved") {
+      toast.error("Booking must be approved before assigning beautician");
+      return;
+    }
+
     setSelectedBooking(booking);
     setAssignmentMode(mode);
     setSelectedBeautician(booking.beautician?._id || "");
 
     try {
-      const lat = booking.address?.coordinates?.lat;
-      const lng = booking.address?.coordinates?.lng;
-      const date = booking.bookingDate;
-      const time = booking.timeSlot?.startTime;
-
-      if (lat && lng) {
-        const { data } = await axios.get(`${backendUrl}/api/beauticians/nearby`, {
-          params: { lat, lng, date, time, radius: 15 },
-        });
-        if (data.length > 0) {
-          setBeauticians(data);
-          setAssignmentSource("nearest");
-          setSelectedBeautician((current) => current || data[0]._id);
-        } else {
-          const fallback = await axios.get(`${backendUrl}/api/beauticians/available`, { params: { date, time } });
-          setBeauticians(fallback.data);
-          setAssignmentSource("available");
-        }
-      } else {
-        const { data } = await axios.get(`${backendUrl}/api/beauticians/available`, { params: { date, time } });
-        setBeauticians(data);
-        setAssignmentSource("available");
+      // Fetch ALL beauticians without any filtering
+      const { data } = await axios.get(`${backendUrl}/api/beauticians`);
+      // Handle both response formats: array or { beauticians: [...] }
+      const beauticiansArray = Array.isArray(data) ? data : (data.beauticians || []);
+      setBeauticians(beauticiansArray);
+      setAssignmentSource("all");
+      if (beauticiansArray.length > 0 && !booking.beautician?._id) {
+        setSelectedBeautician(beauticiansArray[0]._id);
       }
     } catch (error) {
+      console.error("Beautician fetch error:", error);
       toast.error("Failed to load beauticians");
     }
     setAssignModal(true);
@@ -116,18 +109,115 @@ const AllBookings = () => {
     }
   };
 
+  const handleApprove = async (bookingId) => {
+    try {
+      await axios.post(`${backendUrl}/api/admin/bookings/${bookingId}/approve`);
+      toast.success("Booking approved! Now assign a beautician.");
+      fetchBookings();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to approve booking");
+    }
+  };
+
+  const handleReject = async (bookingId) => {
+    try {
+      await axios.put(`${backendUrl}/api/bookings/${bookingId}`, { status: "Cancelled" });
+      toast.success("Booking rejected!");
+      setDetailsOpen(false);
+      fetchBookings();
+    } catch (error) {
+      toast.error("Failed to reject booking");
+    }
+  };
+
+  const handleApproveFromModal = async (bookingId) => {
+    try {
+      await axios.post(`${backendUrl}/api/admin/bookings/${bookingId}/approve`);
+      toast.success("Booking approved!");
+      // Refresh the selected booking to update its status
+      const { data } = await axios.get(`${backendUrl}/api/bookings/${bookingId}`);
+      setSelectedBooking(data);
+      fetchBookings();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to approve booking");
+    }
+  };
+
   const currentAssignment = beauticians.find((item) => item._id === selectedBeautician);
 
+  // Modern card-based table design
   const columns = [
-    { key: "customer", label: "Customer", render: (row) => row.customer?.username || "-" },
-    { key: "beautician", label: "Beautician", render: (row) => row.beautician?.fullName || "Unassigned" },
-    { key: "bookingDate", label: "Date", render: (row) => formatDateTime(row.bookingDate) },
-    { key: "timeSlot", label: "Time", render: (row) => `${row.timeSlot?.startTime} - ${row.timeSlot?.endTime}` },
-    { key: "finalAmount", label: "Amount", render: (row) => formatCurrency(row.finalAmount) },
+    {
+      key: "bookingInfo", label: "Booking Info",
+      render: (row) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <div style={{ fontWeight: 600, color: "#2d3436" }}>
+            Booking #{row._id?.slice(-6).toUpperCase() || "N/A"}
+          </div>
+          <div style={{ fontSize: "12px", color: "#7f8c8d" }}>
+            {row.customer?.username || "Unknown"} • {formatDateTime(row.bookingDate).split(',')[0]}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "serviceInfo", label: "Services",
+      render: (row) => (
+        <div style={{ fontSize: "13px" }}>
+          <div style={{ fontWeight: 500, color: "#2d3436", marginBottom: "4px" }}>
+            {row.services?.length || 0} Service{(row.services?.length || 0) !== 1 ? 's' : ''}
+          </div>
+          <div style={{ fontSize: "11px", color: "#7f8c8d" }}>
+            {row.services?.[0]?.serviceName || "N/A"}
+            {(row.services?.length || 0) > 1 && ` +${row.services.length - 1} more`}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "beauticianInfo", label: "Beautician",
+      render: (row) => (
+        <div style={{ fontSize: "13px" }}>
+          <div style={{ fontWeight: 500, color: row.beautician ? "#2d3436" : "#bdc3c7" }}>
+            {row.beautician?.fullName || "Not Assigned"}
+          </div>
+          {row.beautician && (
+            <div style={{ fontSize: "11px", color: "#7f8c8d" }}>
+              ★ {row.beautician?.rating || "N/A"}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "timeSlot", label: "Time Slot",
+      render: (row) => (
+        <div style={{ fontSize: "13px", fontWeight: 500, color: "#2d3436" }}>
+          {row.timeSlot?.startTime || "N/A"} - {row.timeSlot?.endTime || "N/A"}
+        </div>
+      ),
+    },
+    {
+      key: "amount", label: "Amount",
+      render: (row) => (
+        <div style={{ fontSize: "14px", fontWeight: 600, color: "#27ae60" }}>
+          ₹{formatCurrency(row.finalAmount)}
+        </div>
+      ),
+    },
     {
       key: "status", label: "Status",
       render: (row) => (
-        <span style={{ padding: "3px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: 600, background: `${getStatusColor(row.status)}20`, color: getStatusColor(row.status) }}>
+        <span style={{
+          padding: "6px 12px",
+          borderRadius: "20px",
+          fontSize: "12px",
+          fontWeight: 600,
+          background: `${getStatusColor(row.status)}20`,
+          color: getStatusColor(row.status),
+          border: `1px solid ${getStatusColor(row.status)}40`,
+          display: "inline-block"
+        }}>
           {row.status}
         </span>
       ),
@@ -135,12 +225,30 @@ const AllBookings = () => {
     {
       key: "actions", label: "Actions",
       render: (row) => (
-        <div className="table-actions">
-          <button className="action-btn edit" onClick={() => openDetails(row)} title="View"><FiEye /></button>
-          {row.status === "Requested" && <button className="action-btn success" onClick={() => openAssignModal(row)} title="Assign">A</button>}
-          {row.beautician && ["Assigned", "Accepted", "InProgress"].includes(row.status) && <button className="action-btn edit" onClick={() => openAssignModal(row, "reassign")} title="Reassign"><FiRefreshCw /></button>}
-          {["Accepted", "InProgress"].includes(row.status) && <button className="action-btn success" onClick={() => handleStatusUpdate(row._id, "Completed")} title="Complete">C</button>}
-          {!["Completed", "Cancelled"].includes(row.status) && <button className="action-btn danger" onClick={() => handleStatusUpdate(row._id, "Cancelled")} title="Cancel">X</button>}
+        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+          <button className="action-btn edit" onClick={() => openDetails(row)} title="View Details" style={{ padding: "6px 10px", fontSize: "12px" }}>
+            <FiEye size={14} /> View
+          </button>
+          {row.status === "Requested" && (
+            <>
+              <button className="action-btn success" onClick={() => handleApprove(row._id)} title="Approve" style={{ padding: "6px 10px", fontSize: "12px" }}>
+                ✓ Approve
+              </button>
+              <button className="action-btn danger" onClick={() => handleReject(row._id)} title="Reject" style={{ padding: "6px 10px", fontSize: "12px" }}>
+                ✕ Reject
+              </button>
+            </>
+          )}
+          {row.status === "Approved" && (
+            <button className="action-btn success" onClick={() => openAssignModal(row)} title="Assign Beautician" style={{ padding: "6px 10px", fontSize: "12px" }}>
+              → Assign
+            </button>
+          )}
+          {row.beautician && ["Assigned", "Accepted", "InProgress"].includes(row.status) && (
+            <button className="action-btn edit" onClick={() => openAssignModal(row, "reassign")} title="Reassign" style={{ padding: "6px 10px", fontSize: "12px" }}>
+              <FiRefreshCw size={14} />
+            </button>
+          )}
         </div>
       ),
     },
@@ -153,12 +261,13 @@ const AllBookings = () => {
       <main className={`main-content ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         <div className="page-header"><div><h1>All Bookings</h1><p>Manage and track bookings</p></div></div>
         <div style={{ background: "#f4fbff", border: "1px solid #d7eefd", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px", color: "#285c7a" }}>
-          This page implements booking operations: all-booking monitoring, lifecycle tracking, nearest-available beautician assignment, manual reassignment, cancellation, completion control, and operational intervention. Customer feedback moderation continues in Review Management after the service is completed.
+          <strong>📋 Booking Management:</strong> View all bookings with complete service details. Click "View" to see full details, then approve or reject bookings. After approval, assign any beautician from our database and manage the booking lifecycle.
         </div>
         <div className="filters-row">
           <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
             <option value="">All Status</option>
             <option value="Requested">Requested</option>
+            <option value="Approved">Approved</option>
             <option value="Assigned">Assigned</option>
             <option value="Accepted">Accepted</option>
             <option value="InProgress">In Progress</option>
@@ -179,78 +288,238 @@ const AllBookings = () => {
           </>
         )}
         <Modal isOpen={assignModal} onClose={() => setAssignModal(false)} title={assignmentMode === "reassign" ? "Reassign Beautician" : "Assign Beautician"}>
-          <div style={{ marginBottom: "12px", padding: "10px 12px", background: assignmentSource === "nearest" ? "#eefaf2" : "#fff7ea", borderRadius: "10px", color: assignmentSource === "nearest" ? "#256f46" : "#8a6218", fontSize: "13px" }}>
-            {assignmentSource === "nearest"
-              ? "Beauticians are ranked by distance and availability for this booking slot."
-              : "Location data is unavailable for this booking, so the list falls back to available beauticians for the selected slot."}
+          <div style={{ marginBottom: "12px", padding: "10px 12px", background: "#eefaf2", borderRadius: "10px", color: "#256f46", fontSize: "13px" }}>
+            <strong>Note:</strong> Select a beautician from the complete list below to assign to this booking.
           </div>
           <div className="form-group">
-            <label>Select Beautician</label>
+            <label>Select Beautician *</label>
             <select value={selectedBeautician} onChange={(e) => setSelectedBeautician(e.target.value)}>
-              <option value="">Choose...</option>
-              {beauticians.map((b) => (
-                <option key={b._id} value={b._id}>
-                  {b.fullName} - ★{b.rating}{typeof b.distanceKm === "number" ? ` - ${b.distanceKm} km` : ""}
-                </option>
-              ))}
+              <option value="">-- Choose a Beautician --</option>
+              {beauticians && beauticians.length > 0 ? (
+                beauticians.map((b) => (
+                  <option key={b._id} value={b._id}>
+                    {b.fullName} {b.rating ? `(★${b.rating})` : ""} {b.phoneNumber ? `- ${b.phoneNumber}` : ""}
+                  </option>
+                ))
+              ) : (
+                <option disabled>No beauticians available</option>
+              )}
             </select>
           </div>
+          {beauticians && beauticians.length === 0 && (
+            <div style={{ padding: "10px 12px", background: "#ffe6e6", borderRadius: "10px", color: "#c0392b", fontSize: "13px", marginBottom: "12px" }}>
+              <strong>No beauticians found.</strong> Please create beautician profiles first.
+            </div>
+          )}
           {currentAssignment && (
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px", color: "#576574", fontSize: "13px" }}>
-              <FiMapPin />
-              <span>{currentAssignment.location?.city || "Unknown city"}{typeof currentAssignment.distanceKm === "number" ? ` • ${currentAssignment.distanceKm} km away` : ""}</span>
+            <div style={{ padding: "10px 12px", background: "#f0f3f7", borderRadius: "10px", marginBottom: "12px", color: "#576574", fontSize: "13px" }}>
+              <strong>Selected:</strong> {currentAssignment.fullName}<br/>
+              {currentAssignment.phoneNumber && <>Phone: {currentAssignment.phoneNumber}<br/></>}
+              {currentAssignment.rating && <>Rating: ★{currentAssignment.rating}</>}
             </div>
           )}
           <div className="form-actions">
             <Button variant="secondary" onClick={() => setAssignModal(false)}>Cancel</Button>
-            <Button onClick={handleAssign}>{assignmentMode === "reassign" ? "Reassign" : "Assign"}</Button>
+            <Button onClick={handleAssign} disabled={!selectedBeautician}>{assignmentMode === "reassign" ? "Reassign" : "Assign"}</Button>
           </div>
         </Modal>
         <Modal isOpen={detailsOpen} onClose={() => setDetailsOpen(false)} title="Booking Details" size="large">
           {selectedBooking && (
-            <div style={{ display: "grid", gap: "16px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px" }}>
-                <div className="meta-item"><span>Customer</span><strong>{selectedBooking.customer?.username || "-"}</strong></div>
-                <div className="meta-item"><span>Beautician</span><strong>{selectedBooking.beautician?.fullName || "Unassigned"}</strong></div>
-                <div className="meta-item"><span>Booking Date</span><strong>{formatDateTime(selectedBooking.bookingDate)}</strong></div>
-                <div className="meta-item"><span>Time Slot</span><strong>{selectedBooking.timeSlot?.startTime} - {selectedBooking.timeSlot?.endTime}</strong></div>
-                <div className="meta-item"><span>Amount</span><strong>{formatCurrency(selectedBooking.finalAmount)}</strong></div>
-                <div className="meta-item"><span>Payment Status</span><strong>{selectedBooking.paymentStatus}</strong></div>
+            <div style={{ display: "grid", gap: "20px" }}>
+              {/* Header Info */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "16px", padding: "16px", background: "#f8f9fa", borderRadius: "12px" }}>
+                <div>
+                  <span style={{ display: "block", fontSize: "12px", color: "#7f8c8d", marginBottom: "4px" }}>Customer</span>
+                  <strong style={{ fontSize: "14px", color: "#2d3436" }}>{selectedBooking.customer?.username || "-"}</strong>
+                  <div style={{ fontSize: "11px", color: "#7f8c8d", marginTop: "4px" }}>{selectedBooking.customer?.email}</div>
+                </div>
+                <div>
+                  <span style={{ display: "block", fontSize: "12px", color: "#7f8c8d", marginBottom: "4px" }}>Beautician</span>
+                  <strong style={{ fontSize: "14px", color: selectedBooking.beautician ? "#2d3436" : "#bdc3c7" }}>
+                    {selectedBooking.beautician?.fullName || "Not Assigned"}
+                  </strong>
+                  {selectedBooking.beautician && (
+                    <div style={{ fontSize: "11px", color: "#7f8c8d", marginTop: "4px" }}>
+                      ★ {selectedBooking.beautician?.rating} • {selectedBooking.beautician?.phoneNumber}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <span style={{ display: "block", fontSize: "12px", color: "#7f8c8d", marginBottom: "4px" }}>Booking Date</span>
+                  <strong style={{ fontSize: "14px", color: "#2d3436" }}>{formatDateTime(selectedBooking.bookingDate).split(',')[0]}</strong>
+                </div>
+                <div>
+                  <span style={{ display: "block", fontSize: "12px", color: "#7f8c8d", marginBottom: "4px" }}>Time Slot</span>
+                  <strong style={{ fontSize: "14px", color: "#2d3436" }}>{selectedBooking.timeSlot?.startTime} - {selectedBooking.timeSlot?.endTime}</strong>
+                </div>
               </div>
 
+              {/* Services Section */}
               <div>
-                <h4 style={{ margin: "0 0 8px", color: "#2d3436" }}>Lifecycle</h4>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                <h4 style={{ margin: "0 0 12px", color: "#2d3436", fontSize: "14px", fontWeight: 600 }}>📋 Services ({selectedBooking.services?.length || 0})</h4>
+                <div style={{ display: "grid", gap: "10px" }}>
+                  {selectedBooking.services && selectedBooking.services.length > 0 ? (
+                    selectedBooking.services.map((s, idx) => (
+                      <div key={idx} style={{
+                        padding: "12px",
+                        background: "#f0f7ff",
+                        borderRadius: "10px",
+                        border: "1px solid #d0e8ff",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}>
+                        <div>
+                          <div style={{ fontWeight: 600, color: "#2d3436", marginBottom: "4px" }}>
+                            {s.serviceName || "Service"}
+                          </div>
+                          <div style={{ color: "#7f8c8d", fontSize: "12px" }}>
+                            ⏱️ Duration: {s.duration || 0} mins
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: "16px", fontWeight: 700, color: "#27ae60" }}>₹{s.price || 0}</div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p style={{ color: "#7f8c8d", fontSize: "13px", margin: 0 }}>No services in this booking</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Add-ons Section */}
+              {selectedBooking.addons && selectedBooking.addons.length > 0 && (
+                <div>
+                  <h4 style={{ margin: "0 0 12px", color: "#2d3436", fontSize: "14px", fontWeight: 600 }}>✨ Add-ons ({selectedBooking.addons.length})</h4>
+                  <div style={{ display: "grid", gap: "8px" }}>
+                    {selectedBooking.addons.map((a, idx) => (
+                      <div key={idx} style={{
+                        padding: "10px 12px",
+                        background: "#fef5e7",
+                        borderRadius: "8px",
+                        border: "1px solid #fce0b3",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}>
+                        <span style={{ color: "#2d3436", fontWeight: 500 }}>{a.addonName || "Add-on"}</span>
+                        <span style={{ color: "#e67e22", fontWeight: 600 }}>₹{a.price || 0}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pricing Summary */}
+              <div style={{
+                padding: "16px",
+                background: "#e8f5e9",
+                borderRadius: "10px",
+                border: "1px solid #c8e6c9",
+                display: "grid",
+                gap: "8px"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                  <span>Services:</span>
+                  <strong>₹{(selectedBooking.totalAmount || 0) - (selectedBooking.addonsAmount || 0)}</strong>
+                </div>
+                {selectedBooking.addonsAmount > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                    <span>Add-ons:</span>
+                    <strong>₹{selectedBooking.addonsAmount}</strong>
+                  </div>
+                )}
+                {selectedBooking.discountAmount > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#e74c3c" }}>
+                    <span>Discount:</span>
+                    <strong>-₹{selectedBooking.discountAmount}</strong>
+                  </div>
+                )}
+                {selectedBooking.travelFee > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                    <span>Travel Fee:</span>
+                    <strong>₹{selectedBooking.travelFee}</strong>
+                  </div>
+                )}
+                <div style={{ borderTop: "1px solid #a5d6a7", paddingTop: "8px", display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
+                  <strong>Total:</strong>
+                  <strong style={{ fontSize: "16px", color: "#27ae60" }}>₹{formatCurrency(selectedBooking.finalAmount)}</strong>
+                </div>
+              </div>
+
+              {/* Status & Timeline */}
+              <div>
+                <h4 style={{ margin: "0 0 12px", color: "#2d3436", fontSize: "14px", fontWeight: 600 }}>📍 Status & Timeline</h4>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "12px" }}>
                   {lifecycleSteps.map((step) => (
-                    <span key={step} style={{ padding: "6px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 600, background: selectedBooking.status === step ? `${getStatusColor(step)}20` : "#f1f2f6", color: selectedBooking.status === step ? getStatusColor(step) : "#7f8c8d" }}>
+                    <span key={step} style={{
+                      padding: "6px 12px",
+                      borderRadius: "20px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      background: selectedBooking.status === step ? `${getStatusColor(step)}20` : "#f1f2f6",
+                      color: selectedBooking.status === step ? getStatusColor(step) : "#7f8c8d",
+                      border: selectedBooking.status === step ? `1px solid ${getStatusColor(step)}` : "1px solid #e0e0e0"
+                    }}>
                       {step}
                     </span>
                   ))}
                 </div>
-                <div style={{ marginTop: "12px", display: "grid", gap: "6px", color: "#636e72", fontSize: "13px" }}>
-                  {selectedBooking.assignedAt && <span>Assigned: {formatDateTime(selectedBooking.assignedAt)}</span>}
-                  {selectedBooking.acceptedAt && <span>Accepted: {formatDateTime(selectedBooking.acceptedAt)}</span>}
-                  {selectedBooking.startedAt && <span>Started: {formatDateTime(selectedBooking.startedAt)}</span>}
-                  {selectedBooking.completedAt && <span>Completed: {formatDateTime(selectedBooking.completedAt)}</span>}
-                  {selectedBooking.cancelledAt && <span>Cancelled: {formatDateTime(selectedBooking.cancelledAt)}</span>}
+                <div style={{ display: "grid", gap: "6px", color: "#636e72", fontSize: "12px" }}>
+                  {selectedBooking.approvedAt && <span>✓ Approved: {formatDateTime(selectedBooking.approvedAt)}</span>}
+                  {selectedBooking.assignedAt && <span>✓ Assigned: {formatDateTime(selectedBooking.assignedAt)}</span>}
+                  {selectedBooking.acceptedAt && <span>✓ Accepted: {formatDateTime(selectedBooking.acceptedAt)}</span>}
+                  {selectedBooking.startedAt && <span>✓ Started: {formatDateTime(selectedBooking.startedAt)}</span>}
+                  {selectedBooking.completedAt && <span>✓ Completed: {formatDateTime(selectedBooking.completedAt)}</span>}
+                  {selectedBooking.cancelledAt && <span>✗ Cancelled: {formatDateTime(selectedBooking.cancelledAt)}</span>}
                 </div>
               </div>
 
-              <div>
-                <h4 style={{ margin: "0 0 8px", color: "#2d3436" }}>Operational Notes</h4>
-                <p style={{ margin: 0, color: "#636e72", lineHeight: 1.6 }}>
-                  Address: {[selectedBooking.address?.street, selectedBooking.address?.city, selectedBooking.address?.state, selectedBooking.address?.pincode].filter(Boolean).join(", ") || "Not provided"}
-                </p>
-                <p style={{ margin: "8px 0 0", color: "#636e72", lineHeight: 1.6 }}>
-                  Manual intervention is available here through assignment, reassignment, completion, and cancellation controls. Customer feedback for completed bookings is reviewed on the Reviews page.
-                </p>
-              </div>
+              {/* Address */}
+              {selectedBooking.address && (
+                <div>
+                  <h4 style={{ margin: "0 0 8px", color: "#2d3436", fontSize: "14px", fontWeight: 600 }}>📍 Service Location</h4>
+                  <div style={{ padding: "12px", background: "#fafafa", borderRadius: "10px", fontSize: "13px", color: "#636e72", lineHeight: 1.6 }}>
+                    {selectedBooking.address.street && <div>{selectedBooking.address.street}</div>}
+                    <div>{selectedBooking.address.city}, {selectedBooking.address.pincode}</div>
+                    {selectedBooking.address.gateCode && <div style={{ fontSize: "12px", color: "#95a5a6" }}>Gate Code: {selectedBooking.address.gateCode}</div>}
+                  </div>
+                </div>
+              )}
 
-              <div className="form-actions">
-                {selectedBooking.status === "Requested" && <Button onClick={() => { setDetailsOpen(false); openAssignModal(selectedBooking, "assign"); }}>Assign</Button>}
-                {selectedBooking.beautician && ["Assigned", "Accepted", "InProgress"].includes(selectedBooking.status) && <Button onClick={() => { setDetailsOpen(false); openAssignModal(selectedBooking, "reassign"); }}>Reassign</Button>}
-                {["Accepted", "InProgress"].includes(selectedBooking.status) && <Button onClick={() => handleStatusUpdate(selectedBooking._id, "Completed")}>Mark Completed</Button>}
-                {! ["Completed", "Cancelled"].includes(selectedBooking.status) && <Button style={{ background: "#e74c3c" }} onClick={() => handleStatusUpdate(selectedBooking._id, "Cancelled")}>Cancel Booking</Button>}
+              {/* Actions - Only show based on status */}
+              <div className="form-actions" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px" }}>
+                {selectedBooking.status === "Requested" && (
+                  <>
+                    <Button style={{ background: "#27ae60" }} onClick={() => handleApproveFromModal(selectedBooking._id)}>
+                      ✓ Approve
+                    </Button>
+                    <Button style={{ background: "#e74c3c" }} onClick={() => handleReject(selectedBooking._id)}>
+                      ✕ Reject
+                    </Button>
+                  </>
+                )}
+                {selectedBooking.status === "Approved" && (
+                  <Button style={{ background: "#3498db" }} onClick={() => { setDetailsOpen(false); openAssignModal(selectedBooking, "assign"); }}>
+                    → Assign Beautician
+                  </Button>
+                )}
+                {selectedBooking.beautician && ["Assigned", "Accepted", "InProgress"].includes(selectedBooking.status) && (
+                  <Button style={{ background: "#f39c12" }} onClick={() => { setDetailsOpen(false); openAssignModal(selectedBooking, "reassign"); }}>
+                    ⟳ Reassign
+                  </Button>
+                )}
+                {["Accepted", "InProgress"].includes(selectedBooking.status) && (
+                  <Button style={{ background: "#27ae60" }} onClick={() => handleStatusUpdate(selectedBooking._id, "Completed")}>
+                    ✓ Mark Completed
+                  </Button>
+                )}
+                {!["Completed", "Cancelled", "Rejected"].includes(selectedBooking.status) && selectedBooking.status !== "Requested" && (
+                  <Button style={{ background: "#95a5a6" }} onClick={() => handleStatusUpdate(selectedBooking._id, "Cancelled")}>
+                    ✕ Cancel
+                  </Button>
+                )}
                 <Button variant="secondary" onClick={() => setDetailsOpen(false)}>Close</Button>
               </div>
             </div>

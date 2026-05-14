@@ -597,7 +597,7 @@ const getPendingBookingRequests = async (req, res) => {
   }
 };
 
-// ─── ASSIGN BEAUTICIAN AND APPROVE BOOKING (Admin) ──────────────────────────
+// ─── ASSIGN BEAUTICIAN (Admin) ────────────────────────────────────────────
 const assignBeauticianToBooking = async (req, res) => {
   try {
     const { bookingId } = req.params;
@@ -612,7 +612,8 @@ const assignBeauticianToBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: "Booking not found" });
     }
 
-    if (booking.status !== "Requested") {
+    // Allow assignment for both "Requested" (legacy) and "Approved" statuses
+    if (!["Requested", "Approved"].includes(booking.status)) {
       return res.status(400).json({ success: false, message: "Only pending requests can be assigned" });
     }
 
@@ -655,6 +656,47 @@ const assignBeauticianToBooking = async (req, res) => {
   }
 };
 
+// ─── APPROVE BOOKING (Admin) ────────────────────────────────────────────────
+const approveBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    const booking = await Booking.findById(bookingId).populate("customer");
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    if (booking.status !== "Requested") {
+      return res.status(400).json({ success: false, message: "Only pending requests can be approved" });
+    }
+
+    // Update booking status to "Approved"
+    booking.status = "Approved";
+    booking.approvedAt = new Date();
+    await booking.save();
+
+    // Notify customer about approval
+    await Notification.create({
+      user: booking.customer._id,
+      title: "Booking Approved",
+      message: `Your booking has been approved. Admin will assign a beautician shortly.`,
+      type: "booking",
+      reference: { bookingId: booking._id },
+    });
+
+    res.json({
+      success: true,
+      message: "Booking approved successfully",
+      booking: await Booking.findById(bookingId)
+        .populate("customer", "fullName phoneNumber profileImage")
+        .populate("beautician", "fullName phoneNumber profileImage"),
+    });
+  } catch (error) {
+    console.error("Approve booking error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 // ─── GET ASSIGNED BOOKINGS WITH BEAUTICIAN RESPONSES (Admin) ────────────────
 const getAssignedBookings = async (req, res) => {
   try {
@@ -693,6 +735,7 @@ module.exports = {
   adminCreateBeautician,
   // Booking management
   getPendingBookingRequests,
+  approveBooking,
   assignBeauticianToBooking,
   getAssignedBookings,
   // Review management
