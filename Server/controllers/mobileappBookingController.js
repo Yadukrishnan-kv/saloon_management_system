@@ -654,7 +654,7 @@ const beauticianAcceptBooking = async (req, res) => {
     // ── 30-min buffer check before accepting ──
     const totalDuration = booking.services.reduce((sum, s) => sum + s.duration, 0);
     const endTime = formatTime(parseTime(booking.timeSlot.startTime) + totalDuration);
-    const hasConflict = await checkBeauticianBuffer(req.beautician._id, booking.bookingDate, booking.timeSlot.startTime, endTime);
+    const hasConflict = await checkBeauticianBuffer(req.beautician._id, booking.bookingDate, booking.timeSlot.startTime, endTime, booking._id);
     if (hasConflict) {
       return res.status(400).json({ success: false, message: "Cannot accept - you have a task within 30 minutes of this booking" });
     }
@@ -712,6 +712,16 @@ const beauticianDeclineBooking = async (req, res) => {
 
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found or already processed" });
+    }
+
+    // Update broadcast array to mark this beautician's response as declined
+    if (booking.broadcastedTo && booking.broadcastedTo.length > 0) {
+      booking.broadcastedTo = booking.broadcastedTo.map((b) => {
+        if (b.beautician.toString() === req.beautician._id.toString()) {
+          return { ...b.toObject(), response: "declined", respondedAt: new Date() };
+        }
+        return b;
+      });
     }
 
     booking.status = "Rejected";
@@ -966,17 +976,24 @@ const beauticianBookingHistory = async (req, res) => {
 };
 
 // ─── HELPER: Check 30-min buffer for beautician ──────────────────────────────
-const checkBeauticianBuffer = async (beauticianId, bookingDate, startTime, endTime) => {
+const checkBeauticianBuffer = async (beauticianId, bookingDate, startTime, endTime, currentBookingId = null) => {
   const dateStart = new Date(bookingDate);
   dateStart.setHours(0, 0, 0, 0);
   const dateEnd = new Date(bookingDate);
   dateEnd.setHours(23, 59, 59, 999);
 
-  const existingBookings = await Booking.find({
+  const query = {
     beautician: beauticianId,
     bookingDate: { $gte: dateStart, $lte: dateEnd },
     status: { $in: ["Assigned", "Accepted", "InProgress"] },
-  });
+  };
+
+  // Exclude the current booking being accepted/checked
+  if (currentBookingId) {
+    query._id = { $ne: currentBookingId };
+  }
+
+  const existingBookings = await Booking.find(query);
 
   const newStart = parseTime(startTime);
   const newEnd = parseTime(endTime);

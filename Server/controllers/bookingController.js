@@ -303,6 +303,11 @@ const reassignBooking = async (req, res) => {
     booking.beautician = beauticianId;
     booking.status = "Assigned";
     booking.assignedAt = new Date();
+    
+    // Clear broadcast data when reassigning to a single beautician
+    // This ensures conflict checking won't be confused by old broadcast records
+    booking.broadcastedTo = [];
+
     await booking.save();
 
     const populated = await Booking.findById(booking._id)
