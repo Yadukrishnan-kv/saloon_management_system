@@ -201,7 +201,7 @@ const AllBookings = () => {
       key: "amount", label: "Amount",
       render: (row) => (
         <div style={{ fontSize: "14px", fontWeight: 600, color: "#27ae60" }}>
-          ₹{formatCurrency(row.finalAmount)}
+          {formatCurrency(row.finalAmount)}
         </div>
       ),
     },
@@ -422,29 +422,29 @@ const AllBookings = () => {
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
                   <span>Services:</span>
-                  <strong>₹{(selectedBooking.totalAmount || 0) - (selectedBooking.addonsAmount || 0)}</strong>
+                  <strong>{formatCurrency((selectedBooking.totalAmount || 0) - (selectedBooking.addonsAmount || 0))}</strong>
                 </div>
                 {selectedBooking.addonsAmount > 0 && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
                     <span>Add-ons:</span>
-                    <strong>₹{selectedBooking.addonsAmount}</strong>
+                    <strong>{formatCurrency(selectedBooking.addonsAmount)}</strong>
                   </div>
                 )}
                 {selectedBooking.discountAmount > 0 && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#e74c3c" }}>
                     <span>Discount:</span>
-                    <strong>-₹{selectedBooking.discountAmount}</strong>
+                    <strong>-{formatCurrency(selectedBooking.discountAmount)}</strong>
                   </div>
                 )}
                 {selectedBooking.travelFee > 0 && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
                     <span>Travel Fee:</span>
-                    <strong>₹{selectedBooking.travelFee}</strong>
+                    <strong>{formatCurrency(selectedBooking.travelFee)}</strong>
                   </div>
                 )}
                 <div style={{ borderTop: "1px solid #a5d6a7", paddingTop: "8px", display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
                   <strong>Total:</strong>
-                  <strong style={{ fontSize: "16px", color: "#27ae60" }}>₹{formatCurrency(selectedBooking.finalAmount)}</strong>
+                  <strong style={{ fontSize: "16px", color: "#27ae60" }}>{formatCurrency(selectedBooking.finalAmount)}</strong>
                 </div>
               </div>
 
