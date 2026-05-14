@@ -533,6 +533,25 @@ const beauticianTodayBookings = async (req, res) => {
   }
 };
 
+// ─── BEAUTICIAN: ASSIGNED BOOKINGS (Awaiting Response) ───────────────────────
+const beauticianAssignedBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find({
+      beautician: req.beautician._id,
+      status: "Assigned",
+    })
+      .populate("customer", "username email phoneNumber profileImage tier")
+      .populate("services.service", "name price duration image")
+      .populate("addons.addon", "name price")
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, bookings });
+  } catch (error) {
+    console.error("Assigned bookings error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 // ─── BEAUTICIAN: UPCOMING BOOKINGS ───────────────────────────────────────────
 const beauticianUpcomingBookings = async (req, res) => {
   try {
@@ -1064,6 +1083,7 @@ module.exports = {
   getAvailableSlots,
   customerCompleteBooking,
   beauticianTodayBookings,
+  beauticianAssignedBookings,
   beauticianUpcomingBookings,
   beauticianGetBooking,
   beauticianAcceptBooking,

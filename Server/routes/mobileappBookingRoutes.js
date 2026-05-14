@@ -9,6 +9,7 @@ const {
   getAvailableSlots,
   customerCompleteBooking,
   beauticianTodayBookings,
+  beauticianAssignedBookings,
   beauticianUpcomingBookings,
   beauticianGetBooking,
   beauticianAcceptBooking,
@@ -37,6 +38,13 @@ router.get(
   authorizeRoles("Beautician"),
   attachBeauticianProfile,
   beauticianTodayBookings
+);
+router.get(
+  "/beautician/assigned",
+  protect,
+  authorizeRoles("Beautician"),
+  attachBeauticianProfile,
+  beauticianAssignedBookings
 );
 router.get(
   "/beautician/broadcast",
