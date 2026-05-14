@@ -173,46 +173,6 @@ const createBooking = async (req, res) => {
     });
 
     // ── Notify admin about new booking request ──
-          service: service._id,
-          serviceName: service.name,
-          price: discountedPrice,
-          duration: service.duration,
-        },
-      ],
-      addons: bookingAddons,
-      bookingDate: new Date(bookingDate),
-      timeSlot: {
-        startTime: bookingTime,
-        endTime,
-      },
-      status: assignedBeautician ? "Assigned" : "Requested",
-      totalAmount: service.price + addonsTotal,
-      discountAmount: service.price - discountedPrice,
-      addonsAmount: addonsTotal,
-      travelFee,
-      finalAmount: discountedPrice + addonsTotal + travelFee,
-      address: address
-        ? {
-            street: address.address,
-            unit: address.unit || "",
-            gateCode: address.gateCode || "",
-            city: address.city,
-            pincode: address.pincode,
-            coordinates: {
-              lat: address.latitude,
-              lng: address.longitude,
-            },
-          }
-        : undefined,
-      notes: notes || "",
-      broadcastedTo: [],  // No broadcasting in new workflow
-      platformPayment: {
-        collectedByPlatform: false,
-        platformCommission: PLATFORM_COMMISSION,
-      },
-    });
-
-    // ── Notify admin about new booking request ──
     await createAdminNotification(
       "New Booking Request",
       `New booking request from customer for ${services.length} service(s) on ${bookingDate} at ${bookingTime}. Total: ₹${totalServicePrice}. Please assign a beautician.`,
