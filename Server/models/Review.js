@@ -12,6 +12,11 @@ const reviewSchema = new Schema(
       ref: "Beautician",
       required: false,
     },
+    booking: {
+      type: Schema.Types.ObjectId,
+      ref: "Booking",
+      required: false,
+    },
     service: {
       type: Schema.Types.ObjectId,
       ref: "Service",
@@ -38,7 +43,28 @@ const reviewSchema = new Schema(
       type: Boolean,
       default: true,
     },
-    // No admin approval or booking required
+    // Admin approval workflow
+    adminApproval: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"],
+      default: "Pending",
+    },
+    adminApprovedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    adminApprovedAt: {
+      type: Date,
+    },
+    adminRejectionReason: {
+      type: String,
+      default: "",
+    },
+    // Only show reviews after admin has marked admin to after booking is completed
+    requiresBookingCompletion: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );

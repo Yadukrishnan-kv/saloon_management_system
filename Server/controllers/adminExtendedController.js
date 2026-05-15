@@ -622,9 +622,39 @@ const assignBeauticianToBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: "Beautician not found" });
     }
 
+    // ─── CHECK 30-MINUTE BUFFER BETWEEN TASKS ───────────────────────────────
+    const BUFFER_MINUTES = 30;
+    
+    // Get the last completed booking for this beautician
+    const lastBooking = await Booking.findOne({
+      beautician: beauticianId,
+      status: "Completed",
+    }).sort({ completedAt: -1 });
+
+    if (lastBooking && lastBooking.completedAt) {
+      // Calculate the earliest start time for the new booking
+      const lastBookingEndTime = new Date(lastBooking.completedAt.getTime() + BUFFER_MINUTES * 60000);
+      const newBookingStartTime = new Date(booking.bookingDate);
+      
+      // Parse time and set hours/minutes
+      const [hours, minutes] = booking.timeSlot.startTime.split(":").map(Number);
+      newBookingStartTime.setHours(hours, minutes, 0, 0);
+
+      if (newBookingStartTime < lastBookingEndTime) {
+        const minutesUntilAvailable = Math.ceil((lastBookingEndTime - newBookingStartTime) / 60000);
+        return res.status(400).json({
+          success: false,
+          message: `Beautician cannot take this booking. Must wait ${minutesUntilAvailable} more minutes after last task completion.`,
+          earliestAvailableTime: lastBookingEndTime,
+          requestedTime: newBookingStartTime,
+        });
+      }
+    }
+
     // Assign beautician and change status to "Assigned"
     booking.beautician = beauticianId;
     booking.status = "Assigned";
+    booking.assignedAt = new Date();
     await booking.save();
 
     // Notify beautician about the booking assignment
@@ -633,7 +663,7 @@ const assignBeauticianToBooking = async (req, res) => {
       title: "New Booking Assigned",
       message: `You have been assigned a booking from ${booking.customer.fullName}. Review and accept/reject it.`,
       type: "booking",
-      reference: { bookingId: booking._id },
+      data: { bookingId: booking._id },
     });
 
     // Notify customer about assignment
@@ -642,7 +672,7 @@ const assignBeauticianToBooking = async (req, res) => {
       title: "Beautician Assigned",
       message: `A beautician has been assigned to your booking. They will accept or decline shortly.`,
       type: "booking",
-      reference: { bookingId: booking._id },
+      data: { bookingId: booking._id },
     });
 
     res.json({

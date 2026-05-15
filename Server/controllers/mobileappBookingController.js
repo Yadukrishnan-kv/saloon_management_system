@@ -290,7 +290,7 @@ const cancelBooking = async (req, res) => {
     const booking = await Booking.findOne({
       _id: req.params.bookingId,
       customer: req.user._id,
-    });
+    }).populate("beautician");
 
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found" });
@@ -300,6 +300,28 @@ const cancelBooking = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: `Cannot cancel a booking that is ${booking.status}`,
+      });
+    }
+
+    // ─── CHECK 30-MINUTE BUFFER BEFORE SERVICE START ────────────────────
+    const CANCELLATION_BUFFER_MINUTES = 30;
+    
+    // Parse booking date and time
+    const bookingDateTime = new Date(booking.bookingDate);
+    const [hours, minutes] = booking.timeSlot.startTime.split(":").map(Number);
+    bookingDateTime.setHours(hours, minutes, 0, 0);
+    
+    // Calculate the cancellation deadline (30 mins before service start)
+    const cancellationDeadline = new Date(bookingDateTime.getTime() - CANCELLATION_BUFFER_MINUTES * 60000);
+    const now = new Date();
+
+    if (now >= cancellationDeadline) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot cancel booking within 30 minutes of service start time. Service starts at ${booking.timeSlot.startTime}`,
+        serviceStartTime: booking.timeSlot.startTime,
+        cancellationDeadline: cancellationDeadline,
+        currentTime: now,
       });
     }
 
@@ -319,7 +341,7 @@ const cancelBooking = async (req, res) => {
       customerWallet.transactions.push({
         type: "debit",
         amount: CANCELLATION_FEE,
-        description: `Cancellation fee for booking #${booking._id}`,
+        description: `Cancellation fee for booking #${booking.jobId}`,
         reference: { bookingId: booking._id },
         status: "completed",
       });
@@ -334,24 +356,37 @@ const cancelBooking = async (req, res) => {
       await booking.save();
     }
 
-    // Notify beautician if assigned
+    // ── NOTIFY BEAUTICIAN ABOUT CANCELLATION ──────────────────────────────
     if (booking.beautician) {
-      const beautician = await Beautician.findById(booking.beautician);
-      if (beautician) {
-        await Notification.create({
-          user: beautician.user,
-          title: "Booking Cancelled",
-          message: `A booking for ${booking.services[0]?.serviceName} has been cancelled by the customer.`,
-          type: "booking",
-          data: { bookingId: booking._id },
-        });
-      }
+      await Notification.create({
+        user: booking.beautician.user,
+        title: "Booking Cancelled",
+        message: `A booking for ${booking.services[0]?.serviceName} has been cancelled by the customer.`,
+        type: "booking",
+        data: { bookingId: booking._id },
+      });
+    }
+
+    // ── NOTIFY ADMIN ABOUT CANCELLATION ───────────────────────────────────
+    const User = require("../models/User");
+    const admins = await User.find({ role: { $in: ["Admin", "SuperAdmin"] }, isActive: true });
+    for (const admin of admins) {
+      await Notification.create({
+        user: admin._id,
+        title: "Booking Cancelled by Customer",
+        message: `Booking #${booking.jobId} cancelled by customer. Reason: ${reason || "Not provided"}. Cancellation fee: ₹${CANCELLATION_FEE} charged.`,
+        type: "booking",
+        forAdmin: true,
+        data: { bookingId: booking._id },
+      });
     }
 
     res.json({
       success: true,
       message: "Booking cancelled successfully",
+      cancellationFee: CANCELLATION_FEE,
       refundAmount,
+      bookingStatus: "Cancelled",
     });
   } catch (error) {
     console.error("Cancel booking error:", error);
@@ -492,15 +527,70 @@ const customerCompleteBooking = async (req, res) => {
       _id: req.params.bookingId,
       customer: req.user._id,
       status: "InProgress",
-    });
+    }).populate("beautician");
 
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found or not in progress" });
     }
 
+    const COMMISSION_AMOUNT = 200; // ₹200 commission per booking
+
     booking.status = "Completed";
     booking.completedAt = new Date();
+    booking.paymentStatus = "Paid";
+    
+    // ─── CALCULATE PAYOUT (Final Amount - Commission) ──────────────────────
+    booking.platformPayment = {
+      collectedByPlatform: true,
+      collectedAt: new Date(),
+      beauticianPayoutDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000), // +4 days
+      paidToBeautician: false,
+      platformCommission: COMMISSION_AMOUNT,
+      beauticianPayout: booking.finalAmount - COMMISSION_AMOUNT,
+    };
+    
     await booking.save();
+
+    // ─── UPDATE BEAUTICIAN EARNINGS & TRACK LAST TASK ──────────────────────
+    if (booking.beautician) {
+      // Update last completed booking
+      await Beautician.findByIdAndUpdate(booking.beautician._id, {
+        lastCompletedBooking: {
+          bookingId: booking._id,
+          completedAt: new Date(),
+        },
+        $inc: {
+          "earnings.totalEarnings": booking.finalAmount,
+          "earnings.pendingPayout": booking.platformPayment.beauticianPayout,
+        },
+      });
+
+      // ─── DEDUCT ₹200 COMMISSION FROM BEAUTICIAN'S WALLET ──────────────────
+      const beauticianUser = await User.findById(booking.beautician.user);
+      if (beauticianUser) {
+        let wallet = await Wallet.findOne({ user: beauticianUser._id });
+        if (wallet) {
+          wallet.balance -= COMMISSION_AMOUNT;
+          wallet.transactions.push({
+            type: "debit",
+            amount: COMMISSION_AMOUNT,
+            description: `Commission deducted for booking #${booking.jobId}`,
+            reference: { bookingId: booking._id },
+            status: "completed",
+          });
+          await wallet.save();
+        }
+      }
+
+      // Notify beautician
+      await Notification.create({
+        user: booking.beautician.user,
+        title: "Booking Completed",
+        message: `Your booking has been marked as completed. ₹${COMMISSION_AMOUNT} commission has been deducted from your wallet.`,
+        type: "booking",
+        data: { bookingId: booking._id },
+      });
+    }
 
     res.json({ success: true, message: "Booking marked as completed" });
   } catch (error) {

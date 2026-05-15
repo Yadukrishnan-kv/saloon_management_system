@@ -1,5 +1,6 @@
 const Booking = require("../models/Booking");
 const Beautician = require("../models/Beautician");
+const User = require("../models/User");
 const Service = require("../models/Service");
 const { validateBooking } = require("../utils/validators");
 
@@ -225,26 +226,63 @@ const acceptBooking = async (req, res) => {
 
 const completeBooking = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findById(req.params.id).populate("beautician");
     if (!booking) return res.status(404).json({ message: "Booking not found" });
 
     if (!["Accepted", "InProgress"].includes(booking.status)) {
       return res.status(400).json({ message: "Booking cannot be completed in current state" });
     }
 
+    const COMMISSION_AMOUNT = 200; // ₹200 commission per booking
+    
     booking.status = "Completed";
     booking.completedAt = new Date();
     booking.paymentStatus = "Paid";
+    
+    // ─── CALCULATE PAYOUT (Final Amount - Commission) ──────────────────────
+    booking.platformPayment = {
+      collectedByPlatform: true,
+      collectedAt: new Date(),
+      beauticianPayoutDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000), // +4 days
+      paidToBeautician: false,
+      platformCommission: COMMISSION_AMOUNT,
+      beauticianPayout: booking.finalAmount - COMMISSION_AMOUNT,
+    };
+    
     await booking.save();
 
-    // Update beautician earnings
+    // ─── UPDATE BEAUTICIAN EARNINGS & TRACK LAST TASK ──────────────────────
     if (booking.beautician) {
-      await Beautician.findByIdAndUpdate(booking.beautician, {
+      const Wallet = require("../models/Wallet");
+      
+      // Update last completed booking
+      await Beautician.findByIdAndUpdate(booking.beautician._id, {
+        lastCompletedBooking: {
+          bookingId: booking._id,
+          completedAt: new Date(),
+        },
         $inc: {
           "earnings.totalEarnings": booking.finalAmount,
-          "earnings.pendingPayout": booking.finalAmount,
+          "earnings.pendingPayout": booking.platformPayment.beauticianPayout,
         },
       });
+
+      // ─── DEDUCT ₹200 COMMISSION FROM BEAUTICIAN'S WALLET ──────────────────
+      const beauticianUser = await User.findById(booking.beautician.user);
+      if (beauticianUser) {
+        let wallet = await Wallet.findOne({ user: beauticianUser._id });
+        if (wallet) {
+          wallet.balance -= COMMISSION_AMOUNT;
+          wallet.transactions.push({
+            type: "debit",
+            amount: COMMISSION_AMOUNT,
+            description: `Commission deducted for booking #${booking.jobId}`,
+            reference: { bookingId: booking._id },
+            status: "completed",
+          });
+          await wallet.save();
+        }
+      }
     }
 
     res.json({ message: "Booking completed successfully" });

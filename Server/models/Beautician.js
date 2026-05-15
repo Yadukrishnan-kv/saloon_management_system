@@ -139,6 +139,11 @@ const beauticianSchema = new Schema(
         description: { type: String },
       },
     ],
+    // Track last completed task for 30-minute buffer between tasks
+    lastCompletedBooking: {
+      bookingId: { type: Schema.Types.ObjectId, ref: "Booking" },
+      completedAt: { type: Date },
+    },
     earnings: {
       totalEarnings: { type: Number, default: 0 },
       pendingPayout: { type: Number, default: 0 },

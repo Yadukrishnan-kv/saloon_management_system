@@ -213,12 +213,20 @@ const createReview = async (req, res) => {
   try {
     const { beauticianId, bookingId, rating, comment, images } = req.body;
 
+    // Check if booking exists and is completed
+    const Booking = require("../models/Booking");
+    const booking = await Booking.findById(bookingId);
+    if (!booking || booking.status !== "Completed") {
+      return res.status(400).json({ message: "Review can only be submitted after booking is completed" });
+    }
+
     // Check if review already exists for this booking
     const existingReview = await Review.findOne({ booking: bookingId });
     if (existingReview) {
       return res.status(400).json({ message: "Review already submitted for this booking" });
     }
 
+    // ─── CREATE REVIEW WITH PENDING ADMIN APPROVAL ───────────────────────
     const review = await Review.create({
       customer: req.user._id,
       beautician: beauticianId,
@@ -226,22 +234,35 @@ const createReview = async (req, res) => {
       rating,
       comment,
       images,
+      isVisible: false, // Hidden until admin approves
+      adminApproval: "Pending", // Requires admin approval
+      requiresBookingCompletion: false, // Booking is completed
     });
 
-    // Update beautician rating
-    const reviews = await Review.find({ beautician: beauticianId });
-    const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-
-    await Beautician.findByIdAndUpdate(beauticianId, {
-      rating: Math.round(avgRating * 10) / 10,
-      totalReviews: reviews.length,
-    });
+    // Notify admin about pending review
+    const Notification = require("../models/Notification");
+    const User = require("../models/User");
+    const admins = await User.find({ role: { $in: ["Admin", "SuperAdmin"] }, isActive: true });
+    
+    for (const admin of admins) {
+      await Notification.create({
+        user: admin._id,
+        title: "New Review Pending Approval",
+        message: `A new ${rating}-star review has been submitted and is pending your approval.`,
+        type: "review",
+        forAdmin: true,
+        data: { reviewId: review._id, bookingId },
+      });
+    }
 
     const populated = await Review.findById(review._id)
       .populate("customer", "username")
       .populate("beautician", "fullName");
 
-    res.status(201).json(populated);
+    res.status(201).json({ 
+      message: "Review submitted successfully and is pending admin approval",
+      review: populated 
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -249,7 +270,12 @@ const createReview = async (req, res) => {
 
 const getBeauticianReviews = async (req, res) => {
   try {
-    const reviews = await Review.find({ beautician: req.params.beauticianId, isVisible: true })
+    // ─── ONLY SHOW APPROVED REVIEWS ────────────────────────────────────
+    const reviews = await Review.find({ 
+      beautician: req.params.beauticianId, 
+      isVisible: true,
+      adminApproval: "Approved" 
+    })
       .populate("customer", "username profileImage")
       .sort({ createdAt: -1 });
 

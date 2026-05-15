@@ -234,6 +234,49 @@ const setBeauticianVerificationStatus = async (req, res) => {
     if (beautician.user) {
       if (verificationStatus === "Approved") {
         await User.findByIdAndUpdate(beautician.user, { isActive: true, isSuspended: false });
+
+        // ─── INITIALIZE WALLET WITH ₹1000 ───────────────────────────────────
+        const Wallet = require("../models/Wallet");
+        let wallet = await Wallet.findOne({ user: beautician.user });
+        
+        if (!wallet) {
+          wallet = await Wallet.create({
+            user: beautician.user,
+            balance: 1000, // Initialize with ₹1000
+            initialBalanceLoaded: true,
+            currency: "INR",
+            transactions: [
+              {
+                type: "credit",
+                amount: 1000,
+                description: "Initial wallet balance upon beautician approval",
+                status: "completed",
+                date: new Date(),
+              },
+            ],
+          });
+        } else if (!wallet.initialBalanceLoaded) {
+          wallet.balance = 1000;
+          wallet.initialBalanceLoaded = true;
+          wallet.transactions.push({
+            type: "credit",
+            amount: 1000,
+            description: "Initial wallet balance upon beautician approval",
+            status: "completed",
+            date: new Date(),
+          });
+          await wallet.save();
+        }
+
+        // Notify beautician
+        const Notification = require("../models/Notification");
+        await Notification.create({
+          user: beautician.user,
+          title: "Approval Successful",
+          message: `Congratulations! Your beautician profile has been approved. ₹1000 has been credited to your wallet.`,
+          type: "system",
+          forAdmin: false,
+        });
       } else {
         await User.findByIdAndUpdate(beautician.user, { isActive: false });
       }
