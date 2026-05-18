@@ -77,16 +77,14 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Bookings are not accepted after 11:00 PM" });
     }
 
-    // ── Advance booking: Only accept bookings for next day or later (not same day) ──
+    // ── Advance booking: Accept bookings from today onwards ──
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const bookDate = new Date(bookingDate);
     bookDate.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    if (bookDate < tomorrow) {
-      return res.status(400).json({ success: false, message: "Bookings must be made for the next day or later. Same-day bookings are not allowed." });
+    if (bookDate < today) {
+      return res.status(400).json({ success: false, message: "Bookings cannot be made for past dates. Please select today or a future date." });
     }
 
     // ── Fetch all services ──

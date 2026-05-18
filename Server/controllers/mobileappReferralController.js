@@ -161,7 +161,7 @@ const getComprehensiveReferralDetails = async (req, res) => {
         totalReferrals: userInfo.referralCount || 0,
       };
     } else if (userRole === "Beautician") {
-      const beauticianUser = await User.findById(userId);
+      const beauticianUser = await User.findById(userId).select("email phoneNumber referralCode");
       const beautician = await Beautician.findOne({ user: userId });
 
       if (!beautician) {
@@ -174,8 +174,8 @@ const getComprehensiveReferralDetails = async (req, res) => {
         fullName: beautician.fullName,
         email: beauticianUser?.email,
         phoneNumber: beautician.phoneNumber,
-        referralCode: beautician.referralCode,
-        totalReferrals: beautician.referralCount || 0,
+        referralCode: beauticianUser?.referralCode,
+        totalReferrals: beauticianUser?.referralCount || 0,
       };
     } else {
       return res.status(400).json({ success: false, message: "Invalid user role for referral system" });
