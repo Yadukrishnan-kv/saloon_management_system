@@ -23,6 +23,7 @@ const AddBeautician = () => {
     qualifications: "",
     experience: 0,
     skills: [],
+    referralCode: "",
     location: { address: "", city: "", state: "", pincode: "" },
   });
   const [documents, setDocuments] = useState([]);
@@ -77,11 +78,18 @@ const AddBeautician = () => {
           qualifications: formData.qualifications,
           experience: formData.experience,
           skills: formData.skills,
+          referralCode: formData.referralCode || undefined,
           location: formData.location,
         });
       } else {
         // Use the new admin endpoint to ensure user linkage
-        const { data } = await axios.post(`${backendUrl}/api/admin/beauticians`, formData);
+        const submitData = {
+          ...formData,
+        };
+        if (!formData.referralCode.trim()) {
+          delete submitData.referralCode;
+        }
+        const { data } = await axios.post(`${backendUrl}/api/admin/beauticians`, submitData);
         targetBeauticianId = data?.beautician?._id || data?._id;
       }
 
@@ -114,6 +122,7 @@ const AddBeautician = () => {
         qualifications: data.qualifications || "",
         experience: data.experience || 0,
         skills: data.skills || [],
+        referralCode: "",
         location: data.location || { address: "", city: "", state: "", pincode: "" },
       });
       setIsEdit(true);
@@ -170,6 +179,13 @@ const AddBeautician = () => {
                 <label>Phone Number</label>
                 <input name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} />
                 {errors.phoneNumber && <p className="error-text">{errors.phoneNumber}</p>}
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Referral Code <span className="optional">(Optional)</span></label>
+                <input name="referralCode" value={formData.referralCode} onChange={handleChange} placeholder="e.g., SidiXY12" />
               </div>
             </div>
 

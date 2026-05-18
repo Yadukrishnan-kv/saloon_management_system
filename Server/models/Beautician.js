@@ -166,6 +166,22 @@ const beauticianSchema = new Schema(
         isDefault: { type: Boolean, default: false },
       },
     ],
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
+    referredBy: {
+      type: Schema.Types.ObjectId,
+      ref: "Beautician",
+      default: null,
+    },
+    referralCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   { timestamps: true }
 );

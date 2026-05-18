@@ -19,6 +19,7 @@ const AddCustomer = () => {
     email: "",
     password: "",
     phoneNumber: "",
+    referralCode: "",
   });
   const navigate = useNavigate();
   const location = useLocation();
@@ -56,10 +57,20 @@ const AddCustomer = () => {
           username: formData.username,
           email: formData.email,
           phoneNumber: formData.phoneNumber,
+          referralCode: formData.referralCode || undefined,
         });
         toast.success("Customer updated successfully");
       } else {
-        await axios.post(`${backendUrl}/api/auth/register`, formData);
+        const submitData = {
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          phoneNumber: formData.phoneNumber,
+        };
+        if (formData.referralCode.trim()) {
+          submitData.referralCode = formData.referralCode.trim();
+        }
+        await axios.post(`${backendUrl}/api/auth/register`, submitData);
         toast.success("Customer created successfully");
       }
       setTimeout(() => navigate("/admin/customers"), 800);
@@ -78,6 +89,7 @@ const AddCustomer = () => {
         email: data.email || "",
         password: "",
         phoneNumber: data.phoneNumber || "",
+        referralCode: "",
       });
       setIsEdit(true);
       setCustomerId(editId);
@@ -124,6 +136,13 @@ const AddCustomer = () => {
                 <label htmlFor="phoneNumber">Phone Number</label>
                 <input id="phoneNumber" name="phoneNumber" type="text" value={formData.phoneNumber} onChange={handleChange} />
               </div>
+              <div className="form-group">
+                <label htmlFor="referralCode">Referral Code <span className="optional">(Optional)</span></label>
+                <input id="referralCode" name="referralCode" type="text" placeholder="e.g., SidiXY12" value={formData.referralCode} onChange={handleChange} />
+              </div>
+            </div>
+
+            <div className="form-row">
               {!isEdit && (
                 <div className="form-group">
                   <label htmlFor="password">Password</label>

@@ -1,4 +1,6 @@
+const express = require("express");
 const User = require("../models/User");
+const Beautician = require("../models/Beautician");
 const Referral = require("../models/Referral");
 const Wallet = require("../models/Wallet");
 
@@ -132,9 +134,103 @@ const validateReferralCode = async (req, res) => {
   }
 };
 
+// ─── GET COMPREHENSIVE REFERRAL DETAILS (FOR BOTH CUSTOMER & BEAUTICIAN) ──────
+const getComprehensiveReferralDetails = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // Check if user is Customer or Beautician
+    let referralData = null;
+    let userInfo = null;
+
+    if (userRole === "Customer") {
+      userInfo = await User.findById(userId).select("username email phoneNumber referralCode referralCount");
+      
+      if (!userInfo) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+
+      referralData = {
+        userType: "Customer",
+        userId: userInfo._id,
+        username: userInfo.username,
+        email: userInfo.email,
+        phoneNumber: userInfo.phoneNumber,
+        referralCode: userInfo.referralCode,
+        totalReferrals: userInfo.referralCount || 0,
+      };
+    } else if (userRole === "Beautician") {
+      const beauticianUser = await User.findById(userId);
+      const beautician = await Beautician.findOne({ user: userId });
+
+      if (!beautician) {
+        return res.status(404).json({ success: false, message: "Beautician not found" });
+      }
+
+      referralData = {
+        userType: "Beautician",
+        userId: beautician._id,
+        fullName: beautician.fullName,
+        email: beauticianUser?.email,
+        phoneNumber: beautician.phoneNumber,
+        referralCode: beautician.referralCode,
+        totalReferrals: beautician.referralCount || 0,
+      };
+    } else {
+      return res.status(400).json({ success: false, message: "Invalid user role for referral system" });
+    }
+
+    // Get all referrals for this user
+    let referrals = [];
+    
+    if (userRole === "Customer") {
+      referrals = await Referral.find({ referrerUser: userId })
+        .populate("referredUser", "username email phoneNumber")
+        .sort({ createdAt: -1 });
+    }
+    // Note: For Beauticians, we can add similar logic when Referral model is updated to support Beautician referrals
+
+    // Calculate reward points
+    const totalRewardPoints = referrals.reduce((sum, ref) => sum + (ref.rewardPoints || 0), 0);
+    const completedReferrals = referrals.filter(ref => ref.rewardStatus === "completed").length;
+    const pendingReferrals = referrals.filter(ref => ref.rewardStatus === "pending").length;
+
+    // Get wallet points
+    const wallet = await Wallet.findOne({ user: userId });
+
+    // Build response
+    const response = {
+      success: true,
+      data: {
+        ...referralData,
+        stats: {
+          totalRewardPoints,
+          walletPoints: wallet ? wallet.points : 0,
+          completedReferrals,
+          pendingReferrals,
+          totalReferrals: referrals.length,
+        },
+        referrals: referrals.map((ref) => ({
+          referredUserId: ref.referredUser._id,
+          referredUsername: ref.referredUser.username,
+          referredEmail: ref.referredUser.email,
+          referredPhone: ref.referredUser.phoneNumber,
+          rewardPoints: ref.rewardPoints,
+          rewardStatus: ref.rewardStatus,
+          usedDate: ref.usedDate,
+          createdAt: ref.createdAt,
+        })),
+      },
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error("Get comprehensive referral details error:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
-  getReferralCode,
-  getReferralStats,
-  getReferralHistory,
-  validateReferralCode,
+  getComprehensiveReferralDetails,
 };

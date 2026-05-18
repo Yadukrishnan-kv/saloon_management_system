@@ -138,3 +138,10 @@
 .pagination button:hover:not(:disabled) { border-color: #6c5ce7; color: #fff; background: #6c5ce7; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(108, 92, 231, 0.25); }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
 .pagination span { font-size: 13px; color: #636e72; }
+
+.optional {
+  color: #95a5a6;
+  font-weight: 400;
+  font-size: 12px;
+  margin-left: 4px;
+}
