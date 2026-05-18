@@ -19,7 +19,7 @@ const BeauticianList = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [verificationFilter, setVerificationFilter] = useState("");
+  const [verificationFilter, setVerificationFilter] = useState("Approved"); // Default to Approved
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selected, setSelected] = useState(null);
@@ -34,7 +34,7 @@ const BeauticianList = () => {
           limit: 10,
           search,
           status: statusFilter,
-          verificationStatus: verificationFilter,
+          verificationStatus: verificationFilter || "Approved", // Ensure Approved is always set
         },
       });
       setBeauticians(data.beauticians);
@@ -111,7 +111,7 @@ const BeauticianList = () => {
       <Sidebar collapsed={sidebarCollapsed} />
       <main className={`main-content ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         <div className="page-header">
-          <div><h1>Beautician Management</h1><p>Manage service providers</p></div>
+          <div><h1>Beautician Management</h1><p>Approved service providers • Pending requests → Go to Verification</p></div>
           <Button onClick={() => navigate("/admin/beauticians/add")}><FiPlus /> Add Beautician</Button>
         </div>
         <div className="filters-row">
@@ -122,11 +122,11 @@ const BeauticianList = () => {
             <option value="Inactive">Inactive</option>
             <option value="Suspended">Suspended</option>
           </select>
-          <select value={verificationFilter} onChange={(e) => { setVerificationFilter(e.target.value); setPage(1); }}>
-            <option value="">All Verification</option>
+          <select value={verificationFilter} onChange={(e) => { setVerificationFilter(e.target.value || "Approved"); setPage(1); }}>
+            <option value="Approved">Approved Only</option>
             <option value="Pending">Pending</option>
-            <option value="Approved">Approved</option>
             <option value="Rejected">Rejected</option>
+            <option value="">All Verification Status</option>
           </select>
         </div>
         {loading ? <Loading /> : (
