@@ -19,6 +19,7 @@ import {
   FiPackage,
   FiCheckCircle,
   FiChevronDown,
+  FiGift,
 } from "react-icons/fi";
 import useAuth from "../../../hooks/useAuth";
 import "./Sidebar.css";
@@ -27,7 +28,7 @@ const Sidebar = ({ collapsed }) => {
   const { user, permissions } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [expanded, setExpanded] = useState({ users: false, categories: false });
+  const [expanded, setExpanded] = useState({ users: false, categories: false, referralManagement: false });
 
   const adminMenu = [
     { label: "Dashboard", icon: <FiGrid />, path: "/dashboard" },
@@ -66,6 +67,15 @@ const Sidebar = ({ collapsed }) => {
       icon: <FiShoppingBag />,
       path: "/admin/curated-services",
       permission: "Curated Services",
+    },
+    {
+      label: "Referral Management",
+      icon: <FiGift />,
+      sectionKey: "referralManagement",
+      children: [
+        { label: "Settings", path: "/admin/referral/settings", permission: "Referral Management" },
+        { label: "Statistics", path: "/admin/referral/statistics", permission: "Referral Management" },
+      ],
     },
   ];
 

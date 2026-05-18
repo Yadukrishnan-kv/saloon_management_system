@@ -2,12 +2,30 @@ const Beautician = require("../models/Beautician");
 // ─── REGISTER BEAUTICIAN ─────────────────────────────────────────────────────
 const registerBeautician = async (req, res) => {
   try {
-    const { username, email, password, phoneNumber, fullName, bio, professionalTitle, skills, experience, tier, qualifications, ...rest } = req.body;
+    const { username, email, password, phoneNumber, fullName, bio, professionalTitle, skills, experience, tier, qualifications, referralCode, ...rest } = req.body;
 
     // Check for existing user
     const existing = await User.findOne({ $or: [{ email }, { username }, { phoneNumber }] });
     if (existing) {
       return res.status(400).json({ message: "Username, email, or phone number already in use" });
+    }
+
+    // Generate unique referral code for new user
+    let newReferralCode;
+    let isUnique = false;
+    while (!isUnique) {
+      newReferralCode = generateReferralCode();
+      const existingCode = await User.findOne({ referralCode: newReferralCode });
+      isUnique = !existingCode;
+    }
+
+    // Check if provided referral code is valid
+    let referredByUser = null;
+    if (referralCode) {
+      referredByUser = await User.findOne({ referralCode });
+      if (!referredByUser) {
+        return res.status(400).json({ message: "Invalid referral code" });
+      }
     }
 
     // Create User
@@ -18,7 +36,22 @@ const registerBeautician = async (req, res) => {
       phoneNumber,
       role: "Beautician",
       isActive: true,
+      referralCode: newReferralCode,
+      referredBy: referredByUser ? referredByUser._id : null,
     });
+
+    // If user was referred, create referral record and increment referrer's count
+    if (referredByUser) {
+      await Referral.create({
+        referrerUser: referredByUser._id,
+        referredUser: user._id,
+        referralCode,
+        rewardPoints: 0,
+        rewardStatus: "pending",
+      });
+      referredByUser.referralCount = (referredByUser.referralCount || 0) + 1;
+      await referredByUser.save();
+    }
 
     // Create Beautician and link user
     const beautician = await Beautician.create({
@@ -38,6 +71,7 @@ const registerBeautician = async (req, res) => {
       message: "Beautician registration successful",
       beautician,
       user: { ...user.toObject(), password: undefined },
+      referralCode: newReferralCode,
     });
   } catch (error) {
     console.error("Beautician register error:", error);
@@ -73,6 +107,8 @@ const crypto = require("crypto");
 const { validateRegister } = require("../utils/validators");
 const sendEmail = require("../utils/emailSender");
 const { generateToken, generateRefreshToken } = require("../utils/tokenHelper");
+const { generateReferralCode } = require("../utils/referralCodeGenerator");
+const Referral = require("../models/Referral");
 
 const register = async (req, res) => {
   try {
@@ -81,11 +117,29 @@ const register = async (req, res) => {
       return res.status(400).json({ message: "Validation failed", errors });
     }
 
-    const { username, email, password, phoneNumber } = req.body;
+    const { username, email, password, phoneNumber, referralCode } = req.body;
 
     const existing = await User.findOne({ $or: [{ email }, { username }] });
     if (existing) {
       return res.status(400).json({ message: "Username or email already in use" });
+    }
+
+    // Generate unique referral code for new user
+    let newReferralCode;
+    let isUnique = false;
+    while (!isUnique) {
+      newReferralCode = generateReferralCode();
+      const existingCode = await User.findOne({ referralCode: newReferralCode });
+      isUnique = !existingCode;
+    }
+
+    // Check if provided referral code is valid
+    let referredByUser = null;
+    if (referralCode) {
+      referredByUser = await User.findOne({ referralCode });
+      if (!referredByUser) {
+        return res.status(400).json({ message: "Invalid referral code" });
+      }
     }
 
     const user = await User.create({
@@ -94,7 +148,22 @@ const register = async (req, res) => {
       password,
       phoneNumber,
       role: "Customer",
+      referralCode: newReferralCode,
+      referredBy: referredByUser ? referredByUser._id : null,
     });
+
+    // If user was referred, create referral record and increment referrer's count
+    if (referredByUser) {
+      await Referral.create({
+        referrerUser: referredByUser._id,
+        referredUser: user._id,
+        referralCode,
+        rewardPoints: 0,
+        rewardStatus: "pending",
+      });
+      referredByUser.referralCount = (referredByUser.referralCount || 0) + 1;
+      await referredByUser.save();
+    }
 
     const token = generateToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
@@ -109,6 +178,7 @@ const register = async (req, res) => {
       user: safeUser,
       token,
       refreshToken,
+      referralCode: newReferralCode,
     });
   } catch (error) {
     console.error("Register error:", error);

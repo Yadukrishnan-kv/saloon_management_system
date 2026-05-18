@@ -66,18 +66,26 @@ const AllBookings = () => {
     setSelectedBeautician(booking.beautician?._id || "");
 
     try {
-      // Fetch ALL beauticians without any filtering
-      const { data } = await axios.get(`${backendUrl}/api/beauticians`);
-      // Handle both response formats: array or { beauticians: [...] }
-      const beauticiansArray = Array.isArray(data) ? data : (data.beauticians || []);
+      // Fetch beauticians filtered by wallet balance for this booking amount
+      const { data } = await axios.get(`${backendUrl}/api/beauticians/filter/by-balance`, {
+        params: { bookingId: booking._id }
+      });
+      
+      const beauticiansArray = data.beauticians || [];
       setBeauticians(beauticiansArray);
-      setAssignmentSource("all");
+      setAssignmentSource("filtered");
+      
       if (beauticiansArray.length > 0 && !booking.beautician?._id) {
         setSelectedBeautician(beauticiansArray[0]._id);
       }
+      
+      // Show info about the filter
+      if (beauticiansArray.length === 0) {
+        toast.warning(`No beauticians have ₹${booking.finalAmount} or more in their wallet`);
+      }
     } catch (error) {
       console.error("Beautician fetch error:", error);
-      toast.error("Failed to load beauticians");
+      toast.error(error.response?.data?.message || "Failed to load beauticians");
     }
     setAssignModal(true);
   };
@@ -289,7 +297,7 @@ const AllBookings = () => {
         )}
         <Modal isOpen={assignModal} onClose={() => setAssignModal(false)} title={assignmentMode === "reassign" ? "Reassign Beautician" : "Assign Beautician"}>
           <div style={{ marginBottom: "12px", padding: "10px 12px", background: "#eefaf2", borderRadius: "10px", color: "#256f46", fontSize: "13px" }}>
-            <strong>Note:</strong> Select a beautician from the complete list below to assign to this booking.
+            <strong>Note:</strong> Only beauticians with ₹{selectedBooking?.finalAmount} or more in their wallet are shown below.
           </div>
           <div className="form-group">
             <label>Select Beautician *</label>
@@ -298,22 +306,23 @@ const AllBookings = () => {
               {beauticians && beauticians.length > 0 ? (
                 beauticians.map((b) => (
                   <option key={b._id} value={b._id}>
-                    {b.fullName} {b.rating ? `(★${b.rating})` : ""} {b.phoneNumber ? `- ${b.phoneNumber}` : ""}
+                    {b.fullName} {b.rating ? `(★${b.rating})` : ""} - Wallet: ₹{b.walletBalance || 0} {b.phoneNumber ? `- ${b.phoneNumber}` : ""}
                   </option>
                 ))
               ) : (
-                <option disabled>No beauticians available</option>
+                <option disabled>No beauticians with sufficient wallet balance</option>
               )}
             </select>
           </div>
           {beauticians && beauticians.length === 0 && (
             <div style={{ padding: "10px 12px", background: "#ffe6e6", borderRadius: "10px", color: "#c0392b", fontSize: "13px", marginBottom: "12px" }}>
-              <strong>No beauticians found.</strong> Please create beautician profiles first.
+              <strong>No beauticians found.</strong> No beauticians have ₹{selectedBooking?.finalAmount} or more in their wallet. Beautician wallet balances need to be funded.
             </div>
           )}
           {currentAssignment && (
             <div style={{ padding: "10px 12px", background: "#f0f3f7", borderRadius: "10px", marginBottom: "12px", color: "#576574", fontSize: "13px" }}>
               <strong>Selected:</strong> {currentAssignment.fullName}<br/>
+              <strong>Wallet Balance:</strong> ₹{currentAssignment.walletBalance || 0}<br/>
               {currentAssignment.phoneNumber && <>Phone: {currentAssignment.phoneNumber}<br/></>}
               {currentAssignment.rating && <>Rating: ★{currentAssignment.rating}</>}
             </div>

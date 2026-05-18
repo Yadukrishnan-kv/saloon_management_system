@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { FiUser, FiMail, FiLock, FiPhone, FiEye, FiEyeOff } from "react-icons/fi";
+import { FiUser, FiMail, FiLock, FiPhone, FiEye, FiEyeOff, FiGift } from "react-icons/fi";
 import toast from "react-hot-toast";
 import useAuth from "../../../hooks/useAuth";
 import "./Register.css";
@@ -11,6 +11,7 @@ const Register = () => {
     email: "",
     password: "",
     phoneNumber: "",
+    referralCode: "",
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -113,6 +114,22 @@ const Register = () => {
                     onChange={handleChange}
                   />
                 </div>
+              </div>
+
+              <div className="register-input-group">
+                <label htmlFor="referralCode">Referral Code (Optional)</label>
+                <div className="register-input-wrapper">
+                  <FiGift className="register-input-icon" />
+                  <input
+                    id="referralCode"
+                    name="referralCode"
+                    type="text"
+                    placeholder="Enter referral code to earn rewards"
+                    value={formData.referralCode}
+                    onChange={handleChange}
+                  />
+                </div>
+                {errors.referralCode && <p className="register-error">{errors.referralCode}</p>}
               </div>
 
               <div className="register-input-group">

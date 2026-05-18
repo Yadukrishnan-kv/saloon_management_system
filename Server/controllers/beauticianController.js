@@ -459,6 +459,65 @@ const getNearbyBeauticians = async (req, res) => {
   }
 };
 
+// ─── GET BEAUTICIANS WITH SUFFICIENT WALLET BALANCE (Admin) ───────────────────
+const getBeauticiansWithSufficientBalance = async (req, res) => {
+  try {
+    const { bookingId } = req.query;
+
+    if (!bookingId) {
+      return res.status(400).json({ success: false, message: "Booking ID is required" });
+    }
+
+    const Booking = require("../models/Booking");
+    const Wallet = require("../models/Wallet");
+
+    // Get booking details to find out the amount
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    const requiredAmount = booking.finalAmount;
+
+    // Get all active beauticians
+    const beauticians = await Beautician.find({ status: "Active" })
+      .populate("user", "_id")
+      .select("_id fullName phoneNumber profileImage rating user");
+
+    // Filter beauticians by wallet balance
+    const beauticiansWithBalance = await Promise.all(
+      beauticians.map(async (beautician) => {
+        if (!beautician.user) return null;
+
+        const wallet = await Wallet.findOne({ user: beautician.user._id });
+        const balance = wallet ? wallet.balance : 0;
+
+        // Only include beauticians with sufficient balance
+        if (balance >= requiredAmount) {
+          return {
+            ...beautician.toObject(),
+            walletBalance: balance,
+          };
+        }
+        return null;
+      })
+    );
+
+    // Filter out nulls (beauticians without sufficient balance)
+    const availableBeauticians = beauticiansWithBalance.filter(Boolean);
+
+    res.json({
+      success: true,
+      beauticians: availableBeauticians,
+      requiredAmount,
+      totalCount: availableBeauticians.length,
+    });
+  } catch (error) {
+    console.error("Get beauticians with sufficient balance error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 module.exports = {
   getAllBeauticians,
   getBeauticianById,
@@ -474,4 +533,5 @@ module.exports = {
   getAvailableBeauticians,
   getNearbyBeauticians,
   getTopBeauticians,
+  getBeauticiansWithSufficientBalance,
 };

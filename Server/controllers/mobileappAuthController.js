@@ -2,7 +2,10 @@ const User = require("../models/User");
 const Beautician = require("../models/Beautician");
 const OTP = require("../models/OTP");
 const Wallet = require("../models/Wallet");
+const ReferralSettings = require("../models/ReferralSettings");
 const { generateOTP, getOTPExpiry } = require("../utils/otpGenerator");
+const { generateReferralCode } = require("../utils/referralCodeGenerator");
+const Referral = require("../models/Referral");
 // const { sendOTPSMS } = require("../utils/smsSender");
 const sendEmail = require("../utils/emailSender");
 const { generateToken } = require("../utils/tokenHelper");
@@ -19,12 +22,30 @@ const customerRegister = async (req, res) => {
       return res.status(400).json({ success: false, message: "Validation failed", errors });
     }
 
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, referralCode } = req.body;
 
     // Only check for duplicate email
     const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ success: false, message: "Email already in use" });
+    }
+
+    // Generate unique referral code for new user
+    let newReferralCode;
+    let isUnique = false;
+    while (!isUnique) {
+      newReferralCode = generateReferralCode();
+      const existingCode = await User.findOne({ referralCode: newReferralCode });
+      isUnique = !existingCode;
+    }
+
+    // Check if provided referral code is valid
+    let referredByUser = null;
+    if (referralCode) {
+      referredByUser = await User.findOne({ referralCode });
+      if (!referredByUser) {
+        return res.status(400).json({ success: false, message: "Invalid referral code" });
+      }
     }
 
     const user = await User.create({
@@ -33,7 +54,42 @@ const customerRegister = async (req, res) => {
       password,
       role: "Customer",
       phoneNumber: phone,
+      referralCode: newReferralCode,
+      referredBy: referredByUser ? referredByUser._id : null,
     });
+
+    // If user was referred, create referral record and increment referrer's count
+    if (referredByUser) {
+      // Get referral settings for points
+      let referralSettings = await ReferralSettings.findOne();
+      if (!referralSettings) {
+        referralSettings = await ReferralSettings.create({
+          pointsPerReferral: 10,
+          pointsRedemptionLimit: 100,
+        });
+      }
+
+      const rewardPoints = referralSettings.pointsPerReferral;
+
+      // Create referral record
+      await Referral.create({
+        referrerUser: referredByUser._id,
+        referredUser: user._id,
+        referralCode,
+        rewardPoints,
+        rewardStatus: "completed",
+      });
+
+      // Add reward points to referrer's wallet
+      let referrerWallet = await Wallet.findOne({ user: referredByUser._id });
+      if (referrerWallet) {
+        referrerWallet.points = (referrerWallet.points || 0) + rewardPoints;
+        await referrerWallet.save();
+      }
+
+      referredByUser.referralCount = (referredByUser.referralCount || 0) + 1;
+      await referredByUser.save();
+    }
 
     // TODO: Enable OTP email verification before production
     // const otp = generateOTP();
@@ -57,6 +113,7 @@ const customerRegister = async (req, res) => {
       success: true,
       message: "Registration successful. Please verify your account.",
       userId: user._id,
+      referralCode: newReferralCode,
       requiresOTP: true,
     });
   } catch (error) {
@@ -234,13 +291,32 @@ const beauticianRegister = async (req, res) => {
       bio,
       qualifications,
       location,
-      professionalTitle
+      professionalTitle,
+      referralCode
     } = req.body;
 
     // Only check for duplicate email
     const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ success: false, message: "Email already in use" });
+    }
+
+    // Generate unique referral code for new user
+    let newReferralCode;
+    let isUnique = false;
+    while (!isUnique) {
+      newReferralCode = generateReferralCode();
+      const existingCode = await User.findOne({ referralCode: newReferralCode });
+      isUnique = !existingCode;
+    }
+
+    // Check if provided referral code is valid
+    let referredByUser = null;
+    if (referralCode) {
+      referredByUser = await User.findOne({ referralCode });
+      if (!referredByUser) {
+        return res.status(400).json({ success: false, message: "Invalid referral code" });
+      }
     }
 
     const user = await User.create({
@@ -250,7 +326,42 @@ const beauticianRegister = async (req, res) => {
       phoneNumber,
       role: "Beautician",
       isActive: false,
+      referralCode: newReferralCode,
+      referredBy: referredByUser ? referredByUser._id : null,
     });
+
+    // If user was referred, create referral record and increment referrer's count
+    if (referredByUser) {
+      // Get referral settings for points
+      let referralSettings = await ReferralSettings.findOne();
+      if (!referralSettings) {
+        referralSettings = await ReferralSettings.create({
+          pointsPerReferral: 10,
+          pointsRedemptionLimit: 100,
+        });
+      }
+
+      const rewardPoints = referralSettings.pointsPerReferral;
+
+      // Create referral record
+      await Referral.create({
+        referrerUser: referredByUser._id,
+        referredUser: user._id,
+        referralCode,
+        rewardPoints,
+        rewardStatus: "completed",
+      });
+
+      // Add reward points to referrer's wallet
+      let referrerWallet = await Wallet.findOne({ user: referredByUser._id });
+      if (referrerWallet) {
+        referrerWallet.points = (referrerWallet.points || 0) + rewardPoints;
+        await referrerWallet.save();
+      }
+
+      referredByUser.referralCount = (referredByUser.referralCount || 0) + 1;
+      await referredByUser.save();
+    }
 
     // Handle PCC document upload and additional documents
     let pccDocument = {};
@@ -371,6 +482,7 @@ const beauticianRegister = async (req, res) => {
       success: true,
       message: "Registration successful. Your account is pending admin verification.",
       beauticianId: beautician._id,
+      referralCode: newReferralCode,
       requiresVerification: true,
       pccUploaded: !!pccDocument.documentUrl,
       walletBalance: INITIAL_WALLET_BALANCE,

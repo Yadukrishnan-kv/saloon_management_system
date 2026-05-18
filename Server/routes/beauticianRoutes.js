@@ -15,6 +15,7 @@ const {
   getAvailableBeauticians,
   getNearbyBeauticians,
   getTopBeauticians,
+  getBeauticiansWithSufficientBalance,
 } = require("../controllers/beauticianController");
 // Top-rated beauticians (public)
 router.get("/top-rated", getTopBeauticians);
@@ -24,6 +25,9 @@ const upload = require("../middleware/uploadMiddleware");
 // Public / Customer routes
 router.get("/available", protect, getAvailableBeauticians);
 router.get("/nearby", protect, getNearbyBeauticians);
+
+// Admin only - Filter beauticians by wallet balance for booking assignment
+router.get("/filter/by-balance", protect, authorizeRoles("SuperAdmin", "Admin"), getBeauticiansWithSufficientBalance);
 
 // General
 router.get("/", protect, getAllBeauticians);

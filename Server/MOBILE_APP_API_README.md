@@ -115,7 +115,7 @@ Notes:
 
 ### 1) Customer Register
 - **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/auth/customer/register
-- **Description:** Register customer and trigger OTP verification via email.
+- **Description:** Register customer and trigger OTP verification via email. A unique referral code is generated for the new customer.
 - **Headers:** Content-Type: application/json
 - **Request Body:**
 ~~~json
@@ -123,16 +123,18 @@ Notes:
   "name": "Asha",
   "email": "asha@example.com",
   "password": "Pass@123",
-  "confirmPassword": "Pass@123"
+  "confirmPassword": "Pass@123",
+  "referralCode": "SidiXY12"
 }
 ~~~
-- **Note:** Only email is required for OTP verification. OTP will be sent to the provided email address.
+- **Note:** Only email is required for OTP verification. OTP will be sent to the provided email address. `referralCode` is optional - use an existing customer's referral code to get reward points.
 - **Response:**
 ~~~json
 {
   "success": true,
   "message": "Registration successful. Please verify your account.",
   "userId": "6650...",
+  "referralCode": "SidiAB34",
   "requiresOTP": true
 }
 ~~~
@@ -141,6 +143,13 @@ Notes:
 {
   "success": false,
   "message": "Email already in use"
+}
+~~~
+or
+~~~json
+{
+  "success": false,
+  "message": "Invalid referral code"
 }
 ~~~
 
@@ -152,6 +161,7 @@ Notes:
 - **Headers:** Content-Type: application/json
 - **Request Body:**
 ~~~json
+
 {
   "userId": "6650...",
   "otp": "123456",
@@ -4195,3 +4205,400 @@ final profileRes = await http.get(
   headers: {'Authorization': 'Bearer $token'},
 );
 ~~~
+
+---
+
+## Referral APIs - Customer (/api/mobileapp/referral)
+
+### Overview
+The referral system allows customers and beauticians to:
+- Generate a unique referral code during registration
+- Share their referral code with others
+- Earn reward points when others register using their code
+- Track referral statistics and history
+- Accumulate points in their wallet that can be redeemed for free services
+
+### Referral Code Format
+- Format: `Sidi` + 4 random alphanumeric characters (e.g., `SidiXY12`)
+- Generated automatically during registration
+- Unique per user and cannot be changed
+
+---
+
+### 1) Get Referral Code
+- **Endpoint:** GET https://sidi.mobilegear.co.in/api/mobileapp/referral/code
+- **Description:** Get the current user's referral code and referral count.
+- **Headers:** Authorization: Bearer <token>
+- **Request Body:** N/A
+- **Protected:** Yes (requires authentication)
+- **Response:**
+~~~json
+{
+  "success": true,
+  "referralCode": "SidiXY12",
+  "referralCount": 5
+}
+~~~
+- **Error Response:**
+~~~json
+{
+  "success": false,
+  "message": "User not found"
+}
+~~~
+
+---
+
+### 2) Get Referral Statistics
+- **Endpoint:** GET https://sidi.mobilegear.co.in/api/mobileapp/referral/stats
+- **Description:** Get comprehensive referral statistics including total referrals, reward points, and list of referred users.
+- **Headers:** Authorization: Bearer <token>
+- **Request Body:** N/A
+- **Protected:** Yes (requires authentication)
+- **Response:**
+~~~json
+{
+  "success": true,
+  "stats": {
+    "referralCode": "SidiXY12",
+    "totalReferrals": 5,
+    "totalRewardPoints": 2500,
+    "walletPoints": 2500,
+    "referrals": [
+      {
+        "referredUserId": "6651...",
+        "referredUserName": "Priya",
+        "referredUserEmail": "priya@example.com",
+        "rewardPoints": 500,
+        "rewardStatus": "completed",
+        "usedDate": "2025-01-20T10:30:00.000Z"
+      },
+      {
+        "referredUserId": "6652...",
+        "referredUserName": "Rahul",
+        "referredUserEmail": "rahul@example.com",
+        "rewardPoints": 500,
+        "rewardStatus": "pending",
+        "usedDate": "2025-01-21T14:15:00.000Z"
+      }
+    ]
+  }
+}
+~~~
+- **Error Response:**
+~~~json
+{
+  "success": false,
+  "message": "Server error"
+}
+~~~
+
+---
+
+### 3) Get Referral History (Paginated)
+- **Endpoint:** GET https://sidi.mobilegear.co.in/api/mobileapp/referral/history
+- **Description:** Get paginated list of all users referred by the current user.
+- **Headers:** Authorization: Bearer <token>
+- **Query Params:** 
+  - `page` (default: 1) - Page number
+  - `limit` (default: 10) - Number of records per page
+- **Request Body:** N/A
+- **Protected:** Yes (requires authentication)
+- **Response:**
+~~~json
+{
+  "success": true,
+  "referrals": [
+    {
+      "id": "6661...",
+      "referredUserName": "Priya",
+      "referredUserEmail": "priya@example.com",
+      "rewardPoints": 500,
+      "rewardStatus": "completed",
+      "usedDate": "2025-01-20T10:30:00.000Z"
+    },
+    {
+      "id": "6662...",
+      "referredUserName": "Rahul",
+      "referredUserEmail": "rahul@example.com",
+      "rewardPoints": 500,
+      "rewardStatus": "pending",
+      "usedDate": "2025-01-21T14:15:00.000Z"
+    }
+  ],
+  "pagination": {
+    "currentPage": 1,
+    "totalPages": 2,
+    "totalReferrals": 15
+  }
+}
+~~~
+
+---
+
+### 4) Validate Referral Code
+- **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/referral/validate
+- **Description:** Validate a referral code before registration. Useful for checking if a code is valid.
+- **Headers:** Authorization: Bearer <token>; Content-Type: application/json
+- **Request Body:**
+~~~json
+{
+  "code": "SidiXY12"
+}
+~~~
+- **Protected:** Yes (requires authentication)
+- **Response:**
+~~~json
+{
+  "success": true,
+  "message": "Referral code is valid",
+  "referrerName": "Asha",
+  "referrerEmail": "asha@example.com"
+}
+~~~
+- **Error Response (Invalid Code):**
+~~~json
+{
+  "success": false,
+  "message": "Invalid referral code"
+}
+~~~
+- **Error Response (Own Code):**
+~~~json
+{
+  "success": false,
+  "message": "Cannot use your own referral code"
+}
+~~~
+
+---
+
+### Referral Reward Points System
+
+#### How It Works
+1. **Registration**: When a new user registers with a valid referral code, the referrer earns reward points (default: 500 points)
+2. **Status Tracking**: Each referral has a status (`pending` → `completed` or `expired`)
+3. **Wallet Integration**: Reward points are added to the referrer's wallet
+4. **Service Redemption**: Once reward points reach a threshold (configured by admin), users can redeem them as free services
+
+#### Reward Status States
+- `pending`: Referral reward is being processed
+- `completed`: Referral reward has been credited to wallet
+- `expired`: Referral reward validity period has expired
+
+#### Points to Wallet
+- Completed referral points automatically appear in user's wallet
+- View wallet points in profile or referral stats API
+- Points can be used for booking services (admin configurable redemption)
+
+#### Example Scenario
+1. Asha (existing customer) shares her referral code: `SidiAB34`
+2. Priya registers using the code `SidiAB34`
+3. Asha earns 500 reward points instantly
+4. Points appear in Asha's wallet for free service booking
+5. After accumulating threshold points (e.g., 5000), Asha can claim a free service
+
+---
+
+### Beautician Registration with Referral
+- **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/auth/beautician/register
+- **Description:** Register beautician with optional referral code. Same referral mechanics as customer registration.
+- **Note:** Include optional `referralCode` field in request body to earn reward points
+- **Response includes:** 
+~~~json
+{
+  "success": true,
+  "message": "Registration successful...",
+  "beauticianId": "...",
+  "referralCode": "SidiCD56",
+  ...
+}
+~~~
+
+---
+
+# ======================================================
+# ADMIN APIs
+# ======================================================
+
+---
+
+## Referral Settings APIs - Admin (/api/admin/referral)
+
+### 1) Get Referral Settings
+- **Endpoint:** GET https://sidi.mobilegear.co.in/api/admin/referral/settings
+- **Description:** Get current referral program settings including points configuration and limits.
+- **Headers:** Authorization: Bearer <admin_token>
+- **Request Body:** N/A
+- **Protected:** Yes (Admin only)
+- **Response:**
+~~~json
+{
+  "success": true,
+  "settings": {
+    "_id": "...",
+    "pointsPerReferral": 10,
+    "pointsRedemptionLimit": 100,
+    "isActive": true,
+    "description": "Referral reward configuration",
+    "updatedBy": {
+      "_id": "...",
+      "username": "admin",
+      "email": "admin@salon.com"
+    },
+    "createdAt": "2025-01-15T10:00:00.000Z",
+    "updatedAt": "2025-01-18T15:30:00.000Z"
+  }
+}
+~~~
+
+---
+
+### 2) Update Referral Settings
+- **Endpoint:** PUT https://sidi.mobilegear.co.in/api/admin/referral/settings
+- **Description:** Configure referral program parameters including points per referral and redemption limits.
+- **Headers:** Authorization: Bearer <admin_token>; Content-Type: application/json
+- **Request Body:**
+~~~json
+{
+  "pointsPerReferral": 10,
+  "pointsRedemptionLimit": 100,
+  "isActive": true,
+  "description": "Updated referral configuration"
+}
+~~~
+- **Protected:** Yes (Admin only)
+- **Response:**
+~~~json
+{
+  "success": true,
+  "message": "Referral settings updated successfully",
+  "settings": {
+    "_id": "...",
+    "pointsPerReferral": 10,
+    "pointsRedemptionLimit": 100,
+    "isActive": true,
+    "description": "Updated referral configuration",
+    "updatedBy": "...",
+    "createdAt": "2025-01-15T10:00:00.000Z",
+    "updatedAt": "2025-01-18T16:00:00.000Z"
+  }
+}
+~~~
+- **Validation Rules:**
+  - `pointsPerReferral`: Minimum 1, recommended 5-100
+  - `pointsRedemptionLimit`: Minimum 1, typically 50-500
+  - `isActive`: Boolean to enable/disable referral program
+
+---
+
+### 3) Get Referral Statistics
+- **Endpoint:** GET https://sidi.mobilegear.co.in/api/admin/referral/statistics
+- **Description:** Get comprehensive analytics of the referral program including top referrers and recent referrals.
+- **Headers:** Authorization: Bearer <admin_token>
+- **Request Body:** N/A
+- **Protected:** Yes (Admin only)
+- **Response:**
+~~~json
+{
+  "success": true,
+  "statistics": {
+    "totalUsers": 500,
+    "usersWithReferralCode": 480,
+    "totalReferrals": 245,
+    "topReferrers": [
+      {
+        "_id": "...",
+        "username": "Priya",
+        "email": "priya@example.com",
+        "referralCode": "SidiAB34",
+        "referralCount": 25
+      },
+      {
+        "_id": "...",
+        "username": "Asha",
+        "email": "asha@example.com",
+        "referralCode": "SidiEF78",
+        "referralCount": 18
+      }
+    ],
+    "recentReferrals": [
+      {
+        "_id": "...",
+        "referrerUser": {
+          "_id": "...",
+          "username": "Priya",
+          "email": "priya@example.com"
+        },
+        "referredUser": {
+          "_id": "...",
+          "username": "Neha",
+          "email": "neha@example.com"
+        },
+        "rewardStatus": "completed",
+        "createdAt": "2025-01-18T14:30:00.000Z"
+      }
+    ]
+  }
+}
+~~~
+
+---
+
+### Referral System Logic
+
+#### Configuration Parameters
+1. **Points Per Referral** (Default: 10)
+   - Points awarded to referrer when someone registers with their code
+   - Example: If set to 10, referrer gets 10 points per successful referral
+
+2. **Points Redemption Limit** (Default: 100)
+   - Accumulated points threshold to claim a free service
+   - Example: If set to 100, user needs 100 points total to get a free service
+
+#### Referral Flow
+1. **Registration with Referral Code**
+   - Customer/Beautician registers and provides existing referral code
+   - System validates the code exists and is not their own
+   - New user gets a unique referral code generated
+   - Referrer earns configured points immediately
+
+2. **Point Accumulation**
+   - Points stored in user's wallet
+   - Example with default settings:
+     - 10 points per referral
+     - 100 point limit
+     - User needs 10 successful referrals to reach 100 points
+   - Points visible in profile and referral stats API
+
+3. **Free Service Redemption** (Admin configurable feature)
+   - When user accumulates points ≥ redemption limit
+   - User can claim a free service
+   - Points deducted from wallet
+   - Booking created with zero payment
+
+#### Admin Configuration Example
+**Default Configuration:**
+```
+Points Per Referral: 10
+Redemption Limit: 100
+Referrals Needed for Free Service: 10
+```
+
+**Aggressive Configuration:**
+```
+Points Per Referral: 5
+Redemption Limit: 50
+Referrals Needed for Free Service: 10
+(More frequent rewards)
+```
+
+**Conservative Configuration:**
+```
+Points Per Referral: 50
+Redemption Limit: 500
+Referrals Needed for Free Service: 10
+(Higher barrier but bigger rewards)
+```
+
+---

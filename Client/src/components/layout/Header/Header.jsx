@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiMenu, FiBell, FiUser, FiLogOut, FiSettings } from "react-icons/fi";
 import useAuth from "../../../hooks/useAuth";
+import logo from "../../../Assets/logo.svg";
 import "./Header.css";
 
 const Header = ({ onToggleSidebar }) => {
@@ -31,7 +32,7 @@ const Header = ({ onToggleSidebar }) => {
         <button className="menu-toggle" onClick={onToggleSidebar} aria-label="Toggle menu">
           <FiMenu size={22} />
         </button>
-        <h1 className="header-logo">Salon<span>Pro</span></h1>
+        <img src={logo} alt="Sidi Logo" className="header-logo" />
       </div>
 
       <div className="header-right">

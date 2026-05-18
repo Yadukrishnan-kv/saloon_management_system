@@ -114,6 +114,22 @@ const userSchema = new Schema(
       promotional: { type: Boolean, default: true },
       reminders: { type: Boolean, default: true },
     },
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
+    referredBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    referralCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   { timestamps: true }
 );

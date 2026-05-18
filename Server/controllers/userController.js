@@ -243,9 +243,21 @@ const updateUserStatus = async (req, res) => {
 
 const getMyProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("username email role phoneNumber profileImage");
+    const Wallet = require("../models/Wallet");
+    const user = await User.findById(req.user._id).select("username email role phoneNumber profileImage referralCode referralCount");
     if (!user) return res.status(404).json({ message: "User not found" });
-    res.json(user);
+    
+    // Get wallet points if customer
+    let walletPoints = 0;
+    if (user.role === "Customer") {
+      const wallet = await Wallet.findOne({ user: req.user._id });
+      walletPoints = wallet ? wallet.points : 0;
+    }
+
+    res.json({
+      ...user.toObject(),
+      walletPoints,
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }

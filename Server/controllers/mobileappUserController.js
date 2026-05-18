@@ -29,6 +29,11 @@ const { validatePasswordChange } = require("../utils/validators");
 // ─── GET PROFILE (with stats) ─────────────────────────────────────────────────
 const getProfile = async (req, res) => {
   try {
+    const Wallet = require("../models/Wallet");
+    const User = require("../models/User");
+    const Booking = require("../models/Booking");
+    const Review = require("../models/Review");
+
     const user = await User.findById(req.user._id)
       .select("-password")
       .populate("favoriteBeauticians", "fullName profileImage rating tier");
@@ -37,9 +42,10 @@ const getProfile = async (req, res) => {
     }
 
     // Profile stats matching the design (bookings count, reviews count)
-    const [totalBookings, totalReviews] = await Promise.all([
+    const [totalBookings, totalReviews, wallet] = await Promise.all([
       Booking.countDocuments({ customer: req.user._id }),
       Review.countDocuments({ customer: req.user._id }),
+      Wallet.findOne({ user: req.user._id }),
     ]);
 
     // Construct full image URL if image exists
@@ -57,6 +63,11 @@ const getProfile = async (req, res) => {
         totalReviews,
         memberSince: user.createdAt,
         tier: user.tier || "Classic",
+      },
+      referral: {
+        referralCode: user.referralCode,
+        referralCount: user.referralCount || 0,
+        walletPoints: wallet ? wallet.points : 0,
       },
     });
   } catch (error) {

@@ -622,6 +622,21 @@ const assignBeauticianToBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: "Beautician not found" });
     }
 
+    // ─── CHECK BEAUTICIAN WALLET BALANCE ─────────────────────────────────────
+    const Wallet = require("../models/Wallet");
+    const wallet = await Wallet.findOne({ user: beautician.user._id });
+    const walletBalance = wallet ? wallet.balance : 0;
+    const requiredAmount = booking.finalAmount;
+
+    if (walletBalance < requiredAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Beautician doesn't have sufficient wallet balance. Required: ₹${requiredAmount}, Available: ₹${walletBalance}`,
+        walletBalance,
+        requiredAmount,
+      });
+    }
+
     // ─── CHECK 30-MINUTE BUFFER BETWEEN TASKS ───────────────────────────────
     const BUFFER_MINUTES = 30;
     

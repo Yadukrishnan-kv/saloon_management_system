@@ -32,6 +32,8 @@ import CosmeticManagement from "./pages/Admin/CosmeticManagement/CosmeticManagem
 import PayoutManagement from "./pages/Admin/PayoutManagement/PayoutManagement";
 import AdminNotifications from "./pages/Admin/AdminNotifications/AdminNotifications";
 import CuratedServices from "./pages/Admin/ContentManagement/CuratedServices/CuratedServices";
+import ReferralSettings from "./pages/Admin/ReferralManagement/Settings/ReferralSettings";
+import ReferralStatistics from "./pages/Admin/ReferralManagement/Statistics/ReferralStatistics";
 
 // Customer Pages
 import CustomerDashboard from "./pages/Customer/CustomerDashboard/CustomerDashboard";
@@ -80,6 +82,8 @@ function App() {
             <Route path="/admin/payouts" element={<ProtectedRoute permission="Payouts"><PayoutManagement /></ProtectedRoute>} />
             <Route path="/admin/notifications" element={<ProtectedRoute permission="Notifications"><AdminNotifications /></ProtectedRoute>} />
             <Route path="/admin/curated-services" element={<ProtectedRoute permission="Curated Services"><CuratedServices /></ProtectedRoute>} />
+            <Route path="/admin/referral/settings" element={<ProtectedRoute permission="Referral Management"><ReferralSettings /></ProtectedRoute>} />
+            <Route path="/admin/referral/statistics" element={<ProtectedRoute permission="Referral Management"><ReferralStatistics /></ProtectedRoute>} />
 
             {/* Customer Routes */}
             <Route path="/customer/dashboard" element={<ProtectedRoute roles={["Customer"]}><CustomerDashboard /></ProtectedRoute>} />

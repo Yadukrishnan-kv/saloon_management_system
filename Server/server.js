@@ -46,6 +46,7 @@ app.use('/api/bookings', require('./routes/bookingRoutes'));
 app.use('/api', require('./routes/contentRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/admin', require('./routes/adminExtendedRoutes'));
+app.use('/api/admin/referral', require('./routes/adminReferralRoutes'));
 
 // Mobile App API routes
 app.use('/api/mobileapp/auth', require('./routes/mobileappAuthRoutes'));
@@ -59,6 +60,7 @@ app.use('/api/mobileapp/notifications', require('./routes/mobileappNotificationR
 app.use('/api/mobileapp/location', require('./routes/mobileappLocationRoutes'));
 app.use('/api/mobileapp/cosmetics', require('./routes/mobileappCosmeticRoutes'));
 app.use('/api/mobileapp/complaints', require('./routes/mobileappComplaintRoutes'));
+app.use('/api/mobileapp/referral', require('./routes/mobileappReferralRoutes'));
 
 // Unified search route
 app.use('/api/mobileapp/search', require('./routes/unifiedSearchRoutes'));

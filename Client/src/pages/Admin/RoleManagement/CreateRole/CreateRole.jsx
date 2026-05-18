@@ -36,6 +36,7 @@ const MENU_OPTIONS = [
   "Earnings",
   "Profile",
   "Curated Services",
+  "Referral Management",
 ];
 
 const CreateRole = () => {

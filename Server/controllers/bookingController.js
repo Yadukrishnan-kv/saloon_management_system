@@ -187,8 +187,22 @@ const assignBeautician = async (req, res) => {
     const booking = await Booking.findById(req.params.id);
     if (!booking) return res.status(404).json({ message: "Booking not found" });
 
-    const beautician = await Beautician.findById(beauticianId);
+    const beautician = await Beautician.findById(beauticianId).populate("user");
     if (!beautician) return res.status(404).json({ message: "Beautician not found" });
+
+    // ─── CHECK BEAUTICIAN WALLET BALANCE ─────────────────────────────────────
+    const Wallet = require("../models/Wallet");
+    const wallet = await Wallet.findOne({ user: beautician.user._id });
+    const walletBalance = wallet ? wallet.balance : 0;
+    const requiredAmount = booking.finalAmount;
+
+    if (walletBalance < requiredAmount) {
+      return res.status(400).json({
+        message: `Beautician doesn't have sufficient wallet balance. Required: ₹${requiredAmount}, Available: ₹${walletBalance}`,
+        walletBalance,
+        requiredAmount,
+      });
+    }
 
     booking.beautician = beauticianId;
     booking.status = "Assigned";
@@ -335,8 +349,22 @@ const reassignBooking = async (req, res) => {
       return res.status(400).json({ message: "Cannot reassign completed or cancelled booking" });
     }
 
-    const beautician = await Beautician.findById(beauticianId);
+    const beautician = await Beautician.findById(beauticianId).populate("user");
     if (!beautician) return res.status(404).json({ message: "Beautician not found" });
+
+    // ─── CHECK BEAUTICIAN WALLET BALANCE ─────────────────────────────────────
+    const Wallet = require("../models/Wallet");
+    const wallet = await Wallet.findOne({ user: beautician.user._id });
+    const walletBalance = wallet ? wallet.balance : 0;
+    const requiredAmount = booking.finalAmount;
+
+    if (walletBalance < requiredAmount) {
+      return res.status(400).json({
+        message: `Beautician doesn't have sufficient wallet balance. Required: ₹${requiredAmount}, Available: ₹${walletBalance}`,
+        walletBalance,
+        requiredAmount,
+      });
+    }
 
     booking.beautician = beauticianId;
     booking.status = "Assigned";
