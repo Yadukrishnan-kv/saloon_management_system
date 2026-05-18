@@ -489,7 +489,7 @@ const beauticianRegister = async (req, res) => {
     });
   } catch (error) {
     console.error("Beautician register error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 

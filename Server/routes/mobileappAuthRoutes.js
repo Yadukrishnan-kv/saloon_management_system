@@ -26,7 +26,10 @@ router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 
 // Beautician auth
-router.post("/beautician/register", beauticianRegister);
+router.post("/beautician/register", upload.fields([
+  { name: 'pccDocument', maxCount: 1 },
+  { name: 'documents', maxCount: 5 }
+]), beauticianRegister);
 router.post("/beautician/login", beauticianLogin);
 router.post(
   "/beautician/upload-documents",
