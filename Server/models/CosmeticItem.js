@@ -11,9 +11,9 @@ const cosmeticItemSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Legacy field - kept for backward compatibility, no longer used in new flows
     category: {
       type: String,
-      required: [true, "Category is required"],
       trim: true,
     },
     brand: {
@@ -25,9 +25,31 @@ const cosmeticItemSchema = new mongoose.Schema(
       required: [true, "Price is required"],
       min: 0,
     },
+    // Main cosmetic image
+    cosmeticImage: {
+      type: String,
+    },
+    // Legacy field - kept for backward compatibility
     image: {
       type: String,
     },
+    // New fields
+    size: {
+      type: String,
+      trim: true,
+      // Examples: "Small", "Medium", "Large", "100ml", "250ml"
+    },
+    type: {
+      type: String,
+      trim: true,
+      // Examples: "Cream", "Lotion", "Serum", "Oil", "Powder"
+    },
+    services: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Service",
+      },
+    ],
     inStock: {
       type: Boolean,
       default: true,

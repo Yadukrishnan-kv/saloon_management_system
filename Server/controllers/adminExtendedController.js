@@ -234,10 +234,9 @@ const deleteReviewByAdmin = async (req, res) => {
 // ─── GET ALL COSMETIC ITEMS ───────────────────────────────────────────────────
 const getAdminCosmeticItems = async (req, res) => {
   try {
-    const { page = 1, limit = 20, category, search } = req.query;
+    const { page = 1, limit = 20, search } = req.query;
     const query = {};
 
-    if (category) query.category = category;
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: "i" } },
@@ -248,6 +247,7 @@ const getAdminCosmeticItems = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const items = await CosmeticItem.find(query)
+      .populate("services", "name")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -264,24 +264,35 @@ const getAdminCosmeticItems = async (req, res) => {
 // ─── CREATE COSMETIC ITEM ─────────────────────────────────────────────────────
 const createCosmeticItem = async (req, res) => {
   try {
-    const { name, description, category, brand, price, stockQuantity } = req.body;
+    const { name, description, brand, price, stockQuantity, size, type, services } = req.body;
 
-    if (!name || !category || !price) {
-      return res.status(400).json({ success: false, message: "Name, category, and price are required" });
+    if (!name || !price) {
+      return res.status(400).json({ success: false, message: "Name and price are required" });
     }
 
-    const image = req.file ? `/uploads/${req.file.filename}` : undefined;
+    const cosmeticImage = req.file ? `/uploads/${req.file.filename}` : undefined;
+    
+    // Parse services array if it's a string (from form submission)
+    let serviceIds = [];
+    if (services) {
+      serviceIds = typeof services === "string" ? JSON.parse(services) : services;
+    }
 
     const item = await CosmeticItem.create({
       name,
       description,
-      category,
       brand,
       price: parseFloat(price),
-      image,
+      cosmeticImage,
+      size,
+      type,
+      services: serviceIds,
       stockQuantity: parseInt(stockQuantity) || 0,
       inStock: parseInt(stockQuantity) > 0,
     });
+
+    // Populate services before returning
+    await item.populate("services", "name");
 
     res.status(201).json({ success: true, message: "Cosmetic item created", item });
   } catch (error) {
@@ -298,19 +309,28 @@ const updateCosmeticItem = async (req, res) => {
       return res.status(404).json({ success: false, message: "Item not found" });
     }
 
-    const { name, description, category, brand, price, stockQuantity, inStock, isActive } = req.body;
+    const { name, description, brand, price, stockQuantity, size, type, services, inStock, isActive } = req.body;
 
     if (name !== undefined) item.name = name;
     if (description !== undefined) item.description = description;
-    if (category !== undefined) item.category = category;
     if (brand !== undefined) item.brand = brand;
     if (price !== undefined) item.price = parseFloat(price);
     if (stockQuantity !== undefined) item.stockQuantity = parseInt(stockQuantity);
+    if (size !== undefined) item.size = size;
+    if (type !== undefined) item.type = type;
     if (inStock !== undefined) item.inStock = inStock;
     if (isActive !== undefined) item.isActive = isActive;
-    if (req.file) item.image = `/uploads/${req.file.filename}`;
+    if (req.file) item.cosmeticImage = `/uploads/${req.file.filename}`;
+    
+    // Handle services array
+    if (services !== undefined) {
+      item.services = typeof services === "string" ? JSON.parse(services) : services;
+    }
 
     await item.save();
+    
+    // Populate services before returning
+    await item.populate("services", "name");
 
     res.json({ success: true, message: "Cosmetic item updated", item });
   } catch (error) {
@@ -336,9 +356,10 @@ const deleteCosmeticItem = async (req, res) => {
 // ─── GET ALL COSMETIC ORDERS (Admin) ──────────────────────────────────────────
 const getAdminCosmeticOrders = async (req, res) => {
   try {
-    const { page = 1, limit = 20, status } = req.query;
+    const { page = 1, limit = 20, status, approvalStatus } = req.query;
     const query = {};
     if (status) query.status = status;
+    if (approvalStatus) query.adminApprovalStatus = approvalStatus;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
@@ -413,6 +434,143 @@ const updateCosmeticOrderStatus = async (req, res) => {
     res.json({ success: true, message: `Order status updated to ${status}`, order });
   } catch (error) {
     console.error("Update cosmetic order status error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── APPROVE COSMETIC ORDER (Admin) - With QR Code Generation ─────────────────
+const approveCosmeticOrder = async (req, res) => {
+  try {
+    const QRCode = require("qrcode");
+
+    const order = await CosmeticOrder.findById(req.params.orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    if (order.adminApprovalStatus !== "Pending") {
+      return res.status(400).json({
+        success: false,
+        message: `Order already ${order.adminApprovalStatus.toLowerCase()}`,
+      });
+    }
+
+    // Generate QR Code with order details
+    const qrCodeData = JSON.stringify({
+      orderId: order._id.toString(),
+      beauticianId: order.beautician.toString(),
+      amount: order.totalAmount,
+      items: order.items.length,
+      approvalDate: new Date().toISOString(),
+    });
+
+    const qrCodeUrl = await QRCode.toDataURL(qrCodeData);
+
+    // Deduct from wallet NOW (after approval)
+    const wallet = await Wallet.findOne({ user: order.user });
+    if (!wallet || wallet.balance < order.totalAmount) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient wallet balance for this order",
+        required: order.totalAmount,
+        available: wallet?.balance || 0,
+      });
+    }
+
+    wallet.balance -= order.totalAmount;
+    wallet.transactions.push({
+      type: "debit",
+      amount: order.totalAmount,
+      description: `Cosmetic order #${order._id} - ${order.items.length} item(s) [ADMIN APPROVED]`,
+      status: "completed",
+      orderId: order._id,
+    });
+    await wallet.save();
+
+    // Update stock NOW (after approval)
+    for (const orderItem of order.items) {
+      await CosmeticItem.findByIdAndUpdate(orderItem.item, {
+        $inc: { stockQuantity: -orderItem.quantity },
+      });
+    }
+
+    // Update order
+    order.adminApprovalStatus = "Approved";
+    order.approvedAt = new Date();
+    order.qrCode = qrCodeUrl;
+    order.status = "Confirmed"; // Order is confirmed after approval
+    order.confirmedAt = new Date();
+    await order.save();
+
+    // Notify beautician about approval (without QR code)
+    const beautician = await Beautician.findById(order.beautician);
+    if (beautician) {
+      await Notification.create({
+        user: beautician.user,
+        title: "Cosmetic Order Approved ✓",
+        message: `Your cosmetic order #${order._id} of ₹${order.totalAmount} has been approved by admin and is now confirmed.`,
+        type: "cosmetic_order_approval",
+        data: { orderId: order._id },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Order approved successfully",
+      order,
+      qrCode: qrCodeUrl,
+      walletDeducted: order.totalAmount,
+    });
+  } catch (error) {
+    console.error("Approve cosmetic order error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── REJECT COSMETIC ORDER (Admin) ────────────────────────────────────────────
+const rejectCosmeticOrder = async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    const order = await CosmeticOrder.findById(req.params.orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    if (order.adminApprovalStatus !== "Pending") {
+      return res.status(400).json({
+        success: false,
+        message: `Order already ${order.adminApprovalStatus.toLowerCase()}`,
+      });
+    }
+
+    // Mark as rejected - no wallet deduction, no stock update
+    order.adminApprovalStatus = "Rejected";
+    order.rejectedAt = new Date();
+    order.rejectionReason = reason || "No reason provided";
+    order.status = "Cancelled"; // Cancelled due to rejection
+    await order.save();
+
+    // Notify beautician about rejection
+    const beautician = await Beautician.findById(order.beautician);
+    if (beautician) {
+      await Notification.create({
+        user: beautician.user,
+        title: "Cosmetic Order Rejected ✗",
+        message: `Your cosmetic order #${order._id} of ₹${order.totalAmount} has been rejected by admin. Reason: ${order.rejectionReason}`,
+        type: "cosmetic_order_rejection",
+        data: { orderId: order._id, reason: order.rejectionReason },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Order rejected successfully",
+      order,
+      note: "No charges were made to the beautician",
+    });
+  } catch (error) {
+    console.error("Reject cosmetic order error:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -796,6 +954,8 @@ module.exports = {
   deleteCosmeticItem,
   getAdminCosmeticOrders,
   updateCosmeticOrderStatus,
+  approveCosmeticOrder,
+  rejectCosmeticOrder,
   // Payout management
   getPendingPayouts,
   processPayout,

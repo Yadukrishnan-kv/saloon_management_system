@@ -23,10 +23,9 @@ const createAdminNotification = async (title, message, type, data) => {
 // ─── GET ALL COSMETIC ITEMS (Beautician browsable catalog) ────────────────────
 const getCosmeticItems = async (req, res) => {
   try {
-    const { page = 1, limit = 20, category, search } = req.query;
+    const { page = 1, limit = 20, search } = req.query;
     const query = { isActive: true, inStock: true };
 
-    if (category) query.category = category;
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: "i" } },
@@ -37,16 +36,14 @@ const getCosmeticItems = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const items = await CosmeticItem.find(query)
+      .populate("services", "name")
       .sort({ name: 1 })
       .skip(skip)
       .limit(parseInt(limit));
 
     const total = await CosmeticItem.countDocuments(query);
 
-    // Get unique categories for filter
-    const categories = await CosmeticItem.distinct("category", { isActive: true });
-
-    res.json({ success: true, items, total, categories });
+    res.json({ success: true, items, total });
   } catch (error) {
     console.error("Get cosmetic items error:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -56,7 +53,7 @@ const getCosmeticItems = async (req, res) => {
 // ─── GET COSMETIC ITEM DETAIL ─────────────────────────────────────────────────
 const getCosmeticItemDetail = async (req, res) => {
   try {
-    const item = await CosmeticItem.findById(req.params.itemId);
+    const item = await CosmeticItem.findById(req.params.itemId).populate("services", "name");
     if (!item) {
       return res.status(404).json({ success: false, message: "Item not found" });
     }
@@ -104,7 +101,7 @@ const placeCosmeticOrder = async (req, res) => {
       totalAmount += cosmeticItem.price * qty;
     }
 
-    // Deduct from beautician wallet
+    // Check wallet balance (validation only, don't deduct yet)
     const wallet = await Wallet.findOne({ user: req.user._id });
     if (!wallet || wallet.balance < totalAmount) {
       return res.status(400).json({
@@ -115,22 +112,8 @@ const placeCosmeticOrder = async (req, res) => {
       });
     }
 
-    wallet.balance -= totalAmount;
-    wallet.transactions.push({
-      type: "debit",
-      amount: totalAmount,
-      description: `Cosmetic order - ${orderItems.length} item(s)`,
-      status: "completed",
-    });
-    await wallet.save();
-
-    // Update stock
-    for (const orderItem of orderItems) {
-      await CosmeticItem.findByIdAndUpdate(orderItem.item, {
-        $inc: { stockQuantity: -orderItem.quantity },
-      });
-    }
-
+    // Create order with adminApprovalStatus = "Pending"
+    // Wallet deduction and stock update will happen AFTER admin approval
     const order = await CosmeticOrder.create({
       beautician: beautician._id,
       user: req.user._id,
@@ -138,21 +121,24 @@ const placeCosmeticOrder = async (req, res) => {
       totalAmount,
       shippingAddress: shippingAddress || "",
       deliveryNotes: deliveryNotes || "",
+      adminApprovalStatus: "Pending", // Awaiting admin approval
+      status: "Pending", // Order status is also pending
     });
 
-    // Notify admin about new cosmetic order
+    // Notify admin about new cosmetic order awaiting approval
     await createAdminNotification(
-      "New Cosmetic Order",
-      `${beautician.fullName} placed a cosmetic order of ₹${totalAmount}.`,
-      "cosmetic_order",
+      "Cosmetic Order - Awaiting Approval",
+      `${beautician.fullName} placed a cosmetic order of ₹${totalAmount} awaiting your approval.`,
+      "cosmetic_order_approval",
       { orderId: order._id, beauticianId: beautician._id }
     );
 
     res.status(201).json({
       success: true,
-      message: "Order placed successfully",
+      message: "Order placed successfully. Awaiting admin approval.",
       order,
       walletBalance: wallet.balance,
+      note: "Your wallet will be charged only after admin approval",
     });
   } catch (error) {
     console.error("Place cosmetic order error:", error);

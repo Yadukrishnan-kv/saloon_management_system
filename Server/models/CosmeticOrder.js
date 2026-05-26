@@ -41,6 +41,17 @@ const cosmeticOrderSchema = new mongoose.Schema(
       enum: ["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"],
       default: "Pending",
     },
+    adminApprovalStatus: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"],
+      default: "Pending",
+    },
+    qrCode: {
+      type: String,
+    },
+    qrCodePath: {
+      type: String,
+    },
     shippingAddress: {
       type: String,
     },
@@ -51,11 +62,14 @@ const cosmeticOrderSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    approvedAt: Date,
+    rejectedAt: Date,
     confirmedAt: Date,
     shippedAt: Date,
     deliveredAt: Date,
     cancelledAt: Date,
     cancellationReason: String,
+    rejectionReason: String,
   },
   { timestamps: true }
 );

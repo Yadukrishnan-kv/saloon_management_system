@@ -21,6 +21,8 @@ const {
   deleteCosmeticItem,
   getAdminCosmeticOrders,
   updateCosmeticOrderStatus,
+  approveCosmeticOrder,
+  rejectCosmeticOrder,
   // Payout management
   getPendingPayouts,
   processPayout,
@@ -60,6 +62,8 @@ router.delete("/cosmetics/items/:itemId", protect, authorizeRoles("Admin", "Supe
 // ── Cosmetic Order Management ──
 router.get("/cosmetics/orders", protect, authorizeRoles("Admin", "SuperAdmin"), getAdminCosmeticOrders);
 router.put("/cosmetics/orders/:orderId/status", protect, authorizeRoles("Admin", "SuperAdmin"), updateCosmeticOrderStatus);
+router.post("/cosmetics/orders/:orderId/approve", protect, authorizeRoles("Admin", "SuperAdmin"), approveCosmeticOrder);
+router.post("/cosmetics/orders/:orderId/reject", protect, authorizeRoles("Admin", "SuperAdmin"), rejectCosmeticOrder);
 
 // ── Payout Management ──
 router.get("/payouts/pending", protect, authorizeRoles("Admin", "SuperAdmin"), getPendingPayouts);
