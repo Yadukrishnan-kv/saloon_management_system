@@ -398,6 +398,50 @@ const updateCosmeticOrderStatus = async (req, res) => {
       order.confirmedAt = new Date();
       order.adminApprovalStatus = "Approved";
       order.approvedAt = new Date();
+
+      // Deduct from wallet if not already deducted
+      const wallet = await Wallet.findOne({ user: order.user });
+      if (wallet && (!order.walletDeducted || wallet.transactions.every(t => t.orderId?.toString() !== order._id.toString() || t.type !== "debit"))) {
+        if (wallet.balance < order.totalAmount) {
+          return res.status(400).json({
+            success: false,
+            message: "Insufficient wallet balance for this order",
+            required: order.totalAmount,
+            available: wallet.balance,
+          });
+        }
+        wallet.balance -= order.totalAmount;
+        wallet.transactions.push({
+          type: "debit",
+          amount: order.totalAmount,
+          description: `Cosmetic order #${order._id} - ${order.items.length} item(s) [ADMIN CONFIRMED]`,
+          status: "completed",
+          orderId: order._id,
+        });
+        await wallet.save();
+        order.walletDeducted = true;
+      }
+
+      // Update stock if not already done (optional: add a flag if needed)
+      for (const orderItem of order.items) {
+        await CosmeticItem.findByIdAndUpdate(orderItem.item, {
+          $inc: { stockQuantity: -orderItem.quantity },
+        });
+      }
+
+      // Generate QR code if not already present
+      if (!order.qrCode) {
+        const QRCode = require("qrcode");
+        const qrCodeData = JSON.stringify({
+          orderId: order._id.toString(),
+          beauticianId: order.beautician.toString(),
+          amount: order.totalAmount,
+          items: order.items.length,
+          approvalDate: new Date().toISOString(),
+        });
+        const qrCodeUrl = await QRCode.toDataURL(qrCodeData);
+        order.qrCode = qrCodeUrl;
+      }
     }
     if (status === "Shipped") order.shippedAt = new Date();
     if (status === "Delivered") order.deliveredAt = new Date();
