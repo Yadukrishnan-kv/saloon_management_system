@@ -3638,9 +3638,10 @@ documentName: Cosmetology Diploma
 
 ## Cosmetics APIs - Beautician (/api/mobileapp/cosmetics)
 
+
 ### 1) Get Cosmetic Items
 - **Endpoint:** GET https://sidi.mobilegear.co.in/api/mobileapp/cosmetics/items
-- **Query Params:** page, limit, category, search
+- **Query Params:** page, limit, search
 - **Headers:** Authorization: Bearer <token> (Beautician only)
 - **Request Body:** N/A
 - **Response:**
@@ -3650,14 +3651,19 @@ documentName: Cosmetology Diploma
   "items": [
     {
       "_id": "...",
-      "name": "Serum",
-      "price": 499,
-      "stockQuantity": 20,
-      "category": "Skincare"
+      "name": "Glow Setting Mist",
+      "price": 399,
+      "stockQuantity": 5,
+      "size": "50 ml",
+      "type": "Serum",
+      "services": [
+        { "_id": "...", "name": "Signature Blowout" }
+      ],
+      "inStock": true,
+      "cosmeticImage": "/uploads/1779782372016-971275758.png"
     }
   ],
-  "total": 30,
-  "categories": ["Skincare", "Haircare"]
+  "total": 1
 }
 ~~~
 - **Error Response:**
@@ -3696,32 +3702,34 @@ documentName: Cosmetology Diploma
 
 ---
 
-### 3) Place Cosmetic Order
+
+### 3) Place Cosmetic Order (Admin Approval Workflow)
 - **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/cosmetics/orders
-- **Description:** Place order. Amount deducted from wallet. Stock reduced.
+- **Description:** Place order. **No wallet deduction or stock update until admin approval.**
 - **Headers:** Authorization: Bearer <token>
 - **Request Body:**
 ~~~json
 {
   "items": [
-    { "itemId": "6654...", "quantity": 2 },
-    { "itemId": "6655...", "quantity": 1 }
+    { "itemId": "6a1552e4918ab6fb93e1b871", "quantity": 1 }
   ],
-  "shippingAddress": "Salon Street, Kochi",
-  "deliveryNotes": "Deliver before 6 PM"
+  "shippingAddress": "123 Main Street, Beauty Shop",
+  "deliveryNotes": "Fragile - Handle with care"
 }
 ~~~
 - **Response:**
 ~~~json
 {
   "success": true,
-  "message": "Order placed successfully",
+  "message": "Order placed successfully. Awaiting admin approval.",
   "order": {
     "_id": "...",
-    "totalAmount": 1497,
-    "status": "Pending"
+    "totalAmount": 399,
+    "status": "Pending",
+    "adminApprovalStatus": "Pending"
   },
-  "walletBalance": 520
+  "walletBalance": 5000,
+  "note": "Your wallet will be charged only after admin approval"
 }
 ~~~
 - **Error Response:**
@@ -3729,28 +3737,44 @@ documentName: Cosmetology Diploma
 {
   "success": false,
   "message": "Insufficient wallet balance",
-  "required": 1497,
-  "available": 500
+  "required": 399,
+  "available": 100
 }
 ~~~
 
 ---
 
+
 ### 4) Get My Cosmetic Orders
 - **Endpoint:** GET https://sidi.mobilegear.co.in/api/mobileapp/cosmetics/orders
-- **Query Params:** page, limit, status
+- **Query Params:** page, limit, status, approvalStatus
 - **Headers:** Authorization: Bearer <token>
 - **Request Body:** N/A
 - **Response:**
 ~~~json
 {
   "success": true,
-  "orders": [],
-  "total": 5
+  "orders": [
+    {
+      "_id": "...",
+      "items": [
+        { "item": "6a1552e4918ab6fb93e1b871", "name": "Glow Setting Mist", "quantity": 1, "price": 399 }
+      ],
+      "totalAmount": 399,
+      "status": "Pending",
+      "adminApprovalStatus": "Pending",
+      "qrCode": null,
+      "approvedAt": null,
+      "rejectedAt": null,
+      "rejectionReason": null
+    }
+  ],
+  "total": 1
 }
 ~~~
 
 ---
+
 
 ### 5) Get Cosmetic Order Detail
 - **Endpoint:** GET https://sidi.mobilegear.co.in/api/mobileapp/cosmetics/orders/:orderId
@@ -3762,8 +3786,16 @@ documentName: Cosmetology Diploma
   "success": true,
   "order": {
     "_id": "...",
-    "items": [],
-    "status": "Pending"
+    "items": [
+      { "item": "6a1552e4918ab6fb93e1b871", "name": "Glow Setting Mist", "quantity": 1, "price": 399 }
+    ],
+    "totalAmount": 399,
+    "status": "Pending",
+    "adminApprovalStatus": "Pending",
+    "qrCode": null,
+    "approvedAt": null,
+    "rejectedAt": null,
+    "rejectionReason": null
   }
 }
 ~~~

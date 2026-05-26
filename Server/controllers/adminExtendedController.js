@@ -394,11 +394,17 @@ const updateCosmeticOrderStatus = async (req, res) => {
     }
 
     order.status = status;
-    if (status === "Confirmed") order.confirmedAt = new Date();
+    if (status === "Confirmed") {
+      order.confirmedAt = new Date();
+      order.adminApprovalStatus = "Approved";
+      order.approvedAt = new Date();
+    }
     if (status === "Shipped") order.shippedAt = new Date();
     if (status === "Delivered") order.deliveredAt = new Date();
     if (status === "Cancelled") {
       order.cancelledAt = new Date();
+      order.adminApprovalStatus = "Rejected";
+      order.rejectedAt = new Date();
       // Refund wallet
       const wallet = await Wallet.findOne({ user: order.user });
       if (wallet) {
