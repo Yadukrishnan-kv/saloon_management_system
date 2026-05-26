@@ -142,7 +142,7 @@ const placeCosmeticOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("Place cosmetic order error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: error?.message || String(error) || "Server error" });
   }
 };
 
