@@ -18,7 +18,7 @@ const notificationSchema = new Schema(
     },
     type: {
       type: String,
-      enum: ["booking", "payment", "promotional", "system", "reminder", "review", "cosmetic_order", "payout"],
+      enum: ["booking", "payment", "promotional", "system", "reminder", "review", "cosmetic_order", "payout","cosmetic_order_approval", "cosmetic_order_rejection" ],
       default: "system",
     },
     // For admin notifications - null user means broadcast to all admins
