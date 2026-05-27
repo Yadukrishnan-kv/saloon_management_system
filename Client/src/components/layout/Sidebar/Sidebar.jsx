@@ -31,6 +31,7 @@ const Sidebar = ({ collapsed }) => {
   const [expanded, setExpanded] = useState({ users: false, categories: false, referralManagement: false });
 
   const adminMenu = [
+      // ...existing code...
     { label: "Dashboard", icon: <FiGrid />, path: "/dashboard" },
     {
       label: "Users",
@@ -59,6 +60,7 @@ const Sidebar = ({ collapsed }) => {
     { label: "Complaints", icon: <FiMessageCircle />, path: "/admin/complaints" },
     { label: "Reviews", icon: <FiCheckCircle />, path: "/admin/reviews" },
     { label: "Cosmetics", icon: <FiPackage />, path: "/admin/cosmetics" },
+    { label: "Inventory Monitoring", icon: <FiPackage />, path: "/admin/inventory-monitoring" },
     { label: "Payouts", icon: <FiDollarSign />, path: "/admin/payouts" },
     { label: "Notifications", icon: <FiBell />, path: "/admin/notifications" },
     { label: "Reports", icon: <FiBarChart2 />, path: "/admin/reports" },

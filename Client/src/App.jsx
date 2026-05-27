@@ -29,6 +29,7 @@ import ComplaintsList from "./pages/Admin/Reports/ComplaintsList/ComplaintsList"
 import RevenueReport from "./pages/Admin/Reports/RevenueReport/RevenueReport";
 import ReviewManagement from "./pages/Admin/ReviewManagement/ReviewManagement";
 import CosmeticManagement from "./pages/Admin/CosmeticManagement/CosmeticManagement";
+import InventoryMonitoring from "./pages/Admin/InventoryMonitoring/InventoryMonitoring";
 import PayoutManagement from "./pages/Admin/PayoutManagement/PayoutManagement";
 import AdminNotifications from "./pages/Admin/AdminNotifications/AdminNotifications";
 import CuratedServices from "./pages/Admin/ContentManagement/CuratedServices/CuratedServices";
@@ -44,6 +45,7 @@ import Profile from "./pages/Customer/Profile/Profile";
 
 // Beautician Pages
 import BeauticianDashboard from "./pages/Beautician/BeauticianDashboard/BeauticianDashboard";
+import BeauticianInventory from "./pages/Beautician/Inventory/BeauticianInventory";
 import MySchedule from "./pages/Beautician/MySchedule/MySchedule";
 import ServiceRequests from "./pages/Beautician/ServiceRequests/ServiceRequests";
 import Earnings from "./pages/Beautician/Earnings/Earnings";
@@ -79,6 +81,7 @@ function App() {
             <Route path="/admin/reports" element={<ProtectedRoute permission="Reports"><RevenueReport /></ProtectedRoute>} />
             <Route path="/admin/reviews" element={<ProtectedRoute permission="Reviews"><ReviewManagement /></ProtectedRoute>} />
             <Route path="/admin/cosmetics" element={<ProtectedRoute permission="Cosmetics"><CosmeticManagement /></ProtectedRoute>} />
+            <Route path="/admin/inventory-monitoring" element={<ProtectedRoute permission="Cosmetics"><InventoryMonitoring /></ProtectedRoute>} />
             <Route path="/admin/payouts" element={<ProtectedRoute permission="Payouts"><PayoutManagement /></ProtectedRoute>} />
             <Route path="/admin/notifications" element={<ProtectedRoute permission="Notifications"><AdminNotifications /></ProtectedRoute>} />
             <Route path="/admin/curated-services" element={<ProtectedRoute permission="Curated Services"><CuratedServices /></ProtectedRoute>} />
@@ -94,6 +97,7 @@ function App() {
 
             {/* Beautician Routes */}
             <Route path="/beautician/dashboard" element={<ProtectedRoute roles={["Beautician"]}><BeauticianDashboard /></ProtectedRoute>} />
+            <Route path="/beautician/inventory" element={<ProtectedRoute roles={["Beautician"]}><BeauticianInventory /></ProtectedRoute>} />
             <Route path="/beautician/schedule" element={<ProtectedRoute roles={["Beautician"]}><MySchedule /></ProtectedRoute>} />
             <Route path="/beautician/requests" element={<ProtectedRoute roles={["Beautician"]}><ServiceRequests /></ProtectedRoute>} />
             <Route path="/beautician/earnings" element={<ProtectedRoute roles={["Beautician"]}><Earnings /></ProtectedRoute>} />

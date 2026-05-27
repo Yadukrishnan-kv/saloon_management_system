@@ -1,3 +1,105 @@
+# ======================================================
+# BEAUTICIAN COSMETICS INVENTORY & QR TRACKING APIs
+# ======================================================
+
+## Inventory APIs - Beautician (/api/inventory)
+
+### 1) Get My Inventory
+- **Endpoint:** GET /api/inventory/inventory
+- **Headers:** Authorization: Bearer <token>
+- **Response:**
+~~~json
+{
+  "success": true,
+  "inventory": [
+    {
+      "_id": "...",
+      "productId": { "_id": "...", "name": "Facial Kit" },
+      "qrCode": "...",
+      "qrImage": "data:image/png;base64,...",
+      "status": "AVAILABLE",
+      "usedAt": null,
+      "orderId": "...",
+      "assignedServiceIds": [],
+      "createdAt": "..."
+    }
+  ]
+}
+~~~
+
+### 2) Use/Scan Inventory QR (Mark as Used)
+- **Endpoint:** POST /api/inventory/inventory/use
+- **Headers:** Authorization: Bearer <token>
+- **Request Body:**
+~~~json
+{
+  "qrCode": "...", // scanned QR code string
+  "bookingId": "..." // optional, link to booking
+}
+~~~
+- **Response (success):**
+~~~json
+{
+  "success": true,
+  "message": "Inventory item used",
+  "item": { "_id": "...", "status": "USED", "usedAt": "2026-05-27T..." }
+}
+~~~
+- **Response (error):**
+~~~json
+{
+  "success": false,
+  "message": "Invalid QR code or item not found"
+}
+~~~
+
+### 3) Inventory Usage History
+- **Endpoint:** GET /api/inventory/inventory/history
+- **Headers:** Authorization: Bearer <token>
+- **Response:**
+~~~json
+{
+  "success": true,
+  "history": [
+    {
+      "_id": "...",
+      "productId": { "_id": "...", "name": "Facial Kit" },
+      "usedInBookingId": { "_id": "...", "jobId": "A1B2C3-BK" },
+      "usedAt": "2026-05-27T..."
+    }
+  ]
+}
+~~~
+
+## Admin Inventory Monitoring APIs
+
+### 1) Filter Beautician Inventory Usage
+- **Endpoint:** GET /api/inventory/admin/inventory?beauticianId=&productId=&serviceId=&status=&from=&to=
+- **Headers:** Authorization: Bearer <token>
+- **Query Params:** beauticianId, productId, serviceId, status (AVAILABLE|USED|DAMAGED|EXPIRED), from, to (date range)
+- **Response:**
+~~~json
+{
+  "success": true,
+  "inventory": [
+    {
+      "_id": "...",
+      "beauticianId": { "_id": "...", "fullName": "Riya" },
+      "productId": { "_id": "...", "name": "Facial Kit" },
+      "status": "USED",
+      "usedAt": "2026-05-27T...",
+      "usedInBookingId": { "_id": "...", "jobId": "A1B2C3-BK" }
+    }
+  ]
+}
+~~~
+
+**Notes:**
+- Each QR code is unique per product quantity.
+- Once scanned, item status becomes USED and cannot be reused.
+- Beautician app only allows scanning, not viewing QR codes.
+- Admin can monitor all beautician inventory usage, filter by beautician, product, service, date, and status.
+
 # Mobile App API README
 
 ## 1. Base URL

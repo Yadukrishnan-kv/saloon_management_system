@@ -34,6 +34,9 @@ if (hasClientBuild) {
   app.use(express.static(clientBuildPath));
 }
 
+
+// Inventory APIs
+app.use('/api/inventory', require('./routes/beauticianInventoryRoutes'));
 // API routes
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/subcategories', require('./routes/subCategoryRoutes'));

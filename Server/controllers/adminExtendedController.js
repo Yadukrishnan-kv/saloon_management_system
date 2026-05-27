@@ -488,37 +488,29 @@ const updateCosmeticOrderStatus = async (req, res) => {
   }
 };
 
-// ─── APPROVE COSMETIC ORDER (Admin) - With QR Code Generation ─────────────────
+// ─── APPROVE COSMETIC ORDER (Admin) - With Per-Quantity QR/Inventory Generation ──
+const mongoose = require("mongoose");
+const beauticianInventoryService = require("../services/beauticianInventoryService");
 const approveCosmeticOrder = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
-    const QRCode = require("qrcode");
-
-    const order = await CosmeticOrder.findById(req.params.orderId);
+    const order = await CosmeticOrder.findById(req.params.orderId).session(session);
     if (!order) {
+      await session.abortTransaction();
       return res.status(404).json({ success: false, message: "Order not found" });
     }
-
     if (order.adminApprovalStatus !== "Pending") {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: `Order already ${order.adminApprovalStatus.toLowerCase()}`,
       });
     }
-
-    // Generate QR Code with order details
-    const qrCodeData = JSON.stringify({
-      orderId: order._id.toString(),
-      beauticianId: order.beautician.toString(),
-      amount: order.totalAmount,
-      items: order.items.length,
-      approvalDate: new Date().toISOString(),
-    });
-
-    const qrCodeUrl = await QRCode.toDataURL(qrCodeData);
-
     // Deduct from wallet NOW (after approval)
-    const wallet = await Wallet.findOne({ user: order.user });
+    const wallet = await Wallet.findOne({ user: order.user }).session(session);
     if (!wallet || wallet.balance < order.totalAmount) {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: "Insufficient wallet balance for this order",
@@ -526,7 +518,6 @@ const approveCosmeticOrder = async (req, res) => {
         available: wallet?.balance || 0,
       });
     }
-
     wallet.balance -= order.totalAmount;
     wallet.transactions.push({
       type: "debit",
@@ -535,23 +526,22 @@ const approveCosmeticOrder = async (req, res) => {
       status: "completed",
       orderId: order._id,
     });
-    await wallet.save();
-
+    await wallet.save({ session });
     // Update stock NOW (after approval)
     for (const orderItem of order.items) {
       await CosmeticItem.findByIdAndUpdate(orderItem.item, {
         $inc: { stockQuantity: -orderItem.quantity },
-      });
+      }, { session });
     }
-
+    // Create inventory items and QR codes for each product quantity
+    const inventoryItems = await beauticianInventoryService.createInventoryForOrder(order);
     // Update order
     order.adminApprovalStatus = "Approved";
     order.approvedAt = new Date();
-    order.qrCode = qrCodeUrl;
-    order.status = "Confirmed"; // Order is confirmed after approval
+    order.status = "Confirmed";
     order.confirmedAt = new Date();
-    await order.save();
-
+    await order.save({ session });
+    await session.commitTransaction();
     // Notify beautician about approval (without QR code)
     const beautician = await Beautician.findById(order.beautician);
     if (beautician) {
@@ -563,17 +553,19 @@ const approveCosmeticOrder = async (req, res) => {
         data: { orderId: order._id },
       });
     }
-
     res.json({
       success: true,
       message: "Order approved successfully",
       order,
-      qrCode: qrCodeUrl,
+      inventory: inventoryItems,
       walletDeducted: order.totalAmount,
     });
   } catch (error) {
+    await session.abortTransaction();
     console.error("Approve cosmetic order error:", error);
     res.status(500).json({ success: false, message: "Server error" });
+  } finally {
+    session.endSession();
   }
 };
 

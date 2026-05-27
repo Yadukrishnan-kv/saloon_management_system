@@ -459,61 +459,84 @@ const getNearbyBeauticians = async (req, res) => {
   }
 };
 
-// ─── GET BEAUTICIANS WITH SUFFICIENT WALLET BALANCE (Admin) ───────────────────
+// ─── GET BEAUTICIANS WITH SUFFICIENT WALLET & COSMETICS STOCK (Admin) ──────────
+const beauticianInventoryService = require("../services/beauticianInventoryService");
 const getBeauticiansWithSufficientBalance = async (req, res) => {
   try {
     const { bookingId } = req.query;
-
     if (!bookingId) {
       return res.status(400).json({ success: false, message: "Booking ID is required" });
     }
-
     const Booking = require("../models/Booking");
     const Wallet = require("../models/Wallet");
-
-    // Get booking details to find out the amount
-    const booking = await Booking.findById(bookingId);
+    const Service = require("../models/Service");
+    const CosmeticItem = require("../models/CosmeticItem");
+    // Get booking details
+    const booking = await Booking.findById(bookingId).populate("services.service");
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found" });
     }
-
     const requiredAmount = booking.finalAmount;
-
+    // Gather required cosmetics for all services in booking
+    let requiredProducts = {};
+    for (const s of booking.services) {
+      const service = s.service;
+      if (service && service.services) {
+        // If service has mapped cosmetics (legacy)
+        for (const prodId of service.services) {
+          requiredProducts[prodId.toString()] = (requiredProducts[prodId.toString()] || 0) + 1;
+        }
+      }
+    }
+    // If no mapping, fallback to all products (legacy safety)
+    if (Object.keys(requiredProducts).length === 0) {
+      const allProducts = await CosmeticItem.find({});
+      for (const p of allProducts) {
+        requiredProducts[p._id.toString()] = 1;
+      }
+    }
     // Get all active beauticians
     const beauticians = await Beautician.find({ status: "Active" })
       .populate("user", "_id")
       .select("_id fullName phoneNumber profileImage rating user");
-
-    // Filter beauticians by wallet balance
-    const beauticiansWithBalance = await Promise.all(
+    // Filter beauticians by wallet AND cosmetics stock
+    const beauticiansWithStock = await Promise.all(
       beauticians.map(async (beautician) => {
         if (!beautician.user) return null;
-
         const wallet = await Wallet.findOne({ user: beautician.user._id });
         const balance = wallet ? wallet.balance : 0;
-
-        // Only include beauticians with sufficient balance
-        if (balance >= requiredAmount) {
-          return {
-            ...beautician.toObject(),
-            walletBalance: balance,
-          };
+        if (balance < requiredAmount) return null;
+        // Check cosmetics stock
+        const stock = await beauticianInventoryService.getBeauticianStock(
+          beautician._id,
+          Object.keys(requiredProducts)
+        );
+        let hasAllStock = true;
+        let stockDetails = [];
+        for (const [prodId, qty] of Object.entries(requiredProducts)) {
+          const available = stock[prodId] || 0;
+          stockDetails.push({ productId: prodId, required: qty, available });
+          if (available < qty) hasAllStock = false;
         }
-        return null;
+        return {
+          ...beautician.toObject(),
+          walletBalance: balance,
+          stock: stockDetails,
+          eligible: hasAllStock,
+        };
       })
     );
-
-    // Filter out nulls (beauticians without sufficient balance)
-    const availableBeauticians = beauticiansWithBalance.filter(Boolean);
-
+    // Only eligible beauticians
+    const availableBeauticians = beauticiansWithStock.filter(b => b && b.eligible);
     res.json({
       success: true,
       beauticians: availableBeauticians,
       requiredAmount,
+      requiredProducts,
       totalCount: availableBeauticians.length,
     });
   } catch (error) {
-    console.error("Get beauticians with sufficient balance error:", error);
+    console.error("Get beauticians with sufficient balance/stock error:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
