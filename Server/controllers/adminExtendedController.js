@@ -396,17 +396,24 @@ const updateCosmeticOrderStatus = async (req, res) => {
     order.status = status;
     if (status === "Confirmed") {
       order.confirmedAt = new Date();
-      order.adminApprovalStatus = "Approved";
-      order.approvedAt = new Date();
-
-      // Update stock if not already done (optional: add a flag if needed)
-      for (const orderItem of order.items) {
-        await CosmeticItem.findByIdAndUpdate(orderItem.item, {
-          $inc: { stockQuantity: -orderItem.quantity },
-        });
+      // If not already approved, approve and generate inventory/QRs
+      if (order.adminApprovalStatus !== "Approved") {
+        order.adminApprovalStatus = "Approved";
+        order.approvedAt = new Date();
+        // Update stock
+        for (const orderItem of order.items) {
+          await CosmeticItem.findByIdAndUpdate(orderItem.item, {
+            $inc: { stockQuantity: -orderItem.quantity },
+          });
+        }
+        // Generate per-quantity QR/inventory if not already present
+        const beauticianInventoryService = require("../services/beauticianInventoryService");
+        const existingInventory = await require("../models/BeauticianInventory").find({ orderId: order._id });
+        if (!existingInventory || existingInventory.length === 0) {
+          await beauticianInventoryService.createInventoryForOrder(order);
+        }
       }
-
-      // Generate QR code if not already present
+      // (Optional: keep legacy order.qrCode for backward compatibility)
       if (!order.qrCode) {
         const QRCode = require("qrcode");
         const qrCodeData = JSON.stringify({

@@ -253,9 +253,37 @@ const CosmeticManagement = () => {
         <button
           className="action-btn"
           style={{ background: "#6366f1", color: "#fff", borderRadius: 4, padding: "4px 10px", fontWeight: 500, cursor: "pointer" }}
-          onClick={() => setQrModalOrder(row)}
+          onClick={async (e) => {
+            e.stopPropagation();
+            // Directly trigger download of QR codes PDF
+            if (!row._id) return;
+            const backendUrl = process.env.REACT_APP_BACKEND_IP;
+            try {
+              const { data } = await axios.get(`${backendUrl}/api/inventory/admin/inventory`, { params: { orderId: row._id } });
+              const qrItems = data.inventory || [];
+              if (!qrItems.length) {
+                toast.error("No QR codes found for this order.");
+                return;
+              }
+              const jsPDF = (await import("jspdf")).default;
+              const doc = new jsPDF();
+              qrItems.forEach((item, idx) => {
+                if (idx !== 0) doc.addPage();
+                doc.text(`Product: ${item.productId?.name || item.productId}` || "", 10, 10);
+                doc.text(`QR Code:`, 10, 20);
+                if (item.qrImage) {
+                  doc.addImage(item.qrImage, "PNG", 10, 30, 60, 60);
+                }
+                doc.text(`Status: ${item.status}`, 10, 100);
+                doc.text(`Inventory ID: ${item._id}`, 10, 110);
+              });
+              doc.save(`Order_${row._id}_QRCodes.pdf`);
+            } catch (err) {
+              toast.error("Failed to download QR codes");
+            }
+          }}
         >
-          View/Print QR Codes
+          Print QR Codes
         </button>
       ),
     },
@@ -656,10 +684,10 @@ const CosmeticManagement = () => {
 
         {/* Order Status Modal */}
         <Modal isOpen={orderModal} onClose={() => setOrderModal(false)} title="Manage Order">
-                {/* QR Codes Modal */}
-                {qrModalOrder && (
+                {/* QR Codes Modal (no longer used, kept for reference) */}
+                {/* {qrModalOrder && (
                   <OrderQRCodesModal order={qrModalOrder} onClose={() => setQrModalOrder(null)} />
-                )}
+                )} */}
           {selectedOrder && (
             <>
               <p>
