@@ -399,29 +399,6 @@ const updateCosmeticOrderStatus = async (req, res) => {
       order.adminApprovalStatus = "Approved";
       order.approvedAt = new Date();
 
-      // Deduct from wallet if not already deducted
-      const wallet = await Wallet.findOne({ user: order.user });
-      if (wallet && (!order.walletDeducted || wallet.transactions.every(t => t.orderId?.toString() !== order._id.toString() || t.type !== "debit"))) {
-        if (wallet.balance < order.totalAmount) {
-          return res.status(400).json({
-            success: false,
-            message: "Insufficient wallet balance for this order",
-            required: order.totalAmount,
-            available: wallet.balance,
-          });
-        }
-        wallet.balance -= order.totalAmount;
-        wallet.transactions.push({
-          type: "debit",
-          amount: order.totalAmount,
-          description: `Cosmetic order #${order._id} - ${order.items.length} item(s) [ADMIN CONFIRMED]`,
-          status: "completed",
-          orderId: order._id,
-        });
-        await wallet.save();
-        order.walletDeducted = true;
-      }
-
       // Update stock if not already done (optional: add a flag if needed)
       for (const orderItem of order.items) {
         await CosmeticItem.findByIdAndUpdate(orderItem.item, {
@@ -444,7 +421,31 @@ const updateCosmeticOrderStatus = async (req, res) => {
       }
     }
     if (status === "Shipped") order.shippedAt = new Date();
-    if (status === "Delivered") order.deliveredAt = new Date();
+    if (status === "Delivered") {
+      order.deliveredAt = new Date();
+      // Deduct from wallet if not already deducted
+      const wallet = await Wallet.findOne({ user: order.user });
+      if (wallet && (!order.walletDeducted || wallet.transactions.every(t => t.orderId?.toString() !== order._id.toString() || t.type !== "debit"))) {
+        if (wallet.balance < order.totalAmount) {
+          return res.status(400).json({
+            success: false,
+            message: "Insufficient wallet balance for this order",
+            required: order.totalAmount,
+            available: wallet.balance,
+          });
+        }
+        wallet.balance -= order.totalAmount;
+        wallet.transactions.push({
+          type: "debit",
+          amount: order.totalAmount,
+          description: `Cosmetic order #${order._id} - ${order.items.length} item(s) [ADMIN DELIVERED]`,
+          status: "completed",
+          orderId: order._id,
+        });
+        await wallet.save();
+        order.walletDeducted = true;
+      }
+    }
     if (status === "Cancelled") {
       order.cancelledAt = new Date();
       order.adminApprovalStatus = "Rejected";
