@@ -105,10 +105,17 @@ const PricingConfig = () => {
   const handleEdit = (svc) => {
     setEditService(svc);
     setFormData({
-      name: svc.name, description: svc.description || "",
+      name: svc.name,
+      description: svc.description || "",
       category: svc.category?._id || svc.category,
       subCategory: svc.subCategory?._id || svc.subCategory || "",
-      price: svc.price, pricingType: svc.pricingType, duration: svc.duration, discount: svc.discount || 0, image1: null, image2: null,
+      price: svc.price,
+      pricingType: svc.pricingType,
+      duration: svc.duration,
+      discount: svc.discount || 0,
+      image1: null,
+      image2: null,
+      servicePercentage: svc.servicePercentage !== undefined ? svc.servicePercentage : "",
     });
     setModalOpen(true);
   };
