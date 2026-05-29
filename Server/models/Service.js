@@ -27,6 +27,13 @@ const serviceSchema = new Schema(
       required: [true, "Price is required"],
       min: [0, "Price cannot be negative"],
     },
+    servicePercentage: {
+      type: Number,
+      required: false,
+      min: 0,
+      max: 100,
+      default: 0,
+    },
     pricingType: {
       type: String,
       enum: ["Fixed", "Hourly", "Package"],

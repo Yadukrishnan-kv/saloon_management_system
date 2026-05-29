@@ -476,7 +476,17 @@ const getBeauticiansWithSufficientBalance = async (req, res) => {
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found" });
     }
-    const requiredAmount = booking.finalAmount;
+    // Calculate required wallet amount based on service percentage
+    let requiredAmount = 0;
+    for (const s of booking.services) {
+      const service = s.service;
+      if (service && typeof service.price === 'number' && typeof service.servicePercentage === 'number') {
+        requiredAmount += (service.price * (service.servicePercentage || 0)) / 100;
+      } else if (service && typeof service.price === 'number') {
+        requiredAmount += service.price;
+      }
+    }
+    requiredAmount = Math.round(requiredAmount);
     // Gather required cosmetics for all services in booking
     let requiredProducts = {};
     for (const s of booking.services) {

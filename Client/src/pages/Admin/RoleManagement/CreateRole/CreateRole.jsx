@@ -24,6 +24,7 @@ const MENU_OPTIONS = [
   "Complaints",
   "Reviews",
   "Cosmetics",
+  "Inventory Monitoring",
   "Payouts",
   "Notifications",
   "Reports",

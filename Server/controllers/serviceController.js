@@ -74,7 +74,7 @@ const getServicesByCategory = async (req, res) => {
 
 const createService = async (req, res) => {
   try {
-    const { name, description, category, price, pricingType, duration, discount, tags } = req.body;
+    const { name, description, category, price, pricingType, duration, discount, tags, servicePercentage } = req.body;
 
     const categoryExists = await Category.findById(category);
     if (!categoryExists) {
@@ -91,6 +91,7 @@ const createService = async (req, res) => {
       discount,
       tags,
       beautician: null,
+      servicePercentage: servicePercentage !== undefined ? servicePercentage : 0,
     };
 
     if (req.files && req.files.length > 0) {
@@ -117,6 +118,9 @@ const createService = async (req, res) => {
 const updateService = async (req, res) => {
   try {
     const updateData = { ...req.body };
+    if (req.body.servicePercentage !== undefined) {
+      updateData.servicePercentage = req.body.servicePercentage;
+    }
     if (req.files && req.files.length > 0) {
       updateData.image1 = `/uploads/${req.files[0].filename}`;
       if (req.files.length > 1) {

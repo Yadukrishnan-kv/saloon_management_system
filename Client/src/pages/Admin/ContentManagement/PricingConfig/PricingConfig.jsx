@@ -69,6 +69,7 @@ const PricingConfig = () => {
       data.append('category', formData.category);
       data.append('subCategory', formData.subCategory);
       data.append('price', formData.price);
+      data.append('servicePercentage', formData.servicePercentage);
       data.append('pricingType', formData.pricingType);
       data.append('duration', formData.duration);
       data.append('discount', formData.discount);
@@ -199,6 +200,17 @@ const PricingConfig = () => {
               <div className="form-group">
                 <label>Price (₹)</label>
                 <input type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="0.00" />
+              </div>
+              <div className="form-group">
+                <label>Service Percentage (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={formData.servicePercentage}
+                  onChange={(e) => setFormData({ ...formData, servicePercentage: e.target.value })}
+                  placeholder="e.g. 10 for 10%"
+                />
               </div>
               <div className="form-group">
                 <label>Duration (mins)</label>

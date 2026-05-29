@@ -9,6 +9,7 @@ import Button from "../../../components/common/Button/Button";
 import Loading from "../../../components/common/Loading/Loading";
 import axios from "axios";
 import { formatDateTime } from "../../../utils/helpers";
+import OrderQRCodesModal from "./OrderQRCodesModal";
 import "../UserManagement/UserList/UserList.css";
 
 const CosmeticManagement = () => {
@@ -30,6 +31,7 @@ const CosmeticManagement = () => {
   const [editing, setEditing] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [services, setServices] = useState([]);
+  const [qrModalOrder, setQrModalOrder] = useState(null);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -244,17 +246,19 @@ const CosmeticManagement = () => {
     { key: "beautician", label: "Beautician", render: (row) => row.beautician?.fullName || "-" },
     { key: "items", label: "Items", render: (row) => `${row.items?.length || 0} item(s)` },
     { key: "totalAmount", label: "Total", render: (row) => `₹${row.totalAmount}` },
-      {
-        key: "qrCode",
-        label: "QR Code",
-        render: (row) => (
-          row.qrCode ? (
-            <img src={row.qrCode} alt="QR Code" className="w-16 h-16" style={{ width: 64, height: 64, objectFit: "contain", border: "1px solid #eee", borderRadius: 8, background: "#fff" }} />
-          ) : (
-            <span className="text-gray-500">N/A</span>
-          )
-        ),
-      },
+    {
+      key: "qrCodes",
+      label: "QR Codes",
+      render: (row) => (
+        <button
+          className="action-btn"
+          style={{ background: "#6366f1", color: "#fff", borderRadius: 4, padding: "4px 10px", fontWeight: 500, cursor: "pointer" }}
+          onClick={() => setQrModalOrder(row)}
+        >
+          View/Print QR Codes
+        </button>
+      ),
+    },
     {
       key: "status",
       label: "Status",
@@ -652,6 +656,10 @@ const CosmeticManagement = () => {
 
         {/* Order Status Modal */}
         <Modal isOpen={orderModal} onClose={() => setOrderModal(false)} title="Manage Order">
+                {/* QR Codes Modal */}
+                {qrModalOrder && (
+                  <OrderQRCodesModal order={qrModalOrder} onClose={() => setQrModalOrder(null)} />
+                )}
           {selectedOrder && (
             <>
               <p>

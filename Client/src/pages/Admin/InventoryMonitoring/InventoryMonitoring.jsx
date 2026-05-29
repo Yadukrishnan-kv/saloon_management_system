@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Header from "../../../components/layout/Header/Header";
@@ -5,6 +6,7 @@ import Sidebar from "../../../components/layout/Sidebar/Sidebar";
 import Table from "../../../components/common/Table/Table";
 import Loading from "../../../components/common/Loading/Loading";
 import toast from "react-hot-toast";
+import "./InventoryMonitoring.css";
 
 const InventoryMonitoring = () => {
   const backendUrl = process.env.REACT_APP_BACKEND_IP;
@@ -33,7 +35,7 @@ const InventoryMonitoring = () => {
   };
 
   return (
-    <div className="admin-layout">
+    <div className="admin-layout inventory-monitoring-container">
       <Sidebar collapsed={sidebarCollapsed} />
       <div className="main-content">
         <Header title="Beautician Cosmetics Usage Tracking" onMenuClick={() => setSidebarCollapsed((c) => !c)} />
@@ -52,20 +54,22 @@ const InventoryMonitoring = () => {
           <input name="to" type="date" value={filters.to} onChange={handleFilterChange} />
           <button onClick={fetchInventory}>Filter</button>
         </div>
-        {loading ? <Loading /> : (
-          <Table
-            columns={[
-              { Header: "Beautician", accessor: (row) => row.beauticianId?.fullName || row.beauticianId },
-              { Header: "Product", accessor: (row) => row.productId?.name || row.productId },
-              { Header: "Status", accessor: "status" },
-              { Header: "Used At", accessor: (row) => row.usedAt ? new Date(row.usedAt).toLocaleString() : "-" },
-              { Header: "Booking", accessor: (row) => row.usedInBookingId?.jobId || "-" },
-              { Header: "QR", accessor: (row) => row.qrImage ? <img src={row.qrImage} alt="QR" style={{ width: 40 }} /> : "-" },
-            ]}
-            data={inventory}
-            rowKey="_id"
-          />
-        )}
+        <div className="inventory-table">
+          {loading ? <Loading /> : (
+            <Table
+              columns={[
+                { Header: "Beautician", accessor: (row) => row.beauticianId?.fullName || row.beauticianId },
+                { Header: "Product", accessor: (row) => row.productId?.name || row.productId },
+                { Header: "Status", accessor: "status" },
+                { Header: "Used At", accessor: (row) => row.usedAt ? new Date(row.usedAt).toLocaleString() : "-" },
+                { Header: "Booking", accessor: (row) => row.usedInBookingId?.jobId || "-" },
+                { Header: "QR", accessor: (row) => row.qrImage ? <img src={row.qrImage} alt="QR" style={{ width: 40 }} /> : "-" },
+              ]}
+              data={inventory}
+              rowKey="_id"
+            />
+          )}
+        </div>
       </div>
     </div>
   );
