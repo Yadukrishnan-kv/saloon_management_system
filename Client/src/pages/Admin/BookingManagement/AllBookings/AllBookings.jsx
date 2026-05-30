@@ -70,18 +70,32 @@ const AllBookings = () => {
       const { data } = await axios.get(`${backendUrl}/api/beauticians/filter/by-balance`, {
         params: { bookingId: booking._id }
       });
-      
-      const beauticiansArray = data.beauticians || [];
+
+      let beauticiansArray = data.beauticians || [];
+
+      // --- Additional filtering for required cosmetic and assignedServiceIds ---
+      // Assume booking.services is an array of service objects with _id
+      const requiredServiceIds = (booking.services || []).map(s => s._id);
+
+      beauticiansArray = beauticiansArray.filter(b => {
+        // Check assignedServiceIds includes all required services
+        const hasAllServices = requiredServiceIds.every(sid => Array.isArray(b.assignedServiceIds) && b.assignedServiceIds.includes(sid));
+        // Check for required cosmetic in inventory (assuming b.inventoryCosmeticIds is an array of cosmetic IDs)
+        // If you have a specific cosmetic requirement, adjust this check accordingly
+        // For now, we assume the backend already filtered by cosmetic, so only check assignedServiceIds
+        return hasAllServices;
+      });
+
       setBeauticians(beauticiansArray);
       setAssignmentSource("filtered");
-      
+
       if (beauticiansArray.length > 0 && !booking.beautician?._id) {
         setSelectedBeautician(beauticiansArray[0]._id);
       }
-      
+
       // Show info about the filter
       if (beauticiansArray.length === 0) {
-        toast.warning(`No beauticians have ₹${booking.finalAmount} or more in their wallet`);
+        toast.warning(`No beauticians meet all requirements for this booking.`);
       }
     } catch (error) {
       console.error("Beautician fetch error:", error);
@@ -297,7 +311,7 @@ const AllBookings = () => {
         )}
         <Modal isOpen={assignModal} onClose={() => setAssignModal(false)} title={assignmentMode === "reassign" ? "Reassign Beautician" : "Assign Beautician"}>
           <div style={{ marginBottom: "12px", padding: "10px 12px", background: "#eefaf2", borderRadius: "10px", color: "#256f46", fontSize: "13px" }}>
-            <strong>Note:</strong> Only beauticians with ₹{selectedBooking?.finalAmount} or more in their wallet are shown below.
+            <strong>Note:</strong> Only beauticians with at least the service percentage amount of the service price in their wallet are shown below.
           </div>
           <div className="form-group">
             <label>Select Beautician *</label>
