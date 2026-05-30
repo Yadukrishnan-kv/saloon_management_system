@@ -83,8 +83,11 @@ exports.listInventory = async (req, res) => {
 exports.useInventoryItem = async (req, res) => {
   try {
     const { qrCode, bookingId } = req.body;
-    const beauticianId = req.user.beauticianId;
-    const item = await BeauticianInventory.findOne({ qrCode, beauticianId });
+    // Try to find by qrCode only (for robust scan, since QR is unique)
+    let item = await BeauticianInventory.findOne({ qrCode });
+    // Optionally, if you want to restrict to beautician, uncomment below:
+    // const beauticianId = req.user.beauticianId;
+    // let item = await BeauticianInventory.findOne({ qrCode, beauticianId });
     if (!item) return res.status(404).json({ success: false, message: 'Invalid QR code or item not found' });
     if (item.status !== 'AVAILABLE') return res.status(400).json({ success: false, message: 'QR code already used or not available' });
     item.status = 'USED';

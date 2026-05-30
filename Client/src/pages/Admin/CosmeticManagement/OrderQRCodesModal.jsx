@@ -7,15 +7,24 @@ const OrderQRCodesModal = ({ order, onClose }) => {
   const [qrItems, setQrItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
+
   useEffect(() => {
     if (!order) return;
     const fetchQRCodes = async () => {
       setLoading(true);
       try {
+        // Fetch all inventory for this order only
         const { data } = await axios.get(`${backendUrl}/api/inventory/admin/inventory`, {
           params: { orderId: order._id },
         });
-        setQrItems(data.inventory || []);
+        // If API returns grouped by product, flatten all items for this order
+        let allItems = [];
+        if (Array.isArray(data.inventory)) {
+          data.inventory.forEach(prod => {
+            if (Array.isArray(prod.items)) allItems = allItems.concat(prod.items);
+          });
+        }
+        setQrItems(allItems);
       } catch (err) {
         setQrItems([]);
       } finally {
@@ -29,13 +38,13 @@ const OrderQRCodesModal = ({ order, onClose }) => {
     const doc = new jsPDF();
     qrItems.forEach((item, idx) => {
       if (idx !== 0) doc.addPage();
-      doc.text(`Product: ${item.productId?.name || item.productId}` || "", 10, 10);
-      doc.text(`QR Code:`, 10, 20);
+      doc.text(`QR Code:`, 10, 10);
       if (item.qrImage) {
-        doc.addImage(item.qrImage, "PNG", 10, 30, 60, 60);
+        doc.addImage(item.qrImage, "PNG", 10, 20, 60, 60);
       }
-      doc.text(`Status: ${item.status}`, 10, 100);
-      doc.text(`Inventory ID: ${item._id}`, 10, 110);
+      doc.text(`Status: ${item.status}`, 10, 90);
+      doc.text(`Inventory ID: ${item._id}`, 10, 100);
+      doc.text(`QR: ${item.qrCode}`, 10, 110);
     });
     doc.save(`Order_${order._id}_QRCodes.pdf`);
   };
