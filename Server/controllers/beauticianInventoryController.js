@@ -5,12 +5,14 @@ const Service = require('../models/Service');
 
 // List beautician order history (all purchased products with qty info)
 const CosmeticOrder = require('../models/CosmeticOrder');
+const mongoose = require('mongoose');
 exports.listInventory = async (req, res) => {
   try {
     const beauticianId = req.user.beauticianId || req.params.beauticianId;
+    const beauticianObjId = mongoose.Types.ObjectId(beauticianId);
     // Get all delivered & approved orders for this beautician
     const orders = await CosmeticOrder.find({
-      beautician: beauticianId,
+      beautician: beauticianObjId,
       status: 'Delivered',
       adminApprovalStatus: 'Approved',
     }).populate('items.item');
@@ -30,17 +32,24 @@ exports.listInventory = async (req, res) => {
         productMap[pid].totalPurchased += orderItem.quantity;
       }
     }
-    // Count used items from BeauticianInventory
+    // If there are no products, return empty array
     const allProductIds = Object.keys(productMap);
-    if (allProductIds.length > 0) {
-      const usedCounts = await BeauticianInventory.aggregate([
-        { $match: { beauticianId: require('mongoose').Types.ObjectId(beauticianId), status: 'USED', productId: { $in: allProductIds.map(id => require('mongoose').Types.ObjectId(id)) } } },
-        { $group: { _id: '$productId', count: { $sum: 1 } } }
-      ]);
-      for (const uc of usedCounts) {
-        const pid = uc._id.toString();
-        if (productMap[pid]) productMap[pid].totalUsed = uc.count;
-      }
+    if (allProductIds.length === 0) {
+      return res.json({ success: true, inventory: [] });
+    }
+    // Count used items from BeauticianInventory (if any exist)
+    const usedCounts = await BeauticianInventory.aggregate([
+      { $match: {
+          beauticianId: beauticianObjId,
+          status: 'USED',
+          productId: { $in: allProductIds.map(id => mongoose.Types.ObjectId(id)) }
+        }
+      },
+      { $group: { _id: '$productId', count: { $sum: 1 } } }
+    ]);
+    for (const uc of usedCounts) {
+      const pid = uc._id.toString();
+      if (productMap[pid]) productMap[pid].totalUsed = uc.count;
     }
     // Prepare response: product, totalPurchased, totalUsed, available
     const inventory = Object.values(productMap).map(p => ({
