@@ -58,12 +58,15 @@ const InventoryMonitoring = () => {
           {loading ? <Loading /> : (
             <Table
               columns={[
-                { Header: "Beautician", accessor: (row) => row.beauticianId?.fullName || row.beauticianId },
-                { Header: "Product", accessor: (row) => row.productId?.name || row.productId },
-                { Header: "Status", accessor: "status" },
-                { Header: "Used At", accessor: (row) => row.usedAt ? new Date(row.usedAt).toLocaleString() : "-" },
-                { Header: "Booking", accessor: (row) => row.usedInBookingId?.jobId || "-" },
-                { Header: "QR", accessor: (row) => row.qrImage ? <img src={row.qrImage} alt="QR" style={{ width: 40 }} /> : "-" },
+                { key: "beautician", label: "Beautician", render: (row) => row.beauticianId?.fullName || row.beauticianId },
+                { key: "beauticianPhone", label: "Beautician Phone", render: (row) => row.beauticianId?.phoneNumber || "-" },
+                { key: "product", label: "Product", render: (row) => row.productId?.name || row.productId },
+                { key: "productPrice", label: "Product Price", render: (row) => row.productId?.price || "-" },
+                { key: "orderId", label: "Order ID", render: (row) => row.orderId?._id || row.orderId || "-" },
+                { key: "status", label: "Status", render: (row) => row.status },
+                { key: "usedAt", label: "Used At", render: (row) => row.usedAt ? new Date(row.usedAt).toLocaleString() : "-" },
+                { key: "booking", label: "Booking", render: (row) => row.usedInBookingId?.jobId || "-" },
+                { key: "qr", label: "QR", render: (row) => row.qrImage ? <img src={row.qrImage} alt="QR" style={{ width: 40 }} /> : "-" },
               ]}
               data={inventory}
               rowKey="_id"

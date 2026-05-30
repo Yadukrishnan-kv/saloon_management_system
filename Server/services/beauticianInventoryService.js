@@ -11,14 +11,8 @@ async function createInventoryForOrder(order) {
   const inventoryItems = [];
   for (const orderItem of order.items) {
     for (let i = 0; i < orderItem.quantity; i++) {
-      // Generate unique QR code data
-      const qrData = JSON.stringify({
-        orderId: order._id.toString(),
-        beauticianId: order.beautician.toString(),
-        productId: orderItem.item.toString(),
-        serial: i + 1,
-        createdAt: new Date().toISOString(),
-      });
+      // Generate unique QR code string: orderId-beauticianId-productId-serial
+      const qrData = `${order._id.toString()}-${order.beautician.toString()}-${orderItem.item.toString()}-${i + 1}`;
       const qrImage = await QRCode.toDataURL(qrData);
       const inventory = await BeauticianInventory.create({
         beauticianId: order.beautician,
