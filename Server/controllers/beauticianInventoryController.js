@@ -8,7 +8,15 @@ const CosmeticOrder = require('../models/CosmeticOrder');
 const mongoose = require('mongoose');
 exports.listInventory = async (req, res) => {
   try {
-    const beauticianId = req.user.beauticianId || req.params.beauticianId;
+    let beauticianId = req.user.beauticianId || req.params.beauticianId;
+    // Fallback: if not present, look up beautician by user._id
+    if (!beauticianId && req.user && req.user._id) {
+      const beauticianDoc = await require('../models/Beautician').findOne({ user: req.user._id });
+      if (beauticianDoc) beauticianId = beauticianDoc._id;
+    }
+    if (!beauticianId) {
+      return res.json({ success: true, inventory: [] });
+    }
     const beauticianObjId = new mongoose.Types.ObjectId(beauticianId);
     // Get all delivered & approved orders for this beautician
     const orders = await CosmeticOrder.find({
