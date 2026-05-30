@@ -39,6 +39,11 @@ const serviceSchema = new Schema(
       enum: ["Fixed", "Hourly", "Package"],
       default: "Fixed",
     },
+    servicePercentageAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     duration: {
       type: Number,
       required: [true, "Duration is required"],
@@ -74,6 +79,34 @@ const serviceSchema = new Schema(
 
 serviceSchema.index({ category: 1 });
 serviceSchema.index({ isActive: 1 });
+
+
+// Pre-save middleware to calculate servicePercentageAmount
+serviceSchema.pre("save", function (next) {
+  if (typeof this.price === "number" && typeof this.servicePercentage === "number") {
+    this.servicePercentageAmount = (this.price * this.servicePercentage) / 100;
+  } else {
+    this.servicePercentageAmount = 0;
+  }
+  next();
+});
+
+// Pre-update middleware for findOneAndUpdate
+serviceSchema.pre("findOneAndUpdate", function (next) {
+  const update = this.getUpdate();
+  if (update.price !== undefined || update.servicePercentage !== undefined) {
+    // Get the new or existing values
+    const price = update.price !== undefined ? update.price : this._update.price;
+    const servicePercentage = update.servicePercentage !== undefined ? update.servicePercentage : this._update.servicePercentage;
+    if (typeof price === "number" && typeof servicePercentage === "number") {
+      update.servicePercentageAmount = (price * servicePercentage) / 100;
+    } else {
+      update.servicePercentageAmount = 0;
+    }
+    this.setUpdate(update);
+  }
+  next();
+});
 
 const Service = model("Service", serviceSchema);
 module.exports = Service;
