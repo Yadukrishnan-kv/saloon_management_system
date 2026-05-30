@@ -183,19 +183,42 @@ const cancelBooking = async (req, res) => {
 const assignBeautician = async (req, res) => {
   try {
     const { beauticianId } = req.body;
+    const BeauticianInventory = require("../models/BeauticianInventory");
+    const Service = require("../models/Service");
+    const Wallet = require("../models/Wallet");
 
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findById(req.params.id).populate("services.service");
     if (!booking) return res.status(404).json({ message: "Booking not found" });
 
     const beautician = await Beautician.findById(beauticianId).populate("user");
     if (!beautician) return res.status(404).json({ message: "Beautician not found" });
 
-    // ─── CHECK BEAUTICIAN WALLET BALANCE ─────────────────────────────────────
-    const Wallet = require("../models/Wallet");
+    // Check if beautician has required cosmetic in inventory for all services
+    let hasAllCosmetics = true;
+    for (const s of booking.services) {
+      const inv = await BeauticianInventory.findOne({
+        beauticianId: beauticianId,
+        assignedServiceIds: s.service._id,
+        status: "AVAILABLE"
+      });
+      if (!inv) {
+        hasAllCosmetics = false;
+        break;
+      }
+    }
+    if (!hasAllCosmetics) {
+      return res.status(400).json({ message: "Beautician does not have required cosmetic(s) in inventory." });
+    }
+
+    // Calculate required wallet amount (sum of all service percentages)
+    let requiredAmount = 0;
+    for (const s of booking.services) {
+      const percent = s.service.servicePercentage || 0;
+      requiredAmount += ((s.price || s.service.price) * percent) / 100;
+    }
+
     const wallet = await Wallet.findOne({ user: beautician.user._id });
     const walletBalance = wallet ? wallet.balance : 0;
-    const requiredAmount = booking.finalAmount;
-
     if (walletBalance < requiredAmount) {
       return res.status(400).json({
         message: `Beautician doesn't have sufficient wallet balance. Required: ₹${requiredAmount}, Available: ₹${walletBalance}`,
@@ -247,20 +270,26 @@ const completeBooking = async (req, res) => {
       return res.status(400).json({ message: "Booking cannot be completed in current state" });
     }
 
-    const COMMISSION_AMOUNT = 200; // ₹200 commission per booking
-    
+    // Calculate commission as sum of all service percentages
+    let commissionAmount = 0;
+    await booking.populate("services.service");
+    for (const s of booking.services) {
+      const percent = s.service.servicePercentage || 0;
+      commissionAmount += ((s.price || s.service.price) * percent) / 100;
+    }
+
     booking.status = "Completed";
     booking.completedAt = new Date();
     booking.paymentStatus = "Paid";
-    
+
     // ─── CALCULATE PAYOUT (Final Amount - Commission) ──────────────────────
     booking.platformPayment = {
       collectedByPlatform: true,
       collectedAt: new Date(),
       beauticianPayoutDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000), // +4 days
       paidToBeautician: false,
-      platformCommission: COMMISSION_AMOUNT,
-      beauticianPayout: booking.finalAmount - COMMISSION_AMOUNT,
+      platformCommission: commissionAmount,
+      beauticianPayout: booking.finalAmount - commissionAmount,
     };
     
     await booking.save();
@@ -286,10 +315,10 @@ const completeBooking = async (req, res) => {
       if (beauticianUser) {
         let wallet = await Wallet.findOne({ user: beauticianUser._id });
         if (wallet) {
-          wallet.balance -= COMMISSION_AMOUNT;
+          wallet.balance -= commissionAmount;
           wallet.transactions.push({
             type: "debit",
-            amount: COMMISSION_AMOUNT,
+            amount: commissionAmount,
             description: `Commission deducted for booking #${booking.jobId}`,
             reference: { bookingId: booking._id },
             status: "completed",
