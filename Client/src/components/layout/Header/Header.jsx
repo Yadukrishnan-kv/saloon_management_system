@@ -36,7 +36,7 @@ const Header = ({ onToggleSidebar }) => {
       </div>
 
       <div className="header-right">
-        <button className="header-icon-btn" aria-label="Notifications">
+        <button className="header-icon-btn" aria-label="Notifications" onClick={() => navigate("/admin/notifications") }>
           <FiBell size={20} />
           <span className="notification-dot"></span>
         </button>

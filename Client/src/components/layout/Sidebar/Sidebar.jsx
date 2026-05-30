@@ -62,7 +62,6 @@ const Sidebar = ({ collapsed }) => {
     { label: "Cosmetics", icon: <FiPackage />, path: "/admin/cosmetics" },
     { label: "Inventory Monitoring", icon: <FiPackage />, path: "/admin/inventory-monitoring" },
     { label: "Payouts", icon: <FiDollarSign />, path: "/admin/payouts" },
-    { label: "Notifications", icon: <FiBell />, path: "/admin/notifications" },
     { label: "Reports", icon: <FiBarChart2 />, path: "/admin/reports" },
     {
       label: "Curated Services",
