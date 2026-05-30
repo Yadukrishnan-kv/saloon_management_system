@@ -55,6 +55,8 @@ const AllBookings = () => {
   };
 
   const openAssignModal = async (booking, mode = "assign") => {
+      // Debug: log beauticians before filtering
+      console.log("Fetched beauticians from backend:", data.beauticians);
     // Only allow assign for Approved status
     if (booking.status !== "Approved") {
       toast.error("Booking must be approved before assigning beautician");
@@ -77,14 +79,17 @@ const AllBookings = () => {
       // Assume booking.services is an array of service objects with _id
       const requiredServiceIds = (booking.services || []).map(s => s._id);
 
-      beauticiansArray = beauticiansArray.filter(b => {
-        // Check assignedServiceIds includes all required services
-        const hasAllServices = requiredServiceIds.every(sid => Array.isArray(b.assignedServiceIds) && b.assignedServiceIds.includes(sid));
-        // Check for required cosmetic in inventory (assuming b.inventoryCosmeticIds is an array of cosmetic IDs)
-        // If you have a specific cosmetic requirement, adjust this check accordingly
-        // For now, we assume the backend already filtered by cosmetic, so only check assignedServiceIds
-        return hasAllServices;
-      });
+      // If assignedServiceIds is not present, skip filtering and show all eligible beauticians
+      if (beauticiansArray.length > 0 && !beauticiansArray[0].assignedServiceIds) {
+        // Log a warning for missing assignedServiceIds
+        console.warn("assignedServiceIds missing from beautician objects. Skipping frontend filter.");
+      } else {
+        beauticiansArray = beauticiansArray.filter(b => {
+          // Check assignedServiceIds includes all required services
+          const hasAllServices = requiredServiceIds.every(sid => Array.isArray(b.assignedServiceIds) && b.assignedServiceIds.includes(sid));
+          return hasAllServices;
+        });
+      }
 
       setBeauticians(beauticiansArray);
       setAssignmentSource("filtered");
