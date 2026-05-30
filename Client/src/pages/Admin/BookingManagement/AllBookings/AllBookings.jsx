@@ -73,23 +73,23 @@ const AllBookings = () => {
         params: { bookingId: booking._id }
       });
 
+      // Debug: log beauticians after fetching
+      console.log("Fetched beauticians from backend:", data.beauticians);
+
       let beauticiansArray = data.beauticians || [];
-
-      // --- Additional filtering for required cosmetic and assignedServiceIds ---
-      // Assume booking.services is an array of service objects with _id
+      // --- Robust filtering for both conditions ---
+      // 1. Must have all required services in assignedServiceIds (if present)
+      // 2. Must have eligible=true (from backend, means has required cosmetics and wallet)
       const requiredServiceIds = (booking.services || []).map(s => s._id);
-
-      // If assignedServiceIds is not present, skip filtering and show all eligible beauticians
-      if (beauticiansArray.length > 0 && !beauticiansArray[0].assignedServiceIds) {
-        // Log a warning for missing assignedServiceIds
-        console.warn("assignedServiceIds missing from beautician objects. Skipping frontend filter.");
-      } else {
-        beauticiansArray = beauticiansArray.filter(b => {
-          // Check assignedServiceIds includes all required services
-          const hasAllServices = requiredServiceIds.every(sid => Array.isArray(b.assignedServiceIds) && b.assignedServiceIds.includes(sid));
-          return hasAllServices;
-        });
-      }
+      beauticiansArray = beauticiansArray.filter(b => {
+        // If assignedServiceIds is present, check all required services
+        let hasAllServices = true;
+        if (Array.isArray(b.assignedServiceIds)) {
+          hasAllServices = requiredServiceIds.every(sid => b.assignedServiceIds.includes(sid));
+        }
+        // Must also be eligible (backend check for cosmetics and wallet)
+        return hasAllServices && b.eligible !== false;
+      });
 
       setBeauticians(beauticiansArray);
       setAssignmentSource("filtered");
