@@ -59,12 +59,19 @@ exports.listInventory = async (req, res) => {
       const pid = uc._id.toString();
       if (productMap[pid]) productMap[pid].totalUsed = uc.count;
     }
-    // Prepare response: product, totalPurchased, totalUsed, available
-    const inventory = Object.values(productMap).map(p => ({
-      product: p.product,
-      totalPurchased: p.totalPurchased,
-      totalUsed: p.totalUsed,
-      available: p.totalPurchased - p.totalUsed,
+    // For each product, fetch all inventory items (with QR code details)
+    const inventory = await Promise.all(Object.values(productMap).map(async (p) => {
+      const items = await BeauticianInventory.find({
+        beauticianId: beauticianObjId,
+        productId: p.product._id,
+      }, 'qrCode qrImage status usedAt usedInBookingId').populate('usedInBookingId');
+      return {
+        product: p.product,
+        totalPurchased: p.totalPurchased,
+        totalUsed: p.totalUsed,
+        available: p.totalPurchased - p.totalUsed,
+        items, // array of inventory items with QR code details
+      };
     }));
     res.json({ success: true, inventory });
   } catch (err) {
