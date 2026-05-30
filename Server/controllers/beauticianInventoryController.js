@@ -9,7 +9,7 @@ const mongoose = require('mongoose');
 exports.listInventory = async (req, res) => {
   try {
     const beauticianId = req.user.beauticianId || req.params.beauticianId;
-    const beauticianObjId = mongoose.Types.ObjectId(beauticianId);
+    const beauticianObjId = new mongoose.Types.ObjectId(beauticianId);
     // Get all delivered & approved orders for this beautician
     const orders = await CosmeticOrder.find({
       beautician: beauticianObjId,
@@ -42,7 +42,7 @@ exports.listInventory = async (req, res) => {
       { $match: {
           beauticianId: beauticianObjId,
           status: 'USED',
-          productId: { $in: allProductIds.map(id => mongoose.Types.ObjectId(id)) }
+          productId: { $in: allProductIds.map(id => new mongoose.Types.ObjectId(id)) }
         }
       },
       { $group: { _id: '$productId', count: { $sum: 1 } } }
