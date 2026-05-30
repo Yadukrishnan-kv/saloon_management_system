@@ -193,19 +193,32 @@ const assignBeautician = async (req, res) => {
     const beautician = await Beautician.findById(beauticianId).populate("user");
     if (!beautician) return res.status(404).json({ message: "Beautician not found" });
 
-    // Check if beautician has required cosmetic in inventory for all services
+    // Gather required cosmetics for all services in booking
+    const CosmeticItem = require("../models/CosmeticItem");
+    const serviceIds = booking.services.map(s => s.service?._id || s.service).filter(Boolean);
+    const relatedCosmetics = await CosmeticItem.find({ services: { $in: serviceIds } });
+
+    let requiredProducts = {};
+    for (const item of relatedCosmetics) {
+      requiredProducts[item._id.toString()] = (requiredProducts[item._id.toString()] || 0) + 1;
+    }
+
+    // Check if beautician has required cosmetics in inventory
+    const beauticianInventoryService = require("../services/beauticianInventoryService");
+    const stock = await beauticianInventoryService.getBeauticianStock(
+      beauticianId,
+      Object.keys(requiredProducts)
+    );
+
     let hasAllCosmetics = true;
-    for (const s of booking.services) {
-      const inv = await BeauticianInventory.findOne({
-        beauticianId: beauticianId,
-        assignedServiceIds: s.service._id,
-        status: "AVAILABLE"
-      });
-      if (!inv) {
+    for (const [prodId, qty] of Object.entries(requiredProducts)) {
+      const available = stock[prodId] || 0;
+      if (available < qty) {
         hasAllCosmetics = false;
         break;
       }
     }
+
     if (!hasAllCosmetics) {
       return res.status(400).json({ message: "Beautician does not have required cosmetic(s) in inventory." });
     }
@@ -213,9 +226,14 @@ const assignBeautician = async (req, res) => {
     // Calculate required wallet amount (sum of all service percentages)
     let requiredAmount = 0;
     for (const s of booking.services) {
-      const percent = s.service.servicePercentage || 0;
-      requiredAmount += ((s.price || s.service.price) * percent) / 100;
+      const service = s.service;
+      if (service) {
+        const percent = service.servicePercentage || 0;
+        const price = s.price || service.price || 0;
+        requiredAmount += (price * percent) / 100;
+      }
     }
+    requiredAmount = Math.round(requiredAmount);
 
     const wallet = await Wallet.findOne({ user: beautician.user._id });
     const walletBalance = wallet ? wallet.balance : 0;

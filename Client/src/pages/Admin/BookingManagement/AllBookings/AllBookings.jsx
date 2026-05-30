@@ -55,8 +55,6 @@ const AllBookings = () => {
   };
 
   const openAssignModal = async (booking, mode = "assign") => {
-      // Debug: log beauticians before filtering
-      console.log("Fetched beauticians from backend:", data.beauticians);
     // Only allow assign for Approved status
     if (booking.status !== "Approved") {
       toast.error("Booking must be approved before assigning beautician");
@@ -77,19 +75,6 @@ const AllBookings = () => {
       console.log("Fetched beauticians from backend:", data.beauticians);
 
       let beauticiansArray = data.beauticians || [];
-      // --- Robust filtering for both conditions ---
-      // 1. Must have all required services in assignedServiceIds (if present)
-      // 2. Must have eligible=true (from backend, means has required cosmetics and wallet)
-      const requiredServiceIds = (booking.services || []).map(s => s._id);
-      beauticiansArray = beauticiansArray.filter(b => {
-        // If assignedServiceIds is present, check all required services
-        let hasAllServices = true;
-        if (Array.isArray(b.assignedServiceIds)) {
-          hasAllServices = requiredServiceIds.every(sid => b.assignedServiceIds.includes(sid));
-        }
-        // Must also be eligible (backend check for cosmetics and wallet)
-        return hasAllServices && b.eligible !== false;
-      });
 
       setBeauticians(beauticiansArray);
       setAssignmentSource("filtered");

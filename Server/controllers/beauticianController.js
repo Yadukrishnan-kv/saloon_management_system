@@ -480,32 +480,20 @@ const getBeauticiansWithSufficientBalance = async (req, res) => {
     let requiredAmount = 0;
     for (const s of booking.services) {
       const service = s.service;
-      if (service && typeof service.servicePercentageAmount === 'number') {
-        requiredAmount += service.servicePercentageAmount;
-      } else if (service && typeof service.price === 'number' && typeof service.servicePercentage === 'number') {
-        requiredAmount += (service.price * (service.servicePercentage || 0)) / 100;
-      } else if (service && typeof service.price === 'number') {
-        requiredAmount += service.price;
+      if (service) {
+        const percent = service.servicePercentage || 0;
+        const price = s.price || service.price || 0;
+        requiredAmount += (price * percent) / 100;
       }
     }
     requiredAmount = Math.round(requiredAmount);
+
     // Gather required cosmetics for all services in booking
     let requiredProducts = {};
-    for (const s of booking.services) {
-      const service = s.service;
-      if (service && service.services) {
-        // If service has mapped cosmetics (legacy)
-        for (const prodId of service.services) {
-          requiredProducts[prodId.toString()] = (requiredProducts[prodId.toString()] || 0) + 1;
-        }
-      }
-    }
-    // If no mapping, fallback to all products (legacy safety)
-    if (Object.keys(requiredProducts).length === 0) {
-      const allProducts = await CosmeticItem.find({});
-      for (const p of allProducts) {
-        requiredProducts[p._id.toString()] = 1;
-      }
+    const serviceIds = booking.services.map(s => s.service?._id || s.service).filter(Boolean);
+    const relatedCosmetics = await CosmeticItem.find({ services: { $in: serviceIds } });
+    for (const item of relatedCosmetics) {
+      requiredProducts[item._id.toString()] = (requiredProducts[item._id.toString()] || 0) + 1;
     }
     // Get all active beauticians
     const beauticians = await Beautician.find({ status: "Active" })
