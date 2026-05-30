@@ -117,7 +117,7 @@ exports.usageHistory = async (req, res) => {
 // Admin: filter inventory
 exports.adminFilterInventory = async (req, res) => {
   try {
-    const { beauticianId, productId, serviceId, status, from, to } = req.query;
+    const { beauticianId, productId, serviceId, status, from, to, orderId } = req.query;
     const filter = {};
     if (beauticianId) filter.beauticianId = beauticianId;
     if (productId) filter.productId = productId;
@@ -126,6 +126,7 @@ exports.adminFilterInventory = async (req, res) => {
     if (from) filter.usedAt.$gte = new Date(from);
     if (to) filter.usedAt.$lte = new Date(to);
     if (serviceId) filter.assignedServiceIds = serviceId;
+    if (orderId) filter.orderId = orderId;
     const inventory = await BeauticianInventory.find(filter)
       .populate('beauticianId')
       .populate('productId')
