@@ -3,14 +3,52 @@ const Booking = require('../models/Booking');
 const CosmeticItem = require('../models/CosmeticItem');
 const Service = require('../models/Service');
 
-// List beautician inventory
+// List beautician order history (all purchased products with qty info)
+const CosmeticOrder = require('../models/CosmeticOrder');
 exports.listInventory = async (req, res) => {
   try {
     const beauticianId = req.user.beauticianId || req.params.beauticianId;
-    const inventory = await BeauticianInventory.find({ beauticianId })
-      .populate('productId')
-      .populate('assignedServiceIds')
-      .sort({ createdAt: -1 });
+    // Get all delivered & approved orders for this beautician
+    const orders = await CosmeticOrder.find({
+      beautician: beauticianId,
+      status: 'Delivered',
+      adminApprovalStatus: 'Approved',
+    }).populate('items.item');
+
+    // Aggregate product purchase info
+    const productMap = {};
+    for (const order of orders) {
+      for (const orderItem of order.items) {
+        const pid = orderItem.item._id ? orderItem.item._id.toString() : orderItem.item.toString();
+        if (!productMap[pid]) {
+          productMap[pid] = {
+            product: orderItem.item,
+            totalPurchased: 0,
+            totalUsed: 0,
+          };
+        }
+        productMap[pid].totalPurchased += orderItem.quantity;
+      }
+    }
+    // Count used items from BeauticianInventory
+    const allProductIds = Object.keys(productMap);
+    if (allProductIds.length > 0) {
+      const usedCounts = await BeauticianInventory.aggregate([
+        { $match: { beauticianId: require('mongoose').Types.ObjectId(beauticianId), status: 'USED', productId: { $in: allProductIds.map(id => require('mongoose').Types.ObjectId(id)) } } },
+        { $group: { _id: '$productId', count: { $sum: 1 } } }
+      ]);
+      for (const uc of usedCounts) {
+        const pid = uc._id.toString();
+        if (productMap[pid]) productMap[pid].totalUsed = uc.count;
+      }
+    }
+    // Prepare response: product, totalPurchased, totalUsed, available
+    const inventory = Object.values(productMap).map(p => ({
+      product: p.product,
+      totalPurchased: p.totalPurchased,
+      totalUsed: p.totalUsed,
+      available: p.totalPurchased - p.totalUsed,
+    }));
     res.json({ success: true, inventory });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error', error: err.message });
