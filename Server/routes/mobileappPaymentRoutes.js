@@ -7,6 +7,8 @@ const {
   getTransactions,
   payForBooking,
   getReceipt,
+  createWalletOrder,
+  verifyWalletPayment,
   paymentWebhook,
   beauticianEarnings,
 } = require("../controllers/mobileappPaymentController");
@@ -22,6 +24,9 @@ router.use(protect);
 router.get("/wallet", getWallet);
 router.post("/wallet/add", addToWallet);
 router.post("/wallet/use-points", usePoints);
+// Razorpay wallet payment
+router.post("/wallet/create-order", createWalletOrder);
+router.post("/wallet/verify-payment", verifyWalletPayment);
 
 // Transactions
 router.get("/transactions", getTransactions);

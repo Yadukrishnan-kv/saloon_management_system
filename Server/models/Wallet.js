@@ -20,6 +20,8 @@ const transactionSchema = new Schema(
       bookingId: { type: Schema.Types.ObjectId, ref: "Booking" },
       paymentMethod: { type: String },
       transactionId: { type: String },
+      razorpayOrderId: { type: String },
+      razorpayPaymentId: { type: String },
     },
     status: {
       type: String,
@@ -29,6 +31,36 @@ const transactionSchema = new Schema(
     date: {
       type: Date,
       default: Date.now,
+    },
+  },
+  { _id: true }
+);
+
+// Schema for pending payment orders
+const pendingOrderSchema = new Schema(
+  {
+    razorpayOrderId: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+    },
+    currency: {
+      type: String,
+      default: "INR",
+    },
+    status: {
+      type: String,
+      enum: ["created", "paid", "expired", "failed"],
+      default: "created",
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+      expires: 3600, // Auto-delete after 1 hour
     },
   },
   { _id: true }
@@ -60,6 +92,17 @@ const walletSchema = new Schema(
       default: "INR",
     },
     transactions: [transactionSchema],
+    pendingOrders: [pendingOrderSchema],
+    totalEarnings: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    totalWithdrawals: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   { timestamps: true }
 );

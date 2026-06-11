@@ -155,6 +155,49 @@ const bookingSchema = new Schema(
       completeVerified: { type: Boolean, default: false },
       completeVerifiedAt: { type: Date },
     },
+    // Payment Options
+    paymentMethod: {
+      type: String,
+      enum: ["upi", "wallet", "payOnSite"],
+      required: true,
+    },
+    // UPI Payment (Razorpay)
+    razorpayPayment: {
+      orderId: { type: String },
+      paymentId: { type: String },
+      signature: { type: String },
+      paymentStatus: { type: String, enum: ["pending", "completed", "failed"], default: "pending" },
+      amountPaid: { type: Number, default: 0 },
+      paidAt: { type: Date },
+    },
+    // Wallet Payment
+    walletPayment: {
+      amountDeducted: { type: Number, default: 0 },
+      deductedAt: { type: Date },
+    },
+    // If wallet payment is insufficient, pay remaining via UPI or pay on site
+    partialPayment: {
+      walletAmount: { type: Number, default: 0 },
+      remainingAmount: { type: Number, default: 0 },
+      remainingPaymentMethod: { 
+        type: String, 
+        enum: ["upi", "payOnSite", ""], 
+        default: "" 
+      },
+      razorpayOrderId: { type: String }, // For remaining UPI payment
+      razorpayPaymentId: { type: String },
+      paidAt: { type: Date },
+    },
+    // Pay On Site
+    payOnSite: {
+      status: { type: String, enum: ["pending", "completed"], default: "pending" },
+      paymentMode: { 
+        type: String, 
+        enum: ["cash", "upi", ""], 
+        default: "" 
+      },
+      paidAt: { type: Date },
+    },
   },
   { timestamps: true }
 );

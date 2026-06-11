@@ -1562,6 +1562,228 @@ profileImage: <file object>
 
 ---
 
+## Payment APIs - Customer (/api/mobileapp/bookings/payment)
+
+### Payment Methods Overview
+The platform supports 3 payment methods:
+1. **UPI Payment** - Real-time payment via Razorpay
+2. **Wallet Payment** - Pay from wallet balance with partial payment option
+3. **Pay On Site** - Cash or UPI payment after service completion
+
+---
+
+### 1) Create Booking with Payment Method
+- **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/bookings/create
+- **Description:** Create booking with specified payment method. Handles full payment, partial payment, or pay-on-site options.
+- **Headers:** Authorization: Bearer <token>
+- **Request Body:**
+~~~json
+{
+  "serviceIds": ["6652...", "6653..."],
+  "bookingDate": "2026-04-10",
+  "bookingTime": "14:00",
+  "address": {
+    "address": "12 MG Road",
+    "city": "Kochi",
+    "pincode": "682001",
+    "latitude": 9.9312,
+    "longitude": 76.2673
+  },
+  "notes": "Please be on time",
+  "addonIds": ["6654..."],
+  "paymentMethod": "upi",
+  "walletAmount": 0
+}
+~~~
+- **Request Fields:**
+  - `paymentMethod` (required): "upi" | "wallet" | "payOnSite"
+  - `walletAmount` (optional): Amount user wants to pay from wallet (only for wallet method)
+
+- **Response (UPI Payment):**
+~~~json
+{
+  "success": true,
+  "message": "Booking created. Please complete UPI payment to confirm.",
+  "booking": { "_id": "...", "status": "Requested" },
+  "paymentMethod": "upi",
+  "razorpayOrderId": "order_1a2b3c4d5e6f",
+  "estimatedTotalAmount": 1500
+}
+~~~
+
+- **Response (Wallet - Sufficient Balance):**
+~~~json
+{
+  "success": true,
+  "message": "Booking confirmed! Amount deducted from wallet.",
+  "booking": { "_id": "...", "status": "Requested" },
+  "paymentMethod": "wallet",
+  "walletDeducted": 1500
+}
+~~~
+
+- **Response (Wallet - Insufficient Balance):**
+~~~json
+{
+  "success": true,
+  "message": "Wallet balance is insufficient. Please choose to pay remaining via UPI or Pay On Site.",
+  "booking": { "_id": "...", "status": "Requested" },
+  "paymentMethod": "wallet",
+  "walletAmount": 800,
+  "remainingAmount": 700
+}
+~~~
+
+- **Response (Pay On Site):**
+~~~json
+{
+  "success": true,
+  "message": "Booking created. Payment will be collected after service completion.",
+  "booking": { "_id": "...", "status": "Requested" },
+  "paymentMethod": "payOnSite",
+  "estimatedTotalAmount": 1500
+}
+~~~
+
+- **Error Response:**
+~~~json
+{
+  "success": false,
+  "message": "Invalid payment method. Must be 'upi', 'wallet', or 'payOnSite'"
+}
+~~~
+
+---
+
+### 2) Verify UPI Payment
+- **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/bookings/payment/verify-upi
+- **Description:** Verify Razorpay payment signature after customer completes UPI payment. Updates booking payment status to "Paid".
+- **Headers:** Authorization: Bearer <token>
+- **Request Body:**
+~~~json
+{
+  "bookingId": "665a...",
+  "razorpayOrderId": "order_1a2b3c4d5e6f",
+  "razorpayPaymentId": "pay_1a2b3c4d5e6f",
+  "razorpaySignature": "9ef4dffbfd84f1318f6739a3ce19f9d85851857ae648f114332d8401e0949a3d"
+}
+~~~
+
+- **Response:**
+~~~json
+{
+  "success": true,
+  "message": "Payment verified successfully. Booking confirmed.",
+  "booking": {
+    "_id": "...",
+    "paymentMethod": "upi",
+    "paymentStatus": "Paid",
+    "razorpayPayment": {
+      "paymentId": "pay_1a2b3c4d5e6f",
+      "paymentStatus": "completed"
+    }
+  }
+}
+~~~
+
+- **Error Response:**
+~~~json
+{
+  "success": false,
+  "message": "Payment signature verification failed"
+}
+~~~
+
+---
+
+### 3) Update Partial Payment Method
+- **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/bookings/payment/update-partial
+- **Description:** When wallet balance is insufficient, customer chooses how to pay remaining amount (UPI or Pay On Site).
+- **Headers:** Authorization: Bearer <token>
+- **Request Body (for UPI):**
+~~~json
+{
+  "bookingId": "665a...",
+  "remainingPaymentMethod": "upi",
+  "razorpayOrderId": "order_1a2b3c4d5e6f"
+}
+~~~
+
+- **Request Body (for Pay On Site):**
+~~~json
+{
+  "bookingId": "665a...",
+  "remainingPaymentMethod": "payOnSite"
+}
+~~~
+
+- **Response:**
+~~~json
+{
+  "success": true,
+  "message": "Remaining ₹700 payment method updated to UPI.",
+  "booking": {
+    "_id": "...",
+    "partialPayment": {
+      "walletAmount": 800,
+      "remainingAmount": 700,
+      "remainingPaymentMethod": "upi"
+    }
+  }
+}
+~~~
+
+- **Error Response:**
+~~~json
+{
+  "success": false,
+  "message": "This booking does not have partial payment pending"
+}
+~~~
+
+---
+
+### 4) Verify Partial UPI Payment
+- **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/bookings/payment/verify-partial-upi
+- **Description:** Verify payment for remaining amount when wallet was used partially. Booking payment status becomes "Paid" after verification.
+- **Headers:** Authorization: Bearer <token>
+- **Request Body:**
+~~~json
+{
+  "bookingId": "665a...",
+  "razorpayPaymentId": "pay_1a2b3c4d5e6f",
+  "razorpaySignature": "9ef4dffbfd84f1318f6739a3ce19f9d85851857ae648f114332d8401e0949a3d"
+}
+~~~
+
+- **Response:**
+~~~json
+{
+  "success": true,
+  "message": "Partial payment verified successfully. Booking confirmed.",
+  "booking": {
+    "_id": "...",
+    "paymentStatus": "Paid",
+    "partialPayment": {
+      "walletAmount": 800,
+      "remainingAmount": 700,
+      "remainingPaymentMethod": "upi",
+      "paidAt": "2026-04-10T14:30:00.000Z"
+    }
+  }
+}
+~~~
+
+- **Error Response:**
+~~~json
+{
+  "success": false,
+  "message": "Payment signature verification failed"
+}
+~~~
+
+---
+
 ## Reviews APIs - Customer (/api/mobileapp/reviews)
 
 ### 1) Create Beautician Review

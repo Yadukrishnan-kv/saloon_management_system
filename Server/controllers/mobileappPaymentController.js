@@ -4,6 +4,8 @@ const Beautician = require("../models/Beautician");
 const Notification = require("../models/Notification");
 const User = require("../models/User");
 const crypto = require("crypto");
+const razorpayService = require("../services/razorpayService");
+const { handleRazorpayWebhook } = require("../services/razorpayWebhookHandler");
 
 // ─── GET WALLET ───────────────────────────────────────────────────────────────
 const getWallet = async (req, res) => {
@@ -304,26 +306,228 @@ const getReceipt = async (req, res) => {
   }
 };
 
-// ─── PAYMENT WEBHOOK ──────────────────────────────────────────────────────────
-const paymentWebhook = async (req, res) => {
+// ─── CREATE WALLET ORDER (RAZORPAY) ──────────────────────────────────────────
+const createWalletOrder = async (req, res) => {
   try {
-    // TODO: Verify webhook signature from payment gateway
-    const { event, data } = req.body;
+    const { amount } = req.body;
 
-    console.log(`[Payment Webhook] Event: ${event}`, data);
+    // Validation
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, message: "Valid amount is required" });
+    }
 
-    // Process based on event type
-    // switch(event) {
-    //   case 'payment.success': ...
-    //   case 'payment.failed': ...
-    //   case 'refund.success': ...
-    // }
+    if (amount < 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Minimum amount is ₹100",
+      });
+    }
 
-    res.json({ success: true, message: "Webhook received" });
+    if (amount > 100000) {
+      return res.status(400).json({
+        success: false,
+        message: "Maximum amount is ₹100,000",
+      });
+    }
+
+    // Get or create wallet
+    let wallet = await Wallet.findOne({ user: req.user._id });
+    if (!wallet) {
+      wallet = await Wallet.create({ user: req.user._id });
+    }
+
+    // Create Razorpay order
+    const orderResult = await razorpayService.createOrder(
+      amount,
+      req.user._id,
+      `Wallet recharge - ${req.user.fullName || "Beautician"}`
+    );
+
+    if (!orderResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to create payment order",
+        error: orderResult.message,
+      });
+    }
+
+    // Store pending order in wallet
+    wallet.pendingOrders.push({
+      razorpayOrderId: orderResult.orderId,
+      amount: amount,
+      currency: orderResult.currency,
+      status: "created",
+    });
+
+    await wallet.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Order created successfully",
+      order: {
+        id: orderResult.orderId,
+        amount: orderResult.amount,
+        currency: orderResult.currency,
+        keyId: process.env.RAZORPAY_KEY_ID,
+        // Include user details for Razorpay prefill
+        prefill: {
+          name: req.user.fullName,
+          email: req.user.email,
+          contact: req.user.phoneNumber || "",
+        },
+      },
+    });
   } catch (error) {
-    console.error("Payment webhook error:", error);
+    console.error("Create wallet order error:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
+};
+
+// ─── VERIFY WALLET PAYMENT (RAZORPAY) ──────────────────────────────────────────
+const verifyWalletPayment = async (req, res) => {
+  try {
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+
+    // Validation
+    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment details are incomplete",
+      });
+    }
+
+    // Verify signature
+    const isSignatureValid = razorpayService.verifyPaymentSignature(
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature
+    );
+
+    if (!isSignatureValid) {
+      console.warn(`Invalid signature for payment ${razorpayPaymentId}`);
+      return res.status(400).json({
+        success: false,
+        message: "Payment verification failed - Invalid signature",
+      });
+    }
+
+    // Get wallet
+    const wallet = await Wallet.findOne({ user: req.user._id });
+    if (!wallet) {
+      return res.status(404).json({ success: false, message: "Wallet not found" });
+    }
+
+    // Find pending order
+    const pendingOrder = wallet.pendingOrders.find(
+      (order) => order.razorpayOrderId === razorpayOrderId
+    );
+
+    if (!pendingOrder) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    if (pendingOrder.status !== "created") {
+      return res.status(400).json({
+        success: false,
+        message: `Order already ${pendingOrder.status}`,
+      });
+    }
+
+    // Fetch payment details from Razorpay to confirm
+    const paymentDetails = await razorpayService.getPaymentDetails(razorpayPaymentId);
+
+    if (!paymentDetails.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Failed to verify payment details",
+      });
+    }
+
+    const payment = paymentDetails.payment;
+
+    // Verify payment is actually paid
+    if (payment.status !== "captured") {
+      return res.status(400).json({
+        success: false,
+        message: `Payment status is ${payment.status}, not captured`,
+      });
+    }
+
+    // Verify amount matches
+    if (payment.amount !== pendingOrder.amount * 100) {
+      console.error(
+        `Amount mismatch: Expected ${pendingOrder.amount * 100}, got ${payment.amount}`
+      );
+      return res.status(400).json({
+        success: false,
+        message: "Payment amount does not match order amount",
+      });
+    }
+
+    // Update pending order status
+    pendingOrder.status = "paid";
+    pendingOrder.razorpayPaymentId = razorpayPaymentId;
+
+    // Credit wallet
+    const creditAmount = pendingOrder.amount;
+    wallet.balance += creditAmount;
+    wallet.totalEarnings += creditAmount;
+
+    // Add transaction record
+    wallet.transactions.push({
+      type: "credit",
+      amount: creditAmount,
+      description: `Wallet recharge via Razorpay`,
+      reference: {
+        paymentMethod: "Razorpay",
+        transactionId: `RZP_${razorpayPaymentId}`,
+        razorpayOrderId: razorpayOrderId,
+        razorpayPaymentId: razorpayPaymentId,
+      },
+      status: "completed",
+    });
+
+    await wallet.save();
+
+    // Create notification
+    await Notification.create({
+      user: req.user._id,
+      type: "wallet",
+      title: "Wallet Credited",
+      message: `₹${creditAmount} has been added to your wallet`,
+      data: {
+        amount: creditAmount,
+        paymentId: razorpayPaymentId,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Payment verified successfully",
+      wallet: {
+        balance: wallet.balance,
+        currency: wallet.currency,
+      },
+      transaction: {
+        id: razorpayPaymentId,
+        amount: creditAmount,
+        date: new Date(),
+        status: "completed",
+      },
+    });
+  } catch (error) {
+    console.error("Verify wallet payment error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── PAYMENT WEBHOOK ──────────────────────────────────────────────────────────
+const paymentWebhook = async (req, res) => {
+  // Delegate to Razorpay webhook handler
+  return handleRazorpayWebhook(req, res);
 };
 
 // ─── BEAUTICIAN EARNINGS SUMMARY ──────────────────────────────────────────────
@@ -373,6 +577,8 @@ module.exports = {
   getTransactions,
   payForBooking,
   getReceipt,
+  createWalletOrder,
+  verifyWalletPayment,
   paymentWebhook,
   beauticianEarnings,
 };

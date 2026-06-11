@@ -9,6 +9,7 @@ const User = require("../models/User");
 const { validateBookingCreate } = require("../utils/validators");
 const { sendPushNotification } = require("../utils/pushNotification");
 const { calculateDistance } = require("../utils/geolocation");
+const { createOrder: createRazorpayOrder } = require("../services/razorpayService");
 
 const PLATFORM_COMMISSION = 200; // ₹200 commission per booking
 const CANCELLATION_FEE = 200; // ₹200 cancellation fee
@@ -56,7 +57,7 @@ const formatTime = (minutes) => {
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
 };
 
-// ─── CREATE BOOKING (Customer) ────────────────────────────────────────────────
+// ─── CREATE BOOKING (Customer) with Payment Options ──────────────────────────
 const createBooking = async (req, res) => {
   try {
     const { isValid, errors } = validateBookingCreate(req.body);
@@ -64,7 +65,25 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Validation failed", errors });
     }
 
-    const { serviceIds, bookingDate, bookingTime, locationType, address, notes, addonIds } = req.body;
+    const { 
+      serviceIds, 
+      bookingDate, 
+      bookingTime, 
+      locationType, 
+      address, 
+      notes, 
+      addonIds,
+      paymentMethod,     // NEW: "upi", "wallet", "payOnSite"
+      walletAmount = 0   // NEW: How much user wants to pay from wallet (if choosing wallet)
+    } = req.body;
+
+    // Validate paymentMethod
+    if (!paymentMethod || !["upi", "wallet", "payOnSite"].includes(paymentMethod)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid payment method. Must be 'upi', 'wallet', or 'payOnSite'" 
+      });
+    }
 
     // Validate serviceIds is an array with at least one service
     if (!serviceIds || !Array.isArray(serviceIds) || serviceIds.length === 0) {
@@ -129,10 +148,73 @@ const createBooking = async (req, res) => {
       addonsTotal = addons.reduce((sum, a) => sum + a.price, 0);
     }
 
-    // ── NEW WORKFLOW: No beautician selection by customer, admin will assign ──
-    // Booking goes to "Requested" status, beautician is null
-    // Admin will review and assign beautician, then it goes to "Assigned" status
+    const finalAmount = totalServicePrice + addonsTotal;
 
+    // ── PAYMENT PROCESSING ──
+    let paymentData = {};
+    let bookingStatus = "Requested";
+
+    if (paymentMethod === "upi") {
+      // Create Razorpay order for UPI payment
+      const razorpayOrder = await createRazorpayOrder(finalAmount, req.user._id, `Booking for services on ${bookingDate}`);
+      
+      if (!razorpayOrder.success) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Failed to create payment order. Please try again." 
+        });
+      }
+
+      paymentData.razorpayPayment = {
+        orderId: razorpayOrder.orderId,
+        paymentStatus: "pending",
+      };
+    } 
+    else if (paymentMethod === "wallet") {
+      // Check wallet balance
+      const wallet = await Wallet.findOne({ user: req.user._id });
+      
+      if (!wallet) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Wallet not found for your account" 
+        });
+      }
+
+      if (wallet.balance >= finalAmount) {
+        // Wallet has enough balance
+        paymentData.walletPayment = {
+          amountDeducted: finalAmount,
+          deductedAt: new Date(),
+        };
+        bookingStatus = "Requested"; // Will proceed once booking is confirmed
+      } 
+      else if (wallet.balance > 0) {
+        // Wallet has partial balance - offer to pay remaining via UPI or pay on site
+        paymentData.partialPayment = {
+          walletAmount: wallet.balance,
+          remainingAmount: finalAmount - wallet.balance,
+          remainingPaymentMethod: "", // Client will choose: "upi" or "payOnSite"
+        };
+      } 
+      else {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Insufficient wallet balance. Please use UPI or Pay On Site option.",
+          walletBalance: wallet.balance,
+          requiredAmount: finalAmount
+        });
+      }
+    } 
+    else if (paymentMethod === "payOnSite") {
+      // Pay on site - payment pending until service completion
+      paymentData.payOnSite = {
+        status: "pending",
+        paymentMode: "", // Client will choose: "cash" or "upi" after service
+      };
+    }
+
+    // ── CREATE BOOKING ──
     const booking = await Booking.create({
       customer: req.user._id,
       beautician: null,  // No beautician assigned yet - admin will assign
@@ -143,12 +225,14 @@ const createBooking = async (req, res) => {
         startTime: bookingTime,
         endTime,
       },
-      status: "Requested",  // Waiting for admin to assign beautician
+      status: bookingStatus,
       totalAmount: totalServicePrice + addonsTotal,
       discountAmount: totalDiscountAmount,
       addonsAmount: addonsTotal,
-      travelFee: 0,  // Will be calculated when beautician is assigned
-      finalAmount: totalServicePrice + addonsTotal,
+      travelFee: 0,
+      finalAmount: finalAmount,
+      paymentMethod: paymentMethod,
+      paymentStatus: paymentMethod === "payOnSite" ? "Pending" : "Pending",
       address: address
         ? {
             street: address.address,
@@ -163,17 +247,37 @@ const createBooking = async (req, res) => {
           }
         : undefined,
       notes: notes || "",
-      broadcastedTo: [],  // No broadcasting in new workflow
+      broadcastedTo: [],
       platformPayment: {
         collectedByPlatform: false,
         platformCommission: PLATFORM_COMMISSION,
       },
+      ...paymentData,
     });
+
+    // ── Handle wallet deduction if payment method is wallet ──
+    if (paymentMethod === "wallet" && paymentData.walletPayment?.amountDeducted) {
+      const wallet = await Wallet.findOne({ user: req.user._id });
+      if (wallet) {
+        wallet.balance -= paymentData.walletPayment.amountDeducted;
+        wallet.transactions.push({
+          type: "debit",
+          amount: paymentData.walletPayment.amountDeducted,
+          description: `Service booking on ${bookingDate}`,
+          reference: {
+            bookingId: booking._id,
+            paymentMethod: "wallet",
+          },
+          status: "completed",
+        });
+        await wallet.save();
+      }
+    }
 
     // ── Notify admin about new booking request ──
     await createAdminNotification(
       "New Booking Request",
-      `New booking request from customer for ${services.length} service(s) on ${bookingDate} at ${bookingTime}. Total: ₹${totalServicePrice}. Please assign a beautician.`,
+      `New booking request from customer for ${services.length} service(s) on ${bookingDate} at ${bookingTime}. Total: ₹${finalAmount} (Payment: ${paymentMethod}). Please assign a beautician.`,
       "booking",
       { bookingId: booking._id }
     );
@@ -191,7 +295,8 @@ const createBooking = async (req, res) => {
       .populate("beautician", "fullName phoneNumber rating profileImage")
       .populate("services.service", "name price duration image");
 
-    res.status(201).json({
+    // Prepare response based on payment method
+    let responseData = {
       success: true,
       message: "Booking request created. Admin will assign a beautician shortly.",
       booking: populatedBooking,
@@ -199,12 +304,36 @@ const createBooking = async (req, res) => {
       totalServicePrice,
       totalDiscount: totalDiscountAmount,
       addonsAmount: addonsTotal,
-      estimatedTotalAmount: totalServicePrice + addonsTotal,
+      estimatedTotalAmount: finalAmount,
       estimatedDuration: totalDuration,
-    });
+      paymentMethod: paymentMethod,
+    };
+
+    // Add payment-specific response data
+    if (paymentMethod === "upi") {
+      responseData.razorpayOrderId = paymentData.razorpayPayment?.orderId;
+      responseData.message = "Booking created. Please complete UPI payment to confirm.";
+    } 
+    else if (paymentMethod === "wallet") {
+      if (paymentData.walletPayment?.amountDeducted) {
+        responseData.message = "Booking confirmed! Amount deducted from wallet.";
+        responseData.walletDeducted = paymentData.walletPayment.amountDeducted;
+      } 
+      else if (paymentData.partialPayment) {
+        responseData.message = "Wallet balance is insufficient. Please choose to pay remaining via UPI or Pay On Site.";
+        responseData.walletAmount = paymentData.partialPayment.walletAmount;
+        responseData.remainingAmount = paymentData.partialPayment.remainingAmount;
+      }
+    } 
+    else if (paymentMethod === "payOnSite") {
+      responseData.message = "Booking created. Payment will be collected after service completion.";
+    }
+
+    res.status(201).json(responseData);
+
   } catch (error) {
     console.error("Create booking error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
 
@@ -1179,8 +1308,245 @@ const beauticianBroadcastBookings = async (req, res) => {
   }
 };
 
+// ─── VERIFY UPI PAYMENT (Razorpay) ───────────────────────────────────────────
+const verifyUPIPayment = async (req, res) => {
+  try {
+    const { bookingId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+
+    // Validate input
+    if (!bookingId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Missing required payment verification fields" 
+      });
+    }
+
+    // Find booking
+    const booking = await Booking.findOne({ 
+      _id: bookingId, 
+      customer: req.user._id 
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    // Verify payment signature
+    const { verifyPaymentSignature } = require("../services/razorpayService");
+    const isSignatureValid = verifyPaymentSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
+
+    if (!isSignatureValid) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Payment signature verification failed" 
+      });
+    }
+
+    // Update booking with payment details
+    booking.razorpayPayment = {
+      orderId: razorpayOrderId,
+      paymentId: razorpayPaymentId,
+      signature: razorpaySignature,
+      paymentStatus: "completed",
+      amountPaid: booking.finalAmount,
+      paidAt: new Date(),
+    };
+
+    booking.paymentStatus = "Paid";
+    booking.platformPayment.collectedByPlatform = true;
+    booking.platformPayment.collectedAt = new Date();
+
+    await booking.save();
+
+    // Notify customer
+    await Notification.create({
+      user: req.user._id,
+      title: "Payment Successful",
+      message: `Payment of ₹${booking.finalAmount} received for your booking. Beautician will be assigned shortly.`,
+      type: "payment",
+      data: { bookingId: booking._id },
+    });
+
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate("beautician", "fullName phoneNumber rating profileImage")
+      .populate("services.service", "name price duration image");
+
+    res.json({
+      success: true,
+      message: "Payment verified successfully. Booking confirmed.",
+      booking: populatedBooking,
+    });
+
+  } catch (error) {
+    console.error("Verify UPI payment error:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+// ─── UPDATE PARTIAL PAYMENT (Wallet insufficient - choose UPI or Pay On Site) ─
+const updatePartialPayment = async (req, res) => {
+  try {
+    const { bookingId, remainingPaymentMethod, razorpayOrderId = null } = req.body;
+
+    // Validate input
+    if (!bookingId || !remainingPaymentMethod) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Booking ID and payment method required" 
+      });
+    }
+
+    if (!["upi", "payOnSite"].includes(remainingPaymentMethod)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid payment method. Must be 'upi' or 'payOnSite'" 
+      });
+    }
+
+    // Find booking
+    const booking = await Booking.findOne({ 
+      _id: bookingId, 
+      customer: req.user._id 
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    // Check if booking has partial payment data
+    if (!booking.partialPayment || !booking.partialPayment.remainingAmount) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "This booking does not have partial payment pending" 
+      });
+    }
+
+    const remainingAmount = booking.partialPayment.remainingAmount;
+
+    if (remainingPaymentMethod === "upi") {
+      // Create Razorpay order for remaining amount
+      if (!razorpayOrderId) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Razorpay Order ID required for UPI payment" 
+        });
+      }
+
+      booking.partialPayment.remainingPaymentMethod = "upi";
+      booking.partialPayment.razorpayOrderId = razorpayOrderId;
+    } 
+    else if (remainingPaymentMethod === "payOnSite") {
+      // Mark remaining amount to be paid on site
+      booking.partialPayment.remainingPaymentMethod = "payOnSite";
+    }
+
+    await booking.save();
+
+    // Notify customer
+    await Notification.create({
+      user: req.user._id,
+      title: "Partial Payment Updated",
+      message: `Remaining ₹${remainingAmount} will be paid via ${remainingPaymentMethod === "upi" ? "UPI" : "on-site payment"}.`,
+      type: "payment",
+      data: { bookingId: booking._id },
+    });
+
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate("beautician", "fullName phoneNumber rating profileImage")
+      .populate("services.service", "name price duration image");
+
+    res.json({
+      success: true,
+      message: `Remaining ₹${remainingAmount} payment method updated to ${remainingPaymentMethod === "upi" ? "UPI" : "Pay On Site"}.`,
+      booking: populatedBooking,
+    });
+
+  } catch (error) {
+    console.error("Update partial payment error:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
+// ─── VERIFY UPI PAYMENT FOR PARTIAL AMOUNT ───────────────────────────────────
+const verifyPartialUPIPayment = async (req, res) => {
+  try {
+    const { bookingId, razorpayPaymentId, razorpaySignature } = req.body;
+
+    if (!bookingId || !razorpayPaymentId || !razorpaySignature) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Missing required payment verification fields" 
+      });
+    }
+
+    const booking = await Booking.findOne({ 
+      _id: bookingId, 
+      customer: req.user._id 
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    // Verify payment signature
+    const { verifyPaymentSignature } = require("../services/razorpayService");
+    const isSignatureValid = verifyPaymentSignature(
+      booking.partialPayment.razorpayOrderId, 
+      razorpayPaymentId, 
+      razorpaySignature
+    );
+
+    if (!isSignatureValid) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Payment signature verification failed" 
+      });
+    }
+
+    const remainingAmount = booking.partialPayment.remainingAmount;
+    const walletAmount = booking.partialPayment.walletAmount;
+
+    // Update booking with partial UPI payment
+    booking.partialPayment.razorpayPaymentId = razorpayPaymentId;
+    booking.partialPayment.paidAt = new Date();
+
+    // Update payment status
+    booking.paymentStatus = "Paid";
+    booking.platformPayment.collectedByPlatform = true;
+    booking.platformPayment.collectedAt = new Date();
+
+    await booking.save();
+
+    // Notify customer
+    await Notification.create({
+      user: req.user._id,
+      title: "Partial Payment Received",
+      message: `Wallet: ₹${walletAmount} + UPI: ₹${remainingAmount} = Total ₹${walletAmount + remainingAmount} received. Booking confirmed.`,
+      type: "payment",
+      data: { bookingId: booking._id },
+    });
+
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate("beautician", "fullName phoneNumber rating profileImage")
+      .populate("services.service", "name price duration image");
+
+    res.json({
+      success: true,
+      message: "Partial payment verified successfully. Booking confirmed.",
+      booking: populatedBooking,
+    });
+
+  } catch (error) {
+    console.error("Verify partial UPI payment error:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   createBooking,
+  verifyUPIPayment,
+  updatePartialPayment,
+  verifyPartialUPIPayment,
   getMyBookings,
   getBookingDetails,
   cancelBooking,

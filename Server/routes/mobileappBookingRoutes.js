@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const {
   createBooking,
+  verifyUPIPayment,
+  updatePartialPayment,
+  verifyPartialUPIPayment,
   getMyBookings,
   getBookingDetails,
   cancelBooking,
@@ -30,6 +33,11 @@ router.get("/:bookingId", protect, authorizeRoles("Customer"), getBookingDetails
 router.put("/:bookingId/cancel", protect, authorizeRoles("Customer"), cancelBooking);
 router.put("/:bookingId/reschedule", protect, authorizeRoles("Customer"), rescheduleBooking);
 router.post("/:bookingId/complete", protect, authorizeRoles("Customer"), customerCompleteBooking);
+
+// Payment routes - UPI, Wallet, Pay On Site
+router.post("/payment/verify-upi", protect, authorizeRoles("Customer"), verifyUPIPayment);
+router.post("/payment/update-partial", protect, authorizeRoles("Customer"), updatePartialPayment);
+router.post("/payment/verify-partial-upi", protect, authorizeRoles("Customer"), verifyPartialUPIPayment);
 
 // Beautician booking routes
 router.get(
