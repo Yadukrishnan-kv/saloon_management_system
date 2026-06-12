@@ -6,7 +6,7 @@ const ReferralSettings = require("../models/ReferralSettings");
 const { generateOTP, getOTPExpiry } = require("../utils/otpGenerator");
 const { generateReferralCode } = require("../utils/referralCodeGenerator");
 const Referral = require("../models/Referral");
-// const { sendOTPSMS } = require("../utils/smsSender");
+const { sendOTPSMS } = require("../utils/smsSender");
 const sendEmail = require("../utils/emailSender");
 const { generateToken } = require("../utils/tokenHelper");
 const {
@@ -91,20 +91,31 @@ const customerRegister = async (req, res) => {
       await referredByUser.save();
     }
 
-    // TODO: Enable OTP email verification before production
-    // const otp = generateOTP();
-    // await OTP.create({
-    //   user: user._id,
-    //   otp,
-    //   type: "email",
-    //   purpose: "registration",
-    //   expiresAt: getOTPExpiry(),
-    // });
-    // await sendEmail({
-    //   to: user.email,
-    //   subject: "Your OTP Code - Salon App",
-    //   html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
-    // });
+    // Send OTP via SMS if phone number provided, otherwise via email
+    const otp = generateOTP();
+    if (user.phoneNumber) {
+      await OTP.create({
+        user: user._id,
+        otp,
+        type: "phone",
+        purpose: "registration",
+        expiresAt: getOTPExpiry(),
+      });
+      await sendOTPSMS(user.phoneNumber, otp);
+    } else {
+      await OTP.create({
+        user: user._id,
+        otp,
+        type: "email",
+        purpose: "registration",
+        expiresAt: getOTPExpiry(),
+      });
+      await sendEmail({
+        to: user.email,
+        subject: "Your OTP Code - Salon App",
+        html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
+      });
+    }
 
     // Create wallet for customer
     await Wallet.create({ user: user._id });
@@ -233,7 +244,7 @@ const customerLogin = async (req, res) => {
 // ─── RESEND OTP ────────────────────────────────────────────────────────────────
 const resendOTP = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, type } = req.body;
 
     if (!userId) {
       return res.status(400).json({ success: false, message: "userId is required" });
@@ -244,9 +255,11 @@ const resendOTP = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // Invalidate previous OTPs
+    const otpType = type === "phone" && user.phoneNumber ? "phone" : "email";
+
+    // Invalidate previous OTPs of this type
     await OTP.updateMany(
-      { user: userId, type: "email", isUsed: false },
+      { user: userId, type: otpType, isUsed: false },
       { isUsed: true }
     );
 
@@ -254,18 +267,22 @@ const resendOTP = async (req, res) => {
     await OTP.create({
       user: userId,
       otp,
-      type: "email",
+      type: otpType,
       purpose: "registration",
       expiresAt: getOTPExpiry(),
     });
 
-    await sendEmail({
-      to: user.email,
-      subject: "Your OTP Code - Salon App",
-      html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
-    });
+    if (otpType === "phone") {
+      await sendOTPSMS(user.phoneNumber, otp);
+    } else {
+      await sendEmail({
+        to: user.email,
+        subject: "Your OTP Code - Salon App",
+        html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
+      });
+    }
 
-    res.json({ success: true, message: `OTP sent to your email` });
+    res.json({ success: true, message: `OTP sent to your ${otpType === "phone" ? "phone" : "email"}` });
   } catch (error) {
     console.error("Resend OTP error:", error);
     res.status(500).json({ success: false, message: "Server error" });
@@ -447,20 +464,31 @@ const beauticianRegister = async (req, res) => {
       });
     }
 
-    // TODO: Enable OTP email verification before production
-    // const otp = generateOTP();
-    // await OTP.create({
-    //   user: user._id,
-    //   otp,
-    //   type: "email",
-    //   purpose: "registration",
-    //   expiresAt: getOTPExpiry(),
-    // });
-    // await sendEmail({
-    //   to: user.email,
-    //   subject: "Your OTP Code - Salon App",
-    //   html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
-    // });
+    // Send OTP via SMS if phone number provided, otherwise via email
+    const otp = generateOTP();
+    if (user.phoneNumber) {
+      await OTP.create({
+        user: user._id,
+        otp,
+        type: "phone",
+        purpose: "registration",
+        expiresAt: getOTPExpiry(),
+      });
+      await sendOTPSMS(user.phoneNumber, otp);
+    } else {
+      await OTP.create({
+        user: user._id,
+        otp,
+        type: "email",
+        purpose: "registration",
+        expiresAt: getOTPExpiry(),
+      });
+      await sendEmail({
+        to: user.email,
+        subject: "Your OTP Code - Salon App",
+        html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
+      });
+    }
 
     // Create wallet for beautician with ₹1000 initial balance
     const INITIAL_WALLET_BALANCE = 1000;
@@ -579,13 +607,18 @@ const uploadDocuments = async (req, res) => {
 // ─── FORGOT PASSWORD ───────────────────────────────────────────────────────────
 const forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, phone } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ success: false, message: "Email is required" });
+    if (!email && !phone) {
+      return res.status(400).json({ success: false, message: "Email or phone number is required" });
     }
 
-    const user = await User.findOne({ email });
+    let user;
+    if (email) {
+      user = await User.findOne({ email });
+    } else {
+      user = await User.findOne({ phoneNumber: phone });
+    }
 
     if (!user) {
       return res.status(404).json({ success: false, message: "No account found with this credential" });
@@ -599,23 +632,35 @@ const forgotPassword = async (req, res) => {
 
     const otp = generateOTP();
 
-    await OTP.create({
-      user: user._id,
-      otp,
-      type: "email",
-      purpose: "password-reset",
-      expiresAt: getOTPExpiry(),
-    });
+    const usePhone = phone || (user.phoneNumber && !email);
 
-    await sendEmail({
-      to: user.email,
-      subject: "Password Reset OTP - Salon App",
-      html: `<h2>Password Reset</h2><p>Your password reset code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
-    });
+    if (usePhone) {
+      await OTP.create({
+        user: user._id,
+        otp,
+        type: "phone",
+        purpose: "password-reset",
+        expiresAt: getOTPExpiry(),
+      });
+      await sendOTPSMS(user.phoneNumber, otp);
+    } else {
+      await OTP.create({
+        user: user._id,
+        otp,
+        type: "email",
+        purpose: "password-reset",
+        expiresAt: getOTPExpiry(),
+      });
+      await sendEmail({
+        to: user.email,
+        subject: "Password Reset OTP - Salon App",
+        html: `<h2>Password Reset</h2><p>Your password reset code is: <strong>${otp}</strong></p><p>This code expires in 10 minutes.</p>`,
+      });
+    }
 
     res.json({
       success: true,
-      message: `Password reset OTP sent to your email`,
+      message: `Password reset OTP sent to your ${usePhone ? "phone" : "email"}`,
       userId: user._id,
     });
   } catch (error) {

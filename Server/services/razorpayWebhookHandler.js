@@ -132,7 +132,7 @@ const handlePaymentCaptured = async (data) => {
     // Create notification
     await Notification.create({
       user: wallet.user,
-      type: "wallet",
+      type: "payment",
       title: "Wallet Credited",
       message: `₹${creditAmount} has been added to your wallet via Razorpay`,
       data: {

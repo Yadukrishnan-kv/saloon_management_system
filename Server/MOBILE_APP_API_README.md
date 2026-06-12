@@ -1,4 +1,24 @@
 # ======================================================
+# TWILIO SMS SETUP
+# ======================================================
+
+OTP verification uses Twilio SMS (fallback to email if no phone number).
+
+1. **Get credentials** at https://console.twilio.com
+2. **Buy a phone number** (Phone Numbers → Buy a Number, SMS-capable)
+3. **Update `Server/.env`**:
+   ```
+   TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   TWILIO_AUTH_TOKEN=your_auth_token
+   TWILIO_PHONE_NUMBER=+1234567890
+   ```
+4. **Verify OTP endpoint**: `POST /api/mobileapp/auth/customer/verify-otp` with `type: "phone"`
+   - OTP sent via SMS if `phoneNumber` provided during registration
+   - Falls back to email if no phone number
+
+---
+
+# ======================================================
 # BEAUTICIAN COSMETICS INVENTORY & QR TRACKING APIs
 # ======================================================
 
@@ -349,14 +369,23 @@ or
 - **Request Body:**
 ~~~json
 {
-  "userId": "6650..."
+  "userId": "6650...",
+  "type": "phone"
 }
 ~~~
-- **Response:**
+- **Notes:** `type` is optional. Defaults to `"email"`. Use `"phone"` to resend OTP via SMS.
+- **Response (email):**
 ~~~json
 {
   "success": true,
   "message": "OTP sent to your email"
+}
+~~~
+- **Response (phone):**
+~~~json
+{
+  "success": true,
+  "message": "OTP sent to your phone"
 }
 ~~~
 - **Error Response:**
@@ -372,17 +401,31 @@ or
 ### 5) Forgot Password
 - **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/auth/forgot-password
 - **Headers:** Content-Type: application/json
-- **Request Body:**
+- **Request Body (email):**
 ~~~json
 {
   "email": "asha@example.com"
 }
 ~~~
-- **Response:**
+- **Request Body (phone):**
+~~~json
+{
+  "phone": "9876543210"
+}
+~~~
+- **Response (email):**
 ~~~json
 {
   "success": true,
   "message": "Password reset OTP sent to your email",
+  "userId": "6650..."
+}
+~~~
+- **Response (phone):**
+~~~json
+{
+  "success": true,
+  "message": "Password reset OTP sent to your phone",
   "userId": "6650..."
 }
 ~~~
@@ -2554,7 +2597,7 @@ The platform supports 3 payment methods:
 
 ### 1) Beautician Register
 - **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/auth/beautician/register
-- **Description:** Register beautician account (creates both User and Beautician, links them; pending admin verification). OTP sent to email. Profile image is NOT required at registration.
+- **Description:** Register beautician account (creates both User and Beautician, links them; pending admin verification). OTP sent via SMS (if phone number provided) or email. Profile image is NOT required at registration.
 - **Headers:** Content-Type: multipart/form-data
 - **Request Body (form-data):**
 ~~~
@@ -2596,6 +2639,10 @@ documents: <file2.jpg>
   "message": "Email already in use"
 }
 ~~~
+
+- **Note:** After registration, verify OTP using the same endpoints as customer:
+  - `POST /api/mobileapp/auth/customer/verify-otp` with `{ userId, otp, type: "phone" }`
+  - `POST /api/mobileapp/auth/customer/resend-otp` with `{ userId, type: "phone" }`
 
 ---
 

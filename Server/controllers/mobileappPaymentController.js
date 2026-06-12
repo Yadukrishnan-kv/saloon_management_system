@@ -520,7 +520,7 @@ const verifyWalletPayment = async (req, res) => {
     // Create notification
     await Notification.create({
       user: req.user._id,
-      type: "wallet",
+      type: "payment",
       title: "Wallet Credited",
       message: `₹${creditAmount} has been added to your wallet`,
       data: {
