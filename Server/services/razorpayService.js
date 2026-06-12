@@ -36,10 +36,14 @@ const createOrder = async (amount, beauticianId, description = "Wallet Recharge"
       receipt: order.receipt,
     };
   } catch (error) {
-    console.error("Razorpay Order Creation Error:", error);
+    console.error("Razorpay Order Creation Error:", {
+      message: error.error?.description || error.message,
+      statusCode: error.statusCode,
+      details: JSON.stringify(error.error || {}),
+    });
     return {
       success: false,
-      message: error.message,
+      message: error.error?.description || error.message,
     };
   }
 };
