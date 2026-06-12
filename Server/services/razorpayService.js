@@ -16,10 +16,11 @@ const razorpay = new Razorpay({
  */
 const createOrder = async (amount, beauticianId, description = "Wallet Recharge") => {
   try {
+    const shortId = beauticianId.toString().slice(-8);
     const options = {
       amount: Math.round(amount * 100), // Convert to paise
       currency: "INR",
-      receipt: `wallet_${beauticianId}_${Date.now()}`,
+      receipt: `rcpt_${shortId}_${Date.now()}`,
       description: description,
       notes: {
         beauticianId: beauticianId,
