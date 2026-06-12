@@ -40,17 +40,27 @@ const getWallet = async (req, res) => {
   }
 };
 
-// ─── ADD MONEY TO WALLET ──────────────────────────────────────────────────────
+// ─── ADD MONEY TO WALLET (VIA RAZORPAY) ──────────────────────────────────────
 const addToWallet = async (req, res) => {
   try {
-    const { amount, paymentMethod } = req.body;
+    const { amount } = req.body;
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ success: false, message: "Valid amount is required" });
     }
 
-    if (!paymentMethod) {
-      return res.status(400).json({ success: false, message: "Payment method is required" });
+    if (amount < 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Minimum amount is ₹100",
+      });
+    }
+
+    if (amount > 100000) {
+      return res.status(400).json({
+        success: false,
+        message: "Maximum amount is ₹100,000",
+      });
     }
 
     let wallet = await Wallet.findOne({ user: req.user._id });
@@ -58,28 +68,43 @@ const addToWallet = async (req, res) => {
       wallet = await Wallet.create({ user: req.user._id });
     }
 
-    const transactionId = `TXN_${crypto.randomBytes(8).toString("hex").toUpperCase()}`;
+    const orderResult = await razorpayService.createOrder(
+      amount,
+      req.user._id,
+      `Wallet recharge - ${req.user.fullName || "User"}`
+    );
 
-    wallet.balance += parseFloat(amount);
-    wallet.transactions.push({
-      type: "credit",
-      amount: parseFloat(amount),
-      description: `Wallet recharge via ${paymentMethod}`,
-      reference: {
-        paymentMethod,
-        transactionId,
-      },
-      status: "completed",
+    if (!orderResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to create payment order",
+        error: orderResult.message,
+      });
+    }
+
+    wallet.pendingOrders.push({
+      razorpayOrderId: orderResult.orderId,
+      amount: amount,
+      currency: orderResult.currency,
+      status: "created",
     });
 
     await wallet.save();
 
-    // TODO: Integrate actual payment gateway and return paymentUrl
-    res.json({
+    res.status(201).json({
       success: true,
-      message: "Amount added to wallet",
-      transactionId,
-      paymentUrl: null, // Will be actual payment gateway URL
+      message: "Order created. Complete payment to add money to your wallet.",
+      order: {
+        id: orderResult.orderId,
+        amount: orderResult.amount,
+        currency: orderResult.currency,
+        keyId: process.env.RAZORPAY_KEY_ID,
+      },
+      prefill: {
+        name: req.user.fullName,
+        email: req.user.email,
+        contact: req.user.phoneNumber || "",
+      },
     });
   } catch (error) {
     console.error("Add to wallet error:", error);

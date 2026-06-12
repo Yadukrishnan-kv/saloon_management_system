@@ -1975,36 +1975,122 @@ The platform supports 3 payment methods:
 
 ---
 
-### 2) Add Wallet Money
+### 2) Add Money to Wallet (Razorpay)
 - **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/payment/wallet/add
+- **Description:** Creates a Razorpay order for wallet top-up. The app must then open Razorpay Checkout with the returned `order.id` and `keyId`. After successful payment, call **Verify Wallet Payment** to credit the wallet.
 - **Headers:** Authorization: Bearer <token>
 - **Request Body:**
 ~~~json
 {
-  "amount": 500,
-  "paymentMethod": "UPI"
+  "amount": 500
 }
 ~~~
 - **Response:**
 ~~~json
 {
   "success": true,
-  "message": "Amount added to wallet",
-  "transactionId": "TXN_ABC123",
-  "paymentUrl": null
+  "message": "Order created. Complete payment to add money to your wallet.",
+  "order": {
+    "id": "order_1a2b3c4d5e6f",
+    "amount": 50000,
+    "currency": "INR",
+    "keyId": "rzp_test_xxxxxxxxxxxx"
+  },
+  "prefill": {
+    "name": "Asha",
+    "email": "asha@example.com",
+    "contact": "9876543210"
+  }
 }
 ~~~
 - **Error Response:**
 ~~~json
 {
   "success": false,
-  "message": "Valid amount is required"
+  "message": "Minimum amount is ₹100"
 }
 ~~~
 
 ---
 
-### 3) Use Points
+### 3) Create Wallet Order (Razorpay)
+- **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/payment/wallet/create-order
+- **Description:** Same as Add Wallet Money above. Creates a Razorpay order for wallet recharge.
+- **Headers:** Authorization: Bearer <token>
+- **Request Body:**
+~~~json
+{
+  "amount": 500
+}
+~~~
+- **Response:**
+~~~json
+{
+  "success": true,
+  "message": "Order created successfully",
+  "order": {
+    "id": "order_1a2b3c4d5e6f",
+    "amount": 50000,
+    "currency": "INR",
+    "keyId": "rzp_test_xxxxxxxxxxxx"
+  },
+  "prefill": {
+    "name": "Asha",
+    "email": "asha@example.com",
+    "contact": "9876543210"
+  }
+}
+~~~
+- **Error Response:**
+~~~json
+{
+  "success": false,
+  "message": "Minimum amount is ₹100"
+}
+~~~
+
+---
+
+### 4) Verify Wallet Payment (Razorpay)
+- **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/payment/wallet/verify-payment
+- **Description:** Verifies Razorpay payment after successful checkout. Credits the wallet with the paid amount.
+- **Headers:** Authorization: Bearer <token>
+- **Request Body:**
+~~~json
+{
+  "razorpayOrderId": "order_1a2b3c4d5e6f",
+  "razorpayPaymentId": "pay_1a2b3c4d5e6f",
+  "razorpaySignature": "9ef4dffbfd84f1318f6739a3ce19f9d85851857ae648f114332d8401e0949a3d"
+}
+~~~
+- **Response:**
+~~~json
+{
+  "success": true,
+  "message": "Payment verified successfully",
+  "wallet": {
+    "balance": 1500,
+    "currency": "INR"
+  },
+  "transaction": {
+    "id": "pay_1a2b3c4d5e6f",
+    "amount": 500,
+    "date": "2026-06-12T12:00:00.000Z",
+    "status": "completed"
+  }
+}
+~~~
+- **Error Response:**
+~~~json
+{
+  "success": false,
+  "message": "Payment verification failed - Invalid signature"
+}
+~~~
+
+---
+
+### 5) Use Points
 - **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/payment/wallet/use-points
 - **Headers:** Authorization: Bearer <token>
 - **Request Body:**
@@ -2032,7 +2118,7 @@ The platform supports 3 payment methods:
 
 ---
 
-### 4) Transactions
+### 6) Transactions
 - **Endpoint:** GET https://sidi.mobilegear.co.in/api/mobileapp/payment/transactions
 - **Query Params:** page, limit, type, period (weekly|monthly)
 - **Headers:** Authorization: Bearer <token>
@@ -2048,7 +2134,7 @@ The platform supports 3 payment methods:
 
 ---
 
-### 5) Pay Booking
+### 7) Pay Booking
 - **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/payment/booking/:bookingId/pay
 - **Headers:** Authorization: Bearer <token>
 - **Request Body:**
@@ -2082,7 +2168,7 @@ The platform supports 3 payment methods:
 
 ---
 
-### 6) Booking Receipt
+### 8) Booking Receipt
 - **Endpoint:** GET https://sidi.mobilegear.co.in/api/mobileapp/payment/booking/:bookingId/receipt
 - **Headers:** Authorization: Bearer <token>
 - **Request Body:** N/A
@@ -3932,7 +4018,84 @@ documentName: Cosmetology Diploma
 
 ---
 
-### 2) Earnings Summary
+### 2) Add Money to Wallet (Razorpay)
+- **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/payment/wallet/add
+- **Description:** Creates a Razorpay order for wallet top-up. Same as Customer Add Wallet flow. App opens Razorpay Checkout, then calls Verify Wallet Payment.
+- **Headers:** Authorization: Bearer <token>
+- **Request Body:**
+~~~json
+{
+  "amount": 500
+}
+~~~
+- **Response:**
+~~~json
+{
+  "success": true,
+  "message": "Order created. Complete payment to add money to your wallet.",
+  "order": {
+    "id": "order_1a2b3c4d5e6f",
+    "amount": 50000,
+    "currency": "INR",
+    "keyId": "rzp_test_xxxxxxxxxxxx"
+  },
+  "prefill": {
+    "name": "Riya",
+    "email": "riya@example.com",
+    "contact": "9123456789"
+  }
+}
+~~~
+- **Error Response:**
+~~~json
+{
+  "success": false,
+  "message": "Minimum amount is ₹100"
+}
+~~~
+
+---
+
+### 3) Verify Wallet Payment (Razorpay)
+- **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/payment/wallet/verify-payment
+- **Description:** Verifies Razorpay payment after successful checkout and credits the wallet.
+- **Headers:** Authorization: Bearer <token>
+- **Request Body:**
+~~~json
+{
+  "razorpayOrderId": "order_1a2b3c4d5e6f",
+  "razorpayPaymentId": "pay_1a2b3c4d5e6f",
+  "razorpaySignature": "9ef4dffbfd84f1318f6739a3ce19f9d85851857ae648f114332d8401e0949a3d"
+}
+~~~
+- **Response:**
+~~~json
+{
+  "success": true,
+  "message": "Payment verified successfully",
+  "wallet": {
+    "balance": 2500,
+    "currency": "INR"
+  },
+  "transaction": {
+    "id": "pay_1a2b3c4d5e6f",
+    "amount": 500,
+    "date": "2026-06-12T12:00:00.000Z",
+    "status": "completed"
+  }
+}
+~~~
+- **Error Response:**
+~~~json
+{
+  "success": false,
+  "message": "Payment verification failed - Invalid signature"
+}
+~~~
+
+---
+
+### 4) Earnings Summary
 - **Endpoint:** GET https://sidi.mobilegear.co.in/api/mobileapp/payment/earnings
 - **Description:** Beautician payout/earnings summary.
 - **Headers:** Authorization: Bearer <token>
