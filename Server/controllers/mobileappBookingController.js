@@ -1386,7 +1386,7 @@ const verifyUPIPayment = async (req, res) => {
 // ─── UPDATE PARTIAL PAYMENT (Wallet insufficient - choose UPI or Pay On Site) ─
 const updatePartialPayment = async (req, res) => {
   try {
-    const { bookingId, remainingPaymentMethod, razorpayOrderId = null } = req.body;
+    const { bookingId, remainingPaymentMethod } = req.body;
 
     // Validate input
     if (!bookingId || !remainingPaymentMethod) {
@@ -1422,21 +1422,29 @@ const updatePartialPayment = async (req, res) => {
     }
 
     const remainingAmount = booking.partialPayment.remainingAmount;
+    let razorpayOrderId = null;
 
     if (remainingPaymentMethod === "upi") {
       // Create Razorpay order for remaining amount
-      if (!razorpayOrderId) {
+      const razorpayOrder = await createRazorpayOrder(
+        remainingAmount, 
+        req.user._id, 
+        `Partial payment for booking ${booking.jobId || booking._id}`
+      );
+
+      if (!razorpayOrder.success) {
         return res.status(400).json({ 
           success: false, 
-          message: "Razorpay Order ID required for UPI payment" 
+          message: "Failed to create payment order for remaining amount",
+          error: razorpayOrder.message,
         });
       }
 
+      razorpayOrderId = razorpayOrder.orderId;
       booking.partialPayment.remainingPaymentMethod = "upi";
       booking.partialPayment.razorpayOrderId = razorpayOrderId;
     } 
     else if (remainingPaymentMethod === "payOnSite") {
-      // Mark remaining amount to be paid on site
       booking.partialPayment.remainingPaymentMethod = "payOnSite";
     }
 
@@ -1455,11 +1463,19 @@ const updatePartialPayment = async (req, res) => {
       .populate("beautician", "fullName phoneNumber rating profileImage")
       .populate("services.service", "name price duration image");
 
-    res.json({
+    const response = {
       success: true,
       message: `Remaining ₹${remainingAmount} payment method updated to ${remainingPaymentMethod === "upi" ? "UPI" : "Pay On Site"}.`,
       booking: populatedBooking,
-    });
+      remainingAmount,
+    };
+
+    if (remainingPaymentMethod === "upi") {
+      response.razorpayOrderId = razorpayOrderId;
+      response.razorpayKeyId = process.env.RAZORPAY_KEY_ID;
+    }
+
+    res.json(response);
 
   } catch (error) {
     console.error("Update partial payment error:", error);
