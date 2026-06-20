@@ -9,8 +9,12 @@ const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
 const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
 let twilioClient = null;
-if (twilioAccountSid && twilioAuthToken) {
-  twilioClient = require('twilio')(twilioAccountSid, twilioAuthToken);
+if (twilioAccountSid && twilioAuthToken && twilioAccountSid.startsWith("AC")) {
+  try {
+    twilioClient = require('twilio')(twilioAccountSid, twilioAuthToken);
+  } catch (err) {
+    console.warn("Twilio client init failed:", err.message);
+  }
 }
 
 const sendSMS = async ({ to, message }) => {
