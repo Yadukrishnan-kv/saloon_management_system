@@ -510,6 +510,7 @@ const beauticianRegister = async (req, res) => {
       success: true,
       message: "Registration successful. Your account is pending admin verification.",
       beauticianId: beautician._id,
+      userId: user._id,
       referralCode: newReferralCode,
       requiresVerification: true,
       pccUploaded: !!pccDocument.documentUrl,

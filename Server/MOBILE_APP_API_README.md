@@ -237,19 +237,20 @@ Notes:
 
 ### 1) Customer Register
 - **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/auth/customer/register
-- **Description:** Register customer and trigger OTP verification via email. A unique referral code is generated for the new customer.
+- **Description:** Register customer and trigger OTP verification via SMS (or email if no phone provided). A unique referral code is generated for the new customer.
 - **Headers:** Content-Type: application/json
 - **Request Body:**
 ~~~json
 {
   "name": "Asha",
   "email": "asha@example.com",
+  "phoneNumber": "9876543210",
   "password": "Pass@123",
   "confirmPassword": "Pass@123",
   "referralCode": "SidiXY12"
 }
 ~~~
-- **Note:** Only email is required for OTP verification. OTP will be sent to the provided email address. `referralCode` is optional - use an existing customer's referral code to get reward points.
+- **Note:** OTP is sent via SMS if `phoneNumber` is provided, otherwise falls back to email. `referralCode` is optional - use an existing customer's referral code to get reward points. `phoneNumber` is optional - include to receive OTP via SMS.
 - **Response:**
 ~~~json
 {
@@ -279,17 +280,17 @@ or
 
 ### 2) Verify OTP
 - **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/auth/customer/verify-otp
-- **Description:** Verify OTP sent to email and return JWT token.
+- **Description:** Verify OTP sent via SMS or email. Works for both Customer and Beautician accounts. Returns JWT token.
 - **Headers:** Content-Type: application/json
 - **Request Body:**
 ~~~json
-
 {
   "userId": "6650...",
   "otp": "123456",
-  "type": "email"
+  "type": "phone"
 }
 ~~~
+- **Note:** `type` can be `"phone"` or `"email"` matching how the OTP was sent. Defaults to `"email"` if omitted.
 - **Response:**
 ~~~json
 {
@@ -2627,6 +2628,7 @@ documents: <file2.jpg>
   "success": true,
   "message": "Registration successful. Your account is pending admin verification.",
   "beauticianId": "6651...",
+  "userId": "6650...",
   "requiresVerification": true,
   "pccUploaded": false,
   "walletBalance": 1000
