@@ -47,7 +47,6 @@ const BeauticianVerification = () => {
     { key: "phoneNumber", label: "Phone" },
     { key: "skills", label: "Skills", render: (row) => row.skills?.join(", ") },
     { key: "experience", label: "Exp.", render: (row) => `${row.experience || 0} yrs` },
-    { key: "documents", label: "Docs", render: (row) => `${row.documents?.length || 0} files` },
     {
       key: "actions", label: "Actions",
       render: (row) => (
