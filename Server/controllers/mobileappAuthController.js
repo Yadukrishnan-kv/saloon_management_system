@@ -31,6 +31,13 @@ const customerRegister = async (req, res) => {
       return res.status(400).json({ success: false, message: "Email already in use" });
     }
 
+    if (phone) {
+      const phoneExists = await User.findOne({ phoneNumber: phone });
+      if (phoneExists) {
+        return res.status(400).json({ success: false, message: "Phone number already in use" });
+      }
+    }
+
     // Generate unique referral code for new user
     let newReferralCode;
     let isUnique = false;
@@ -317,6 +324,13 @@ const beauticianRegister = async (req, res) => {
     const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ success: false, message: "Email already in use" });
+    }
+
+    if (phoneNumber) {
+      const phoneExists = await User.findOne({ phoneNumber });
+      if (phoneExists) {
+        return res.status(400).json({ success: false, message: "Phone number already in use" });
+      }
     }
 
     // Generate unique referral code for new user

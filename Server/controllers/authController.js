@@ -124,6 +124,13 @@ const register = async (req, res) => {
       return res.status(400).json({ message: "Username or email already in use" });
     }
 
+    if (phoneNumber) {
+      const phoneExists = await User.findOne({ phoneNumber });
+      if (phoneExists) {
+        return res.status(400).json({ message: "Phone number already in use" });
+      }
+    }
+
     // Generate unique referral code for new user
     let newReferralCode;
     let isUnique = false;
