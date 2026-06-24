@@ -47,7 +47,5 @@ const availabilitySchema = new Schema(
   { timestamps: true }
 );
 
-availabilitySchema.index({ beautician: 1 });
-
 const Availability = model("Availability", availabilitySchema);
 module.exports = Availability;

@@ -107,7 +107,5 @@ const walletSchema = new Schema(
   { timestamps: true }
 );
 
-walletSchema.index({ user: 1 });
-
 const Wallet = model("Wallet", walletSchema);
 module.exports = Wallet;

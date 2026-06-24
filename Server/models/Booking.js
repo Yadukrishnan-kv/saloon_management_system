@@ -206,8 +206,6 @@ bookingSchema.index({ customer: 1, status: 1 });
 bookingSchema.index({ beautician: 1, status: 1 });
 bookingSchema.index({ bookingDate: 1 });
 bookingSchema.index({ status: 1 });
-bookingSchema.index({ jobId: 1 });
-
 // Auto-generate jobId before saving
 bookingSchema.pre("save", function (next) {
   if (!this.jobId) {
