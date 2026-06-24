@@ -73,6 +73,10 @@ const BeauticianList = () => {
     { key: "fullName", label: "Name" },
     { key: "phoneNumber", label: "Phone" },
     {
+      key: "email", label: "Email",
+      render: (row) => row.user?.email || "-",
+    },
+    {
       key: "skills", label: "Skills",
       render: (row) => <div className="skills-cell">{row.skills?.slice(0, 3).join(", ")}{row.skills?.length > 3 ? "..." : ""}</div>,
     },

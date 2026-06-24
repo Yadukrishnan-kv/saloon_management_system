@@ -150,13 +150,22 @@ const createBeautician = async (req, res) => {
 
 const updateBeautician = async (req, res) => {
   try {
-    const { fullName, phoneNumber, skills, experience, bio, qualifications, location, availability } = req.body;
+    const { fullName, phoneNumber, email, skills, experience, bio, qualifications, professionalTitle, location, availability } = req.body;
+
+    const updateData = { fullName, phoneNumber, skills, experience, bio, qualifications, professionalTitle, location, availability };
+    // Remove undefined fields so they don't overwrite with null
+    Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
 
     const beautician = await Beautician.findByIdAndUpdate(
       req.params.id,
-      { fullName, phoneNumber, skills, experience, bio, qualifications, location, availability },
+      updateData,
       { new: true, runValidators: true }
     ).populate("user", "username email");
+
+    // Update email on linked user if provided
+    if (email && beautician.user) {
+      await User.findByIdAndUpdate(beautician.user._id, { email });
+    }
 
     if (!beautician) return res.status(404).json({ message: "Beautician not found" });
 

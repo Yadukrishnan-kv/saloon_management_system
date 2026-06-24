@@ -2883,14 +2883,18 @@ documentType: certificate
 
 ### 2) Update Profile
 - **Endpoint:** PUT https://sidi.mobilegear.co.in/api/mobileapp/beautician/profile
+- **Description:** Update beautician profile. Supports all fields from registration.
 - **Headers:** Authorization: Bearer <token>; Content-Type: multipart/form-data or application/json
 - **Request Body (JSON):**
 ~~~json
 {
   "name": "Riya P",
+  "email": "riya@example.com",
+  "phoneNumber": "9123456789",
   "experience": 4,
   "skills": ["Facial", "Makeup"],
-  "bio": "Certified stylist",
+  "bio": "Certified stylist with 4 years experience",
+  "qualifications": "Diploma in Beauty Therapy",
   "professionalTitle": "Senior Hair Stylist",
   "location": {
     "address": "Infopark, Kochi",
@@ -2911,10 +2915,12 @@ documentType: certificate
     "_id": "...",
     "fullName": "Riya P",
     "phoneNumber": "9123456789",
+    "email": "riya@example.com",
     "professionalTitle": "Senior Hair Stylist",
     "skills": ["Facial", "Makeup"],
     "experience": 4,
-    "bio": "Certified stylist",
+    "bio": "Certified stylist with 4 years experience",
+    "qualifications": "Diploma in Beauty Therapy",
     "profileImage": "/uploads/riya.jpg",
     "tier": "Premium",
     "rating": 4.7,

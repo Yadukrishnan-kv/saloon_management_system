@@ -19,6 +19,7 @@ const AddBeautician = () => {
     password: "",
     fullName: "",
     phoneNumber: "",
+    professionalTitle: "",
     bio: "",
     qualifications: "",
     experience: 0,
@@ -73,9 +74,11 @@ const AddBeautician = () => {
       if (isEdit) {
         await axios.put(`${backendUrl}/api/beauticians/${beauticianId}`, {
           fullName: formData.fullName,
+          email: formData.email,
           phoneNumber: formData.phoneNumber,
           bio: formData.bio,
           qualifications: formData.qualifications,
+          professionalTitle: formData.professionalTitle,
           experience: formData.experience,
           skills: formData.skills,
           referralCode: formData.referralCode || undefined,
@@ -118,6 +121,7 @@ const AddBeautician = () => {
         password: "",
         fullName: data.fullName || "",
         phoneNumber: data.phoneNumber || "",
+        professionalTitle: data.professionalTitle || "",
         bio: data.bio || "",
         qualifications: data.qualifications || "",
         experience: data.experience || 0,
@@ -161,11 +165,22 @@ const AddBeautician = () => {
               </div>
             )}
 
+            {isEdit && (
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Email</label>
+                  <input name="email" type="email" value={formData.email} onChange={handleChange} />
+                </div>
+              </div>
+            )}
+
             {!isEdit && (
-              <div className="form-group">
-                <label>Password</label>
-                <input name="password" type="password" value={formData.password} onChange={handleChange} />
-                {errors.password && <p className="error-text">{errors.password}</p>}
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Password</label>
+                  <input name="password" type="password" value={formData.password} onChange={handleChange} />
+                  {errors.password && <p className="error-text">{errors.password}</p>}
+                </div>
               </div>
             )}
 
@@ -184,25 +199,24 @@ const AddBeautician = () => {
 
             <div className="form-row">
               <div className="form-group">
-                <label>Referral Code <span className="optional">(Optional)</span></label>
-                <input name="referralCode" value={formData.referralCode} onChange={handleChange} placeholder="e.g., SidiXY12" />
+                <label>Professional Title</label>
+                <input name="professionalTitle" value={formData.professionalTitle} onChange={handleChange} placeholder="e.g. Senior Hair Stylist" />
+              </div>
+              <div className="form-group">
+                <label>Experience (years)</label>
+                <input name="experience" type="number" value={formData.experience} onChange={handleChange} min="0" />
               </div>
             </div>
 
             <div className="form-row">
               <div className="form-group">
-                <label>Experience (years)</label>
-                <input name="experience" type="number" value={formData.experience} onChange={handleChange} min="0" />
-              </div>
-              <div className="form-group">
                 <label>Qualifications</label>
                 <input name="qualifications" value={formData.qualifications} onChange={handleChange} placeholder="e.g. CIDESCO, Diploma" />
               </div>
-            </div>
-
-            <div className="form-group">
-              <label>Bio</label>
-              <input name="bio" value={formData.bio} onChange={handleChange} placeholder="Brief description" />
+              <div className="form-group">
+                <label>Bio</label>
+                <input name="bio" value={formData.bio} onChange={handleChange} placeholder="Brief description" />
+              </div>
             </div>
 
             <div className="form-group">
@@ -261,6 +275,13 @@ const AddBeautician = () => {
             <div className="form-row">
               <div className="form-group"><label>State</label><input name="location.state" value={formData.location.state} onChange={handleChange} /></div>
               <div className="form-group"><label>Pincode</label><input name="location.pincode" value={formData.location.pincode} onChange={handleChange} /></div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Referral Code <span className="optional">(Optional)</span></label>
+                <input name="referralCode" value={formData.referralCode} onChange={handleChange} placeholder="e.g., SidiXY12" />
+              </div>
             </div>
 
             <div className="form-actions">

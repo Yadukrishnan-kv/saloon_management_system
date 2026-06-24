@@ -207,7 +207,7 @@ const getProfile = async (req, res) => {
 // ─── UPDATE BEAUTICIAN PROFILE ────────────────────────────────────────────────
 const updateProfile = async (req, res) => {
   try {
-    const { name, experience, skills, bio, profileImage, professionalTitle, location } = req.body;
+    const { name, email, phoneNumber, experience, skills, bio, qualifications, professionalTitle, profileImage, location } = req.body;
     const beautician = await Beautician.findOne({ user: req.user._id });
 
     if (!beautician) {
@@ -215,9 +215,11 @@ const updateProfile = async (req, res) => {
     }
 
     if (name) beautician.fullName = name;
+    if (phoneNumber) beautician.phoneNumber = phoneNumber;
     if (experience !== undefined) beautician.experience = experience;
     if (skills) beautician.skills = skills;
     if (bio) beautician.bio = bio;
+    if (qualifications) beautician.qualifications = qualifications;
     if (professionalTitle) beautician.professionalTitle = professionalTitle;
     if (location) {
       if (location.address) beautician.location.address = location.address;
@@ -235,9 +237,13 @@ const updateProfile = async (req, res) => {
 
     await beautician.save();
 
-    // Also update user name if changed
-    if (name) {
-      await User.findByIdAndUpdate(req.user._id, { username: name });
+    // Update user fields
+    const userUpdates = {};
+    if (name) userUpdates.username = name;
+    if (email) userUpdates.email = email;
+    if (phoneNumber) userUpdates.phoneNumber = phoneNumber;
+    if (Object.keys(userUpdates).length > 0) {
+      await User.findByIdAndUpdate(req.user._id, userUpdates);
     }
 
     res.json({
