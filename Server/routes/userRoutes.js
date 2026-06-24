@@ -5,6 +5,7 @@ const {
   getAllCustomers,
   getCustomerById,
   updateCustomer,
+  deleteCustomer,
   getUserById,
   createUser,
   updateUser,
@@ -27,6 +28,7 @@ router.get("/customers", protect, authorizePermission("Customer Management"), ge
 router.get("/customers/:id", protect, authorizePermission("Customer Management"), getCustomerById);
 router.put("/customers/:id", protect, authorizePermission("Customer Management"), updateCustomer);
 router.put("/customers/:id/status", protect, authorizePermission("Customer Management"), updateUserStatus);
+router.delete("/customers/:id", protect, authorizePermission("Customer Management"), deleteCustomer);
 router.get("/:id", protect, authorizePermission("User Management"), getUserById);
 router.post("/createUser", protect, authorizePermission("User Management"), createUser);
 router.put("/updateUser/:id", protect, authorizePermission("User Management"), updateUser);

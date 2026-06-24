@@ -126,6 +126,22 @@ const updateCustomer = async (req, res) => {
   }
 };
 
+const deleteCustomer = async (req, res) => {
+  try {
+    const customer = await User.findOne({ _id: req.params.id, role: "Customer" });
+    if (!customer) return res.status(404).json({ message: "Customer not found" });
+
+    const Wallet = require("../models/Wallet");
+    await Wallet.deleteOne({ user: customer._id });
+
+    await User.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "Customer deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password");
@@ -319,6 +335,7 @@ module.exports = {
   getAllCustomers,
   getCustomerById,
   updateCustomer,
+  deleteCustomer,
   getUserById,
   createUser,
   updateUser,

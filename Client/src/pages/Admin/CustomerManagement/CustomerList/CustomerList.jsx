@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { FiSearch, FiPlus, FiEdit2 } from "react-icons/fi";
+import { FiSearch, FiPlus, FiEdit2, FiTrash2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import Header from "../../../../components/layout/Header/Header";
@@ -41,6 +41,17 @@ const CustomerList = () => {
     fetchCustomers();
   }, [fetchCustomers]);
 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this customer?")) return;
+    try {
+      await axios.delete(`${backendUrl}/api/users/customers/${id}`);
+      toast.success("Customer deleted successfully");
+      fetchCustomers();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to delete customer");
+    }
+  };
+
   const handleStatusChange = async (id, action) => {
     try {
       await axios.put(`${backendUrl}/api/users/customers/${id}/status`, { action });
@@ -72,6 +83,9 @@ const CustomerList = () => {
         <div className="table-actions">
           <button className="action-btn edit" onClick={() => navigate(`/admin/customers/add?edit=${row._id}`)} title="Edit">
             <FiEdit2 />
+          </button>
+          <button className="action-btn danger" onClick={() => handleDelete(row._id)} title="Delete">
+            <FiTrash2 />
           </button>
           {row.isActive && !row.isSuspended && (
             <>
