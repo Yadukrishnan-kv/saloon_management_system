@@ -399,7 +399,7 @@ or
 
 ---
 
-### 5) Forgot Password
+### 5) Forgot Password (Common - Customer & Beautician)
 - **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/auth/forgot-password
 - **Headers:** Content-Type: application/json
 - **Request Body (email):**
@@ -440,14 +440,44 @@ or
 
 ---
 
-### 6) Reset Password
-- **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/auth/reset-password
+### 6) Verify Reset Password OTP (Common - Customer & Beautician)
+- **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/auth/verify-reset-otp
+- **Description:** Verify OTP received on email/phone. On success, returns a `resetToken` to be used in the Reset Password API.
 - **Headers:** Content-Type: application/json
 - **Request Body:**
 ~~~json
 {
   "userId": "6650...",
-  "otp": "123456",
+  "otp": "123456"
+}
+~~~
+- **Response:**
+~~~json
+{
+  "success": true,
+  "message": "OTP verified successfully",
+  "resetToken": "a1b2c3d4e5f6..."
+}
+~~~
+- **Error Response:**
+~~~json
+{
+  "success": false,
+  "message": "Invalid or expired OTP"
+}
+~~~
+
+---
+
+### 7) Reset Password (Common - Customer & Beautician)
+- **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/auth/reset-password
+- **Description:** Set new password using the `resetToken` obtained from Verify Reset Password OTP.
+- **Headers:** Content-Type: application/json
+- **Request Body:**
+~~~json
+{
+  "userId": "6650...",
+  "resetToken": "a1b2c3d4e5f6...",
   "newPassword": "NewPass@123",
   "confirmPassword": "NewPass@123"
 }
@@ -463,13 +493,13 @@ or
 ~~~json
 {
   "success": false,
-  "message": "Invalid or expired OTP"
+  "message": "Invalid or expired reset token. Please verify OTP again."
 }
 ~~~
 
 ---
 
-### 7) Logout
+### 8) Logout
 - **Endpoint:** POST https://sidi.mobilegear.co.in/api/mobileapp/auth/logout
 - **Headers:** Authorization: Bearer <token>
 - **Request Body:** N/A
@@ -2645,6 +2675,11 @@ documents: <file2.jpg>
 - **Note:** After registration, verify OTP using the same endpoints as customer:
   - `POST /api/mobileapp/auth/customer/verify-otp` with `{ userId, otp, type: "phone" }`
   - `POST /api/mobileapp/auth/customer/resend-otp` with `{ userId, type: "phone" }`
+
+- **Note:** Forgot/Reset password uses the same common endpoints as customer (see Customer Auth APIs above):
+  - `POST /api/mobileapp/auth/forgot-password`
+  - `POST /api/mobileapp/auth/verify-reset-otp`
+  - `POST /api/mobileapp/auth/reset-password`
 
 ---
 

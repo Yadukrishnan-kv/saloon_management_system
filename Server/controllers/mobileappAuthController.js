@@ -3,6 +3,7 @@ const Beautician = require("../models/Beautician");
 const OTP = require("../models/OTP");
 const Wallet = require("../models/Wallet");
 const ReferralSettings = require("../models/ReferralSettings");
+const crypto = require("crypto");
 const { generateOTP, getOTPExpiry } = require("../utils/otpGenerator");
 const { generateReferralCode } = require("../utils/referralCodeGenerator");
 const Referral = require("../models/Referral");
@@ -670,21 +671,13 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-// ─── RESET PASSWORD ────────────────────────────────────────────────────────────
-const resetPassword = async (req, res) => {
+// ─── VERIFY RESET PASSWORD OTP ────────────────────────────────────────────────
+const verifyResetPasswordOtp = async (req, res) => {
   try {
-    const { userId, otp, newPassword, confirmPassword } = req.body;
+    const { userId, otp } = req.body;
 
-    if (!userId || !otp || !newPassword || !confirmPassword) {
-      return res.status(400).json({ success: false, message: "userId, otp, newPassword, and confirmPassword are required" });
-    }
-
-    if (newPassword !== confirmPassword) {
-      return res.status(400).json({ success: false, message: "Passwords do not match" });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+    if (!userId || !otp) {
+      return res.status(400).json({ success: false, message: "userId and otp are required" });
     }
 
     const otpRecord = await OTP.findOne({
@@ -711,12 +704,54 @@ const resetPassword = async (req, res) => {
     otpRecord.isUsed = true;
     await otpRecord.save();
 
-    const user = await User.findById(userId).select("+password");
+    // Generate a reset token and store it on the user
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+    await User.findByIdAndUpdate(userId, {
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: Date.now() + 10 * 60 * 1000, // 10 minutes
+    });
+
+    res.json({ success: true, message: "OTP verified successfully", resetToken });
+  } catch (error) {
+    console.error("Verify reset OTP error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ─── RESET PASSWORD ────────────────────────────────────────────────────────────
+const resetPassword = async (req, res) => {
+  try {
+    const { userId, resetToken, newPassword, confirmPassword } = req.body;
+
+    if (!userId || !resetToken || !newPassword || !confirmPassword) {
+      return res.status(400).json({ success: false, message: "userId, resetToken, newPassword, and confirmPassword are required" });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ success: false, message: "Passwords do not match" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+    }
+
+    const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+    const user = await User.findOne({
+      _id: userId,
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    }).select("+password +resetPasswordToken +resetPasswordExpire");
+
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res.status(400).json({ success: false, message: "Invalid or expired reset token. Please verify OTP again." });
     }
 
     user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
     await user.save();
 
     res.json({ success: true, message: "Password reset successfully. Please login with your new password." });
@@ -745,6 +780,7 @@ module.exports = {
   customerLogin,
   resendOTP,
   forgotPassword,
+  verifyResetPasswordOtp,
   resetPassword,
   beauticianRegister,
   beauticianLogin,

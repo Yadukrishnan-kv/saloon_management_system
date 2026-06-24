@@ -6,6 +6,7 @@ const {
   customerLogin,
   resendOTP,
   forgotPassword,
+  verifyResetPasswordOtp,
   resetPassword,
   beauticianRegister,
   beauticianLogin,
@@ -23,6 +24,7 @@ router.post("/customer/resend-otp", resendOTP);
 
 // Forgot & Reset Password (common for customer & beautician)
 router.post("/forgot-password", forgotPassword);
+router.post("/verify-reset-otp", verifyResetPasswordOtp);
 router.post("/reset-password", resetPassword);
 
 // Beautician auth
