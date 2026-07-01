@@ -3,7 +3,7 @@ const getTopBeauticians = async (req, res) => {
   try {
     const minRating = Number(req.query.minRating) || 4;
     const limit = Number(req.query.limit) || 10;
-    const beauticians = await Beautician.find({ rating: { $gte: minRating } })
+    const beauticians = await Beautician.find({ rating: { $gte: minRating }, status: "Active", isVerified: true })
       .sort({ rating: -1, totalReviews: -1 })
       .limit(limit)
       .populate("user", "username email");
@@ -99,6 +99,10 @@ const getBeauticianById = async (req, res) => {
   try {
     const beautician = await Beautician.findById(req.params.id).populate("user", "username email");
     if (!beautician) return res.status(404).json({ message: "Beautician not found" });
+    const isAdmin = req.user && (req.user.role === "SuperAdmin" || req.user.role === "Admin");
+    if (!isAdmin && (beautician.status !== "Active" || !beautician.isVerified)) {
+      return res.status(404).json({ message: "Beautician not found" });
+    }
     const Service = require("../models/Service");
     const CuratedService = require("../models/CuratedService");
     const services = await Service.find({ beautician: beautician._id, isActive: true }).populate("category", "name");
@@ -229,20 +233,27 @@ const setBeauticianVerificationStatus = async (req, res) => {
     const beautician = await Beautician.findById(req.params.id);
     if (!beautician) return res.status(404).json({ message: "Beautician not found" });
 
-    beautician.verificationStatus = verificationStatus;
-    beautician.isVerified = verificationStatus === "Approved";
-    if (verificationStatus === "Approved") {
-      beautician.status = "Active";
-      beautician.pccDocument.verifiedAt = new Date();
-    } else {
-      beautician.status = "Inactive";
+    if (verificationStatus === "Rejected") {
+      const userId = beautician.user;
+      const beauticianId = beautician._id;
+      await Beautician.findByIdAndDelete(beauticianId);
+      if (userId) {
+        const Wallet = require("../models/Wallet");
+        await Wallet.findOneAndDelete({ user: userId });
+        await User.findByIdAndDelete(userId);
+      }
+      return res.json({ message: "Beautician rejected and removed from the system" });
     }
+
+    beautician.verificationStatus = verificationStatus;
+    beautician.isVerified = true;
+    beautician.status = "Active";
+    beautician.pccDocument.verifiedAt = new Date();
 
     await beautician.save();
 
     if (beautician.user) {
-      if (verificationStatus === "Approved") {
-        await User.findByIdAndUpdate(beautician.user, { isActive: true, isSuspended: false });
+      await User.findByIdAndUpdate(beautician.user, { isActive: true, isSuspended: false });
 
         // ─── INITIALIZE WALLET WITH ₹1000 ───────────────────────────────────
         const Wallet = require("../models/Wallet");
@@ -286,13 +297,10 @@ const setBeauticianVerificationStatus = async (req, res) => {
           type: "system",
           forAdmin: false,
         });
-      } else {
-        await User.findByIdAndUpdate(beautician.user, { isActive: false });
-      }
     }
 
     res.json({
-      message: `Beautician ${verificationStatus.toLowerCase()} successfully`,
+      message: "Beautician approved successfully",
       beautician,
     });
   } catch (error) {
@@ -505,7 +513,7 @@ const getBeauticiansWithSufficientBalance = async (req, res) => {
       requiredProducts[item._id.toString()] = (requiredProducts[item._id.toString()] || 0) + 1;
     }
     // Get all active beauticians
-    const beauticians = await Beautician.find({ status: "Active" })
+    const beauticians = await Beautician.find({ status: "Active", isVerified: true })
       .populate("user", "_id")
       .select("_id fullName phoneNumber profileImage rating user");
     // Filter beauticians by wallet AND cosmetics stock

@@ -77,6 +77,10 @@ const listBeauticianCuratedServices = async (req, res) => {
 const getBeauticianServicesAndCurated = async (req, res) => {
   try {
     const { beauticianId } = req.params;
+    const beautician = await Beautician.findById(beauticianId).select("status isVerified");
+    if (!beautician || beautician.status !== "Active" || !beautician.isVerified) {
+      return res.status(404).json({ success: false, message: "Beautician not found" });
+    }
     // Fetch regular services
     const services = await Service.find({ beautician: beauticianId, isActive: true })
       .populate("category", "name")
@@ -101,13 +105,10 @@ const getBeauticianServicesAndCurated = async (req, res) => {
 // ─── GET ALL BEAUTICIANS (PUBLIC) ───────────────────────────────────────────
 const getAllBeauticians = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search = "", status } = req.query;
-    const query = {};
+    const { page = 1, limit = 20, search = "" } = req.query;
+    const query = { status: "Active", isVerified: true };
     if (search) {
       query.fullName = { $regex: search, $options: "i" };
-    }
-    if (status) {
-      query.status = status;
     }
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const beauticians = await Beautician.find(query)
